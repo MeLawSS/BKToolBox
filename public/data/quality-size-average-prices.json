@@ -1,0 +1,914 @@
+{
+  "白": {
+    "1x1": {
+      "quality": "白",
+      "size": "1x1",
+      "width": 1,
+      "height": 1,
+      "cells": 1,
+      "count": 50,
+      "totalPrice": 8211,
+      "averagePrice": 164.22
+    },
+    "1x2": {
+      "quality": "白",
+      "size": "1x2",
+      "width": 1,
+      "height": 2,
+      "cells": 2,
+      "count": 8,
+      "totalPrice": 2091,
+      "averagePrice": 261.38
+    },
+    "2x1": {
+      "quality": "白",
+      "size": "2x1",
+      "width": 2,
+      "height": 1,
+      "cells": 2,
+      "count": 13,
+      "totalPrice": 4078,
+      "averagePrice": 313.69
+    },
+    "1x3": {
+      "quality": "白",
+      "size": "1x3",
+      "width": 1,
+      "height": 3,
+      "cells": 3,
+      "count": 2,
+      "totalPrice": 500,
+      "averagePrice": 250
+    },
+    "3x1": {
+      "quality": "白",
+      "size": "3x1",
+      "width": 3,
+      "height": 1,
+      "cells": 3,
+      "count": 3,
+      "totalPrice": 1177,
+      "averagePrice": 392.33
+    },
+    "1x4": {
+      "quality": "白",
+      "size": "1x4",
+      "width": 1,
+      "height": 4,
+      "cells": 4,
+      "count": 4,
+      "totalPrice": 1434,
+      "averagePrice": 358.5
+    },
+    "2x2": {
+      "quality": "白",
+      "size": "2x2",
+      "width": 2,
+      "height": 2,
+      "cells": 4,
+      "count": 16,
+      "totalPrice": 6961,
+      "averagePrice": 435.06
+    },
+    "2x3": {
+      "quality": "白",
+      "size": "2x3",
+      "width": 2,
+      "height": 3,
+      "cells": 6,
+      "count": 2,
+      "totalPrice": 823,
+      "averagePrice": 411.5
+    },
+    "4x2": {
+      "quality": "白",
+      "size": "4x2",
+      "width": 4,
+      "height": 2,
+      "cells": 8,
+      "count": 1,
+      "totalPrice": 609,
+      "averagePrice": 609
+    },
+    "3x3": {
+      "quality": "白",
+      "size": "3x3",
+      "width": 3,
+      "height": 3,
+      "cells": 9,
+      "count": 1,
+      "totalPrice": 902,
+      "averagePrice": 902
+    }
+  },
+  "绿": {
+    "1x1": {
+      "quality": "绿",
+      "size": "1x1",
+      "width": 1,
+      "height": 1,
+      "cells": 1,
+      "count": 32,
+      "totalPrice": 13813,
+      "averagePrice": 431.66
+    },
+    "1x2": {
+      "quality": "绿",
+      "size": "1x2",
+      "width": 1,
+      "height": 2,
+      "cells": 2,
+      "count": 12,
+      "totalPrice": 9089,
+      "averagePrice": 757.42
+    },
+    "2x1": {
+      "quality": "绿",
+      "size": "2x1",
+      "width": 2,
+      "height": 1,
+      "cells": 2,
+      "count": 9,
+      "totalPrice": 6801,
+      "averagePrice": 755.67
+    },
+    "1x3": {
+      "quality": "绿",
+      "size": "1x3",
+      "width": 1,
+      "height": 3,
+      "cells": 3,
+      "count": 2,
+      "totalPrice": 1807,
+      "averagePrice": 903.5
+    },
+    "3x1": {
+      "quality": "绿",
+      "size": "3x1",
+      "width": 3,
+      "height": 1,
+      "cells": 3,
+      "count": 2,
+      "totalPrice": 3416,
+      "averagePrice": 1708
+    },
+    "2x2": {
+      "quality": "绿",
+      "size": "2x2",
+      "width": 2,
+      "height": 2,
+      "cells": 4,
+      "count": 28,
+      "totalPrice": 30771,
+      "averagePrice": 1098.96
+    },
+    "1x5": {
+      "quality": "绿",
+      "size": "1x5",
+      "width": 1,
+      "height": 5,
+      "cells": 5,
+      "count": 1,
+      "totalPrice": 1452,
+      "averagePrice": 1452
+    },
+    "2x3": {
+      "quality": "绿",
+      "size": "2x3",
+      "width": 2,
+      "height": 3,
+      "cells": 6,
+      "count": 1,
+      "totalPrice": 1240,
+      "averagePrice": 1240
+    },
+    "3x2": {
+      "quality": "绿",
+      "size": "3x2",
+      "width": 3,
+      "height": 2,
+      "cells": 6,
+      "count": 2,
+      "totalPrice": 4431,
+      "averagePrice": 2215.5
+    },
+    "3x3": {
+      "quality": "绿",
+      "size": "3x3",
+      "width": 3,
+      "height": 3,
+      "cells": 9,
+      "count": 1,
+      "totalPrice": 1426,
+      "averagePrice": 1426
+    },
+    "4x3": {
+      "quality": "绿",
+      "size": "4x3",
+      "width": 4,
+      "height": 3,
+      "cells": 12,
+      "count": 1,
+      "totalPrice": 5129,
+      "averagePrice": 5129
+    }
+  },
+  "蓝": {
+    "1x1": {
+      "quality": "蓝",
+      "size": "1x1",
+      "width": 1,
+      "height": 1,
+      "cells": 1,
+      "count": 31,
+      "totalPrice": 43387,
+      "averagePrice": 1399.58
+    },
+    "1x2": {
+      "quality": "蓝",
+      "size": "1x2",
+      "width": 1,
+      "height": 2,
+      "cells": 2,
+      "count": 6,
+      "totalPrice": 10759,
+      "averagePrice": 1793.17
+    },
+    "2x1": {
+      "quality": "蓝",
+      "size": "2x1",
+      "width": 2,
+      "height": 1,
+      "cells": 2,
+      "count": 15,
+      "totalPrice": 42605,
+      "averagePrice": 2840.33
+    },
+    "1x3": {
+      "quality": "蓝",
+      "size": "1x3",
+      "width": 1,
+      "height": 3,
+      "cells": 3,
+      "count": 3,
+      "totalPrice": 10953,
+      "averagePrice": 3651
+    },
+    "3x1": {
+      "quality": "蓝",
+      "size": "3x1",
+      "width": 3,
+      "height": 1,
+      "cells": 3,
+      "count": 1,
+      "totalPrice": 3791,
+      "averagePrice": 3791
+    },
+    "2x2": {
+      "quality": "蓝",
+      "size": "2x2",
+      "width": 2,
+      "height": 2,
+      "cells": 4,
+      "count": 26,
+      "totalPrice": 94525,
+      "averagePrice": 3635.58
+    },
+    "4x1": {
+      "quality": "蓝",
+      "size": "4x1",
+      "width": 4,
+      "height": 1,
+      "cells": 4,
+      "count": 1,
+      "totalPrice": 3600,
+      "averagePrice": 3600
+    },
+    "5x1": {
+      "quality": "蓝",
+      "size": "5x1",
+      "width": 5,
+      "height": 1,
+      "cells": 5,
+      "count": 1,
+      "totalPrice": 4840,
+      "averagePrice": 4840
+    },
+    "2x3": {
+      "quality": "蓝",
+      "size": "2x3",
+      "width": 2,
+      "height": 3,
+      "cells": 6,
+      "count": 7,
+      "totalPrice": 31857,
+      "averagePrice": 4551
+    },
+    "3x2": {
+      "quality": "蓝",
+      "size": "3x2",
+      "width": 3,
+      "height": 2,
+      "cells": 6,
+      "count": 3,
+      "totalPrice": 12366,
+      "averagePrice": 4122
+    },
+    "2x4": {
+      "quality": "蓝",
+      "size": "2x4",
+      "width": 2,
+      "height": 4,
+      "cells": 8,
+      "count": 1,
+      "totalPrice": 3173,
+      "averagePrice": 3173
+    },
+    "3x3": {
+      "quality": "蓝",
+      "size": "3x3",
+      "width": 3,
+      "height": 3,
+      "cells": 9,
+      "count": 5,
+      "totalPrice": 27432,
+      "averagePrice": 5486.4
+    },
+    "5x3": {
+      "quality": "蓝",
+      "size": "5x3",
+      "width": 5,
+      "height": 3,
+      "cells": 15,
+      "count": 1,
+      "totalPrice": 14659,
+      "averagePrice": 14659
+    },
+    "4x4": {
+      "quality": "蓝",
+      "size": "4x4",
+      "width": 4,
+      "height": 4,
+      "cells": 16,
+      "count": 1,
+      "totalPrice": 9168,
+      "averagePrice": 9168
+    },
+    "5x4": {
+      "quality": "蓝",
+      "size": "5x4",
+      "width": 5,
+      "height": 4,
+      "cells": 20,
+      "count": 1,
+      "totalPrice": 8880,
+      "averagePrice": 8880
+    }
+  },
+  "紫": {
+    "1x1": {
+      "quality": "紫",
+      "size": "1x1",
+      "width": 1,
+      "height": 1,
+      "cells": 1,
+      "count": 20,
+      "totalPrice": 82972,
+      "averagePrice": 4148.6
+    },
+    "1x2": {
+      "quality": "紫",
+      "size": "1x2",
+      "width": 1,
+      "height": 2,
+      "cells": 2,
+      "count": 14,
+      "totalPrice": 74609,
+      "averagePrice": 5329.21
+    },
+    "2x1": {
+      "quality": "紫",
+      "size": "2x1",
+      "width": 2,
+      "height": 1,
+      "cells": 2,
+      "count": 2,
+      "totalPrice": 13128,
+      "averagePrice": 6564
+    },
+    "1x3": {
+      "quality": "紫",
+      "size": "1x3",
+      "width": 1,
+      "height": 3,
+      "cells": 3,
+      "count": 1,
+      "totalPrice": 6554,
+      "averagePrice": 6554
+    },
+    "3x1": {
+      "quality": "紫",
+      "size": "3x1",
+      "width": 3,
+      "height": 1,
+      "cells": 3,
+      "count": 1,
+      "totalPrice": 9115,
+      "averagePrice": 9115
+    },
+    "1x4": {
+      "quality": "紫",
+      "size": "1x4",
+      "width": 1,
+      "height": 4,
+      "cells": 4,
+      "count": 1,
+      "totalPrice": 10920,
+      "averagePrice": 10920
+    },
+    "2x2": {
+      "quality": "紫",
+      "size": "2x2",
+      "width": 2,
+      "height": 2,
+      "cells": 4,
+      "count": 38,
+      "totalPrice": 405889,
+      "averagePrice": 10681.29
+    },
+    "4x1": {
+      "quality": "紫",
+      "size": "4x1",
+      "width": 4,
+      "height": 1,
+      "cells": 4,
+      "count": 3,
+      "totalPrice": 23828,
+      "averagePrice": 7942.67
+    },
+    "5x1": {
+      "quality": "紫",
+      "size": "5x1",
+      "width": 5,
+      "height": 1,
+      "cells": 5,
+      "count": 1,
+      "totalPrice": 16310,
+      "averagePrice": 16310
+    },
+    "2x3": {
+      "quality": "紫",
+      "size": "2x3",
+      "width": 2,
+      "height": 3,
+      "cells": 6,
+      "count": 9,
+      "totalPrice": 120584,
+      "averagePrice": 13398.22
+    },
+    "3x2": {
+      "quality": "紫",
+      "size": "3x2",
+      "width": 3,
+      "height": 2,
+      "cells": 6,
+      "count": 3,
+      "totalPrice": 36740,
+      "averagePrice": 12246.67
+    },
+    "2x4": {
+      "quality": "紫",
+      "size": "2x4",
+      "width": 2,
+      "height": 4,
+      "cells": 8,
+      "count": 1,
+      "totalPrice": 13251,
+      "averagePrice": 13251
+    },
+    "4x2": {
+      "quality": "紫",
+      "size": "4x2",
+      "width": 4,
+      "height": 2,
+      "cells": 8,
+      "count": 2,
+      "totalPrice": 24336,
+      "averagePrice": 12168
+    },
+    "3x3": {
+      "quality": "紫",
+      "size": "3x3",
+      "width": 3,
+      "height": 3,
+      "cells": 9,
+      "count": 5,
+      "totalPrice": 87757,
+      "averagePrice": 17551.4
+    },
+    "5x2": {
+      "quality": "紫",
+      "size": "5x2",
+      "width": 5,
+      "height": 2,
+      "cells": 10,
+      "count": 1,
+      "totalPrice": 31688,
+      "averagePrice": 31688
+    },
+    "3x4": {
+      "quality": "紫",
+      "size": "3x4",
+      "width": 3,
+      "height": 4,
+      "cells": 12,
+      "count": 1,
+      "totalPrice": 20082,
+      "averagePrice": 20082
+    }
+  },
+  "金": {
+    "1x1": {
+      "quality": "金",
+      "size": "1x1",
+      "width": 1,
+      "height": 1,
+      "cells": 1,
+      "count": 22,
+      "totalPrice": 409001,
+      "averagePrice": 18590.95
+    },
+    "1x2": {
+      "quality": "金",
+      "size": "1x2",
+      "width": 1,
+      "height": 2,
+      "cells": 2,
+      "count": 5,
+      "totalPrice": 143950,
+      "averagePrice": 28790
+    },
+    "2x1": {
+      "quality": "金",
+      "size": "2x1",
+      "width": 2,
+      "height": 1,
+      "cells": 2,
+      "count": 4,
+      "totalPrice": 109339,
+      "averagePrice": 27334.75
+    },
+    "1x3": {
+      "quality": "金",
+      "size": "1x3",
+      "width": 1,
+      "height": 3,
+      "cells": 3,
+      "count": 4,
+      "totalPrice": 174123,
+      "averagePrice": 43530.75
+    },
+    "3x1": {
+      "quality": "金",
+      "size": "3x1",
+      "width": 3,
+      "height": 1,
+      "cells": 3,
+      "count": 1,
+      "totalPrice": 65610,
+      "averagePrice": 65610
+    },
+    "1x4": {
+      "quality": "金",
+      "size": "1x4",
+      "width": 1,
+      "height": 4,
+      "cells": 4,
+      "count": 2,
+      "totalPrice": 81204,
+      "averagePrice": 40602
+    },
+    "2x2": {
+      "quality": "金",
+      "size": "2x2",
+      "width": 2,
+      "height": 2,
+      "cells": 4,
+      "count": 21,
+      "totalPrice": 784667,
+      "averagePrice": 37365.1
+    },
+    "2x3": {
+      "quality": "金",
+      "size": "2x3",
+      "width": 2,
+      "height": 3,
+      "cells": 6,
+      "count": 8,
+      "totalPrice": 398061,
+      "averagePrice": 49757.63
+    },
+    "3x2": {
+      "quality": "金",
+      "size": "3x2",
+      "width": 3,
+      "height": 2,
+      "cells": 6,
+      "count": 5,
+      "totalPrice": 259701,
+      "averagePrice": 51940.2
+    },
+    "6x1": {
+      "quality": "金",
+      "size": "6x1",
+      "width": 6,
+      "height": 1,
+      "cells": 6,
+      "count": 2,
+      "totalPrice": 116336,
+      "averagePrice": 58168
+    },
+    "2x4": {
+      "quality": "金",
+      "size": "2x4",
+      "width": 2,
+      "height": 4,
+      "cells": 8,
+      "count": 3,
+      "totalPrice": 198319,
+      "averagePrice": 66106.33
+    },
+    "4x2": {
+      "quality": "金",
+      "size": "4x2",
+      "width": 4,
+      "height": 2,
+      "cells": 8,
+      "count": 2,
+      "totalPrice": 129452,
+      "averagePrice": 64726
+    },
+    "3x3": {
+      "quality": "金",
+      "size": "3x3",
+      "width": 3,
+      "height": 3,
+      "cells": 9,
+      "count": 12,
+      "totalPrice": 861483,
+      "averagePrice": 71790.25
+    },
+    "2x5": {
+      "quality": "金",
+      "size": "2x5",
+      "width": 2,
+      "height": 5,
+      "cells": 10,
+      "count": 1,
+      "totalPrice": 89461,
+      "averagePrice": 89461
+    },
+    "5x2": {
+      "quality": "金",
+      "size": "5x2",
+      "width": 5,
+      "height": 2,
+      "cells": 10,
+      "count": 1,
+      "totalPrice": 67600,
+      "averagePrice": 67600
+    },
+    "3x4": {
+      "quality": "金",
+      "size": "3x4",
+      "width": 3,
+      "height": 4,
+      "cells": 12,
+      "count": 3,
+      "totalPrice": 246675,
+      "averagePrice": 82225
+    },
+    "4x3": {
+      "quality": "金",
+      "size": "4x3",
+      "width": 4,
+      "height": 3,
+      "cells": 12,
+      "count": 1,
+      "totalPrice": 93753,
+      "averagePrice": 93753
+    },
+    "3x5": {
+      "quality": "金",
+      "size": "3x5",
+      "width": 3,
+      "height": 5,
+      "cells": 15,
+      "count": 1,
+      "totalPrice": 97382,
+      "averagePrice": 97382
+    },
+    "4x4": {
+      "quality": "金",
+      "size": "4x4",
+      "width": 4,
+      "height": 4,
+      "cells": 16,
+      "count": 1,
+      "totalPrice": 199900,
+      "averagePrice": 199900
+    },
+    "6x3": {
+      "quality": "金",
+      "size": "6x3",
+      "width": 6,
+      "height": 3,
+      "cells": 18,
+      "count": 1,
+      "totalPrice": 106500,
+      "averagePrice": 106500
+    }
+  },
+  "红": {
+    "1x1": {
+      "quality": "红",
+      "size": "1x1",
+      "width": 1,
+      "height": 1,
+      "cells": 1,
+      "count": 23,
+      "totalPrice": 20491582,
+      "averagePrice": 890938.35
+    },
+    "1x2": {
+      "quality": "红",
+      "size": "1x2",
+      "width": 1,
+      "height": 2,
+      "cells": 2,
+      "count": 8,
+      "totalPrice": 4519820,
+      "averagePrice": 564977.5
+    },
+    "2x1": {
+      "quality": "红",
+      "size": "2x1",
+      "width": 2,
+      "height": 1,
+      "cells": 2,
+      "count": 4,
+      "totalPrice": 957814,
+      "averagePrice": 239453.5
+    },
+    "1x3": {
+      "quality": "红",
+      "size": "1x3",
+      "width": 1,
+      "height": 3,
+      "cells": 3,
+      "count": 1,
+      "totalPrice": 255840,
+      "averagePrice": 255840
+    },
+    "3x1": {
+      "quality": "红",
+      "size": "3x1",
+      "width": 3,
+      "height": 1,
+      "cells": 3,
+      "count": 2,
+      "totalPrice": 1379766,
+      "averagePrice": 689883
+    },
+    "1x4": {
+      "quality": "红",
+      "size": "1x4",
+      "width": 1,
+      "height": 4,
+      "cells": 4,
+      "count": 1,
+      "totalPrice": 141300,
+      "averagePrice": 141300
+    },
+    "2x2": {
+      "quality": "红",
+      "size": "2x2",
+      "width": 2,
+      "height": 2,
+      "cells": 4,
+      "count": 22,
+      "totalPrice": 16058199,
+      "averagePrice": 729918.14
+    },
+    "2x3": {
+      "quality": "红",
+      "size": "2x3",
+      "width": 2,
+      "height": 3,
+      "cells": 6,
+      "count": 4,
+      "totalPrice": 1049245,
+      "averagePrice": 262311.25
+    },
+    "3x2": {
+      "quality": "红",
+      "size": "3x2",
+      "width": 3,
+      "height": 2,
+      "cells": 6,
+      "count": 4,
+      "totalPrice": 875875,
+      "averagePrice": 218968.75
+    },
+    "6x1": {
+      "quality": "红",
+      "size": "6x1",
+      "width": 6,
+      "height": 1,
+      "cells": 6,
+      "count": 1,
+      "totalPrice": 240660,
+      "averagePrice": 240660
+    },
+    "4x2": {
+      "quality": "红",
+      "size": "4x2",
+      "width": 4,
+      "height": 2,
+      "cells": 8,
+      "count": 2,
+      "totalPrice": 703602,
+      "averagePrice": 351801
+    },
+    "3x3": {
+      "quality": "红",
+      "size": "3x3",
+      "width": 3,
+      "height": 3,
+      "cells": 9,
+      "count": 6,
+      "totalPrice": 2908260,
+      "averagePrice": 484710
+    },
+    "2x5": {
+      "quality": "红",
+      "size": "2x5",
+      "width": 2,
+      "height": 5,
+      "cells": 10,
+      "count": 1,
+      "totalPrice": 287280,
+      "averagePrice": 287280
+    },
+    "3x4": {
+      "quality": "红",
+      "size": "3x4",
+      "width": 3,
+      "height": 4,
+      "cells": 12,
+      "count": 2,
+      "totalPrice": 1308920,
+      "averagePrice": 654460
+    },
+    "4x3": {
+      "quality": "红",
+      "size": "4x3",
+      "width": 4,
+      "height": 3,
+      "cells": 12,
+      "count": 1,
+      "totalPrice": 357040,
+      "averagePrice": 357040
+    },
+    "3x5": {
+      "quality": "红",
+      "size": "3x5",
+      "width": 3,
+      "height": 5,
+      "cells": 15,
+      "count": 3,
+      "totalPrice": 2221500,
+      "averagePrice": 740500
+    },
+    "5x3": {
+      "quality": "红",
+      "size": "5x3",
+      "width": 5,
+      "height": 3,
+      "cells": 15,
+      "count": 2,
+      "totalPrice": 746200,
+      "averagePrice": 373100
+    },
+    "4x4": {
+      "quality": "红",
+      "size": "4x4",
+      "width": 4,
+      "height": 4,
+      "cells": 16,
+      "count": 3,
+      "totalPrice": 1649000,
+      "averagePrice": 549666.67
+    }
+  }
+}

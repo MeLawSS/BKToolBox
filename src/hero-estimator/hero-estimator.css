@@ -1,0 +1,730 @@
+.hero-estimator-panel {
+  width: 100%;
+}
+
+.hero-estimator-panel .page {
+  width: min(1680px, calc(100vw - 28px));
+  margin: 0 auto;
+  padding: 22px 0 32px;
+}
+
+.hero-estimator-panel .heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.hero-estimator-panel .mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(57, 168, 149, 0.42);
+  border-radius: 8px;
+  background: rgba(47, 143, 131, 0.13);
+  color: var(--primary-strong);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.hero-estimator-panel h1 {
+  color: var(--text);
+  font-size: 22px;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.hero-estimator-panel .heading p {
+  margin-top: 5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.hero-estimator-panel .tool {
+  display: grid;
+  grid-template-columns: minmax(420px, 520px) minmax(760px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.hero-estimator-panel .inputs,
+.hero-estimator-panel .results {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.hero-estimator-panel .inputs {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.hero-estimator-panel .group-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 2px 0;
+}
+
+.hero-estimator-panel .group-title strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.hero-estimator-panel .group-title span {
+  color: var(--faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.hero-estimator-panel .field,
+.hero-estimator-panel .quality-field {
+  display: grid;
+  gap: 6px;
+}
+
+.hero-estimator-panel .field span,
+.hero-estimator-panel .quality-field span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.hero-estimator-panel .input-help-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 6px;
+}
+
+.hero-estimator-panel .field-pair,
+.hero-estimator-panel .quality-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.hero-estimator-panel .quality-inputs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.hero-estimator-panel input,
+.hero-estimator-panel select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--input-bg);
+  color: var(--text);
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.hero-estimator-panel input::placeholder {
+  color: var(--placeholder, var(--faint));
+}
+
+.hero-estimator-panel input:focus,
+.hero-estimator-panel select:focus {
+  border-color: var(--primary-strong);
+  box-shadow: 0 0 0 3px rgba(57, 168, 149, 0.16);
+  outline: none;
+}
+
+.hero-estimator-panel .help-tip {
+  position: relative;
+  display: inline-flex;
+  justify-content: flex-end;
+}
+
+.hero-estimator-panel .help-button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: help;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+}
+
+.hero-estimator-panel .help-button:hover,
+.hero-estimator-panel .help-button:focus-visible {
+  border-color: var(--primary-strong);
+  background: rgba(47, 143, 131, 0.18);
+  color: var(--text);
+  outline: none;
+}
+
+.hero-estimator-panel .help-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 10;
+  width: min(320px, calc(100vw - 36px));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.55;
+  opacity: 0;
+  pointer-events: none;
+  padding: 10px 12px;
+  transform: translateY(4px);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  box-shadow: var(--shadow);
+}
+
+.hero-estimator-panel .help-tip:hover .help-popover,
+.hero-estimator-panel .help-tip:focus-within .help-popover {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hero-estimator-panel .quality-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.hero-estimator-panel .quality-block {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 12px;
+}
+
+.hero-estimator-panel .quality-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.hero-estimator-panel .quality-head strong {
+  font-size: 14px;
+}
+
+.hero-estimator-panel .quality-head span {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.hero-estimator-panel .actions {
+  display: flex;
+  gap: 10px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 14px;
+}
+
+.hero-estimator-panel .actions button {
+  min-height: 36px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 18px;
+}
+
+.hero-estimator-panel .actions button:hover {
+  background: var(--primary-strong);
+}
+
+.hero-estimator-panel .actions button:disabled {
+  background: var(--surface-3);
+  color: var(--faint);
+  cursor: default;
+}
+
+.hero-estimator-panel #clear-button {
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.hero-estimator-panel #clear-button:hover {
+  border-color: var(--primary-strong);
+}
+
+.hero-estimator-panel .results {
+  overflow: hidden;
+}
+
+.hero-estimator-panel .results-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--panel-tint, var(--surface-2));
+}
+
+.hero-estimator-panel .results-head h2 {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.hero-estimator-panel .results-head p {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.hero-estimator-panel .summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.hero-estimator-panel .summary-card {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-2);
+  padding: 12px;
+}
+
+.hero-estimator-panel .summary-card span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hero-estimator-panel .summary-card strong {
+  font-size: 20px;
+  color: var(--text);
+}
+
+.hero-estimator-panel .table-wrap {
+  overflow-x: auto;
+}
+
+.hero-estimator-panel table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+}
+
+.hero-estimator-panel th,
+.hero-estimator-panel td {
+  border-bottom: 1px solid var(--line-soft);
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.hero-estimator-panel th {
+  background: var(--table-header, var(--surface-2));
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hero-estimator-panel tbody tr:nth-child(even) {
+  background: var(--table-even, transparent);
+}
+
+.hero-estimator-panel td {
+  color: var(--text);
+}
+
+.hero-estimator-panel .empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 28px 12px;
+}
+
+.hero-estimator-panel .price-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-estimator-panel .result-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  margin-left: 6px;
+  border: 1px solid rgba(57, 168, 149, 0.55);
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: rgba(47, 143, 131, 0.16);
+  color: var(--primary-strong);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.hero-estimator-panel .status-ok {
+  color: var(--primary-strong);
+}
+
+.hero-estimator-panel .status-warn {
+  color: var(--accent);
+}
+
+.hero-estimator-panel .status-error {
+  color: var(--danger);
+}
+
+.hero-estimator-panel .status-over {
+  color: #7b9fd4;
+}
+
+.hero-estimator-panel .live-monitor-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 14px 16px 16px;
+}
+
+.hero-estimator-panel .live-monitor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid var(--line-soft);
+  padding-bottom: 12px;
+}
+
+.hero-estimator-panel .live-monitor-head h2 {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.hero-estimator-panel .live-monitor-head p,
+.hero-estimator-panel .live-monitor-meta {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.hero-estimator-panel .live-monitor-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+.hero-estimator-panel .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--faint);
+}
+
+.hero-estimator-panel .status-dot.live {
+  background: var(--primary-strong);
+  box-shadow: 0 0 0 4px rgba(57, 168, 149, 0.14);
+}
+
+.hero-estimator-panel .live-monitor-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.hero-estimator-panel .live-monitor-meta strong {
+  color: var(--text);
+  margin-right: 6px;
+}
+
+.hero-estimator-panel .monitor-game-id {
+  color: var(--faint);
+}
+
+.hero-estimator-panel .monitor-minimum {
+  border: 1px solid rgba(57, 168, 149, 0.42);
+  border-radius: 7px;
+  background: rgba(47, 143, 131, 0.16);
+  padding: 4px 8px;
+}
+
+.hero-estimator-panel .monitor-minimum span {
+  margin-left: 8px;
+}
+
+.hero-estimator-panel .monitor-error,
+.hero-estimator-panel .monitor-warnings {
+  color: var(--danger);
+}
+
+.hero-estimator-panel .monitor-warnings {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  list-style: none;
+  font-size: 12px;
+}
+
+.hero-estimator-panel .monitor-board-wrap {
+  overflow: auto;
+}
+
+.hero-estimator-panel .monitor-board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(10, 64px);
+  grid-template-rows: repeat(43, 64px);
+  width: max-content;
+  min-width: 560px;
+  border-top: 1px solid var(--line-soft);
+  border-left: 1px solid var(--line-soft);
+  background: var(--surface-2);
+}
+
+.hero-estimator-panel .monitor-board-cell {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-right: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--faint);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.hero-estimator-panel .monitor-board-cell.is-revealed {
+  background: rgba(201, 144, 61, 0.10);
+  color: var(--text);
+}
+
+.hero-estimator-panel .monitor-outline {
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  border: 2px solid #7c8991;
+  background: rgba(124, 137, 145, 0.18);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  pointer-events: auto;
+}
+
+.hero-estimator-panel .monitor-outline.quality-white {
+  border-color: #7c8991;
+  background: rgba(124, 137, 145, 0.18);
+}
+
+.hero-estimator-panel .monitor-outline.quality-unknown {
+  border-color: #f4f8fb;
+  background: rgba(244, 248, 251, 0.16);
+}
+
+.hero-estimator-panel .monitor-outline.quality-green {
+  border-color: #4fa766;
+  background: rgba(79, 167, 102, 0.20);
+}
+
+.hero-estimator-panel .monitor-outline.quality-blue {
+  border-color: #4d8fd9;
+  background: rgba(77, 143, 217, 0.22);
+}
+
+.hero-estimator-panel .monitor-outline.quality-purple {
+  border-color: #9a72dc;
+  background: rgba(154, 114, 220, 0.24);
+}
+
+.hero-estimator-panel .monitor-outline.quality-gold {
+  border-color: var(--accent);
+  background: rgba(201, 144, 61, 0.22);
+}
+
+.hero-estimator-panel .monitor-outline.quality-red {
+  border-color: #d35c5c;
+  background: rgba(211, 92, 92, 0.22);
+}
+
+.hero-estimator-panel .monitor-outline.quality-conflict {
+  border-color: var(--danger);
+  background: rgba(207, 95, 90, 0.18);
+}
+
+.hero-estimator-panel .monitor-outline span {
+  max-width: calc(100% - 4px);
+  overflow: hidden;
+  border-radius: 5px;
+  padding: 1px 4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hero-estimator-panel .monitor-outline-detail-backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.48);
+  padding: 20px;
+}
+
+.hero-estimator-panel .monitor-outline-detail {
+  display: grid;
+  gap: 16px;
+  width: min(820px, 100%);
+  max-height: min(720px, calc(100vh - 40px));
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.hero-estimator-panel .monitor-outline-detail header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.hero-estimator-panel .monitor-outline-detail h2 {
+  font-size: 18px;
+}
+
+.hero-estimator-panel .monitor-outline-detail header p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hero-estimator-panel .detail-close {
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 6px 10px;
+}
+
+.hero-estimator-panel .outline-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.hero-estimator-panel .outline-stat-grid div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  background: var(--surface-2);
+  padding: 10px;
+}
+
+.hero-estimator-panel .outline-stat-grid span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hero-estimator-panel .outline-stat-grid strong {
+  font-size: 16px;
+}
+
+.hero-estimator-panel .outline-detail-empty {
+  color: var(--muted);
+}
+
+.hero-estimator-panel .outline-candidate-wrap {
+  overflow: auto;
+}
+
+.hero-estimator-panel .outline-candidate-table {
+  width: 100%;
+}
+
+.hero-estimator-panel .outline-candidate-table th,
+.hero-estimator-panel .outline-candidate-table td {
+  white-space: nowrap;
+}
+
+.hero-estimator-panel.is-embedded .page {
+  width: 100%;
+  padding: 0;
+}
+
+.hero-estimator-panel.is-embedded .heading {
+  margin-bottom: 20px;
+}
+
+.hero-estimator-panel.is-embedded .tool,
+.hero-estimator-panel.is-embedded .live-monitor-panel {
+  margin-left: 0;
+  margin-right: 0;
+  box-shadow: none;
+}
+
+.hero-estimator-panel.is-embedded .monitor-outline-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  padding: 24px;
+  z-index: 30;
+}
+
+@media (max-width: 1196px) {
+  .hero-estimator-panel .tool {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .hero-estimator-panel .page {
+    width: min(100vw - 16px, 100%);
+    padding-top: 14px;
+  }
+
+  .hero-estimator-panel .heading {
+    align-items: flex-start;
+  }
+
+  .hero-estimator-panel .field-pair,
+  .hero-estimator-panel .quality-inputs,
+  .hero-estimator-panel .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-estimator-panel .live-monitor-head {
+    display: grid;
+  }
+
+  .hero-estimator-panel .monitor-board {
+    grid-template-columns: repeat(10, 56px);
+    grid-template-rows: repeat(43, 56px);
+  }
+
+  .hero-estimator-panel .monitor-board-cell {
+    width: 56px;
+    height: 56px;
+    font-size: 9px;
+  }
+}

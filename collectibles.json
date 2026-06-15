@@ -1,0 +1,7698 @@
+[
+  {
+    "itemCid": 1011001,
+    "name": "数据线",
+    "quality": "白",
+    "type": "家居日用",
+    "price": 160,
+    "image": "/assets/bidking/icons/icon_1011001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1011002,
+    "name": "马克杯",
+    "quality": "白",
+    "type": "家居日用",
+    "price": 198,
+    "image": "/assets/bidking/icons/icon_1011002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1011003,
+    "name": "0.38MM中性笔",
+    "quality": "白",
+    "type": "家居日用",
+    "price": 179,
+    "image": "/assets/bidking/icons/icon_1011003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1011004,
+    "name": "晾衣杆",
+    "quality": "白",
+    "type": "家居日用",
+    "price": 602,
+    "image": "/assets/bidking/icons/icon_1011004.png",
+    "size": {
+      "width": 3,
+      "height": 1,
+      "key": "3x1"
+    }
+  },
+  {
+    "itemCid": 1011005,
+    "name": "插座",
+    "quality": "白",
+    "type": "家居日用",
+    "price": 200,
+    "image": "/assets/bidking/icons/icon_1011005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1011006,
+    "name": "快递单",
+    "quality": "白",
+    "type": "家居日用",
+    "price": 209,
+    "image": "/assets/bidking/icons/icon_1011006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1011007,
+    "name": "电子体重秤",
+    "quality": "白",
+    "type": "家居日用",
+    "price": 470,
+    "image": "/assets/bidking/icons/icon_1011007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1011008,
+    "name": "披萨盒",
+    "quality": "白",
+    "type": "家居日用",
+    "price": 599,
+    "image": "/assets/bidking/icons/icon_1011008.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1011009,
+    "name": "园林修理剪",
+    "quality": "白",
+    "type": "家居日用",
+    "price": 305,
+    "image": "/assets/bidking/icons/icon_1011009.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1011010,
+    "name": "废旧纸箱",
+    "quality": "白",
+    "type": "家居日用",
+    "price": 885,
+    "image": "/assets/bidking/icons/icon_1011010.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1012001,
+    "name": "电子手表",
+    "quality": "绿",
+    "type": "家居日用",
+    "price": 445,
+    "image": "/assets/bidking/icons/icon_1012001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1012002,
+    "name": "抱枕",
+    "quality": "绿",
+    "type": "家居日用",
+    "price": 1258,
+    "image": "/assets/bidking/icons/icon_1012002.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1012003,
+    "name": "HDIM高清线",
+    "quality": "绿",
+    "type": "家居日用",
+    "price": 755,
+    "image": "/assets/bidking/icons/icon_1012003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1012004,
+    "name": "篮球",
+    "quality": "绿",
+    "type": "家居日用",
+    "price": 1481,
+    "image": "/assets/bidking/icons/icon_1012004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1012005,
+    "name": "足球",
+    "quality": "绿",
+    "type": "家居日用",
+    "price": 1480,
+    "image": "/assets/bidking/icons/icon_1012005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1012006,
+    "name": "羽毛球拍",
+    "quality": "绿",
+    "type": "家居日用",
+    "price": 1776,
+    "image": "/assets/bidking/icons/icon_1012006.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1012007,
+    "name": "折叠床",
+    "quality": "绿",
+    "type": "家居日用",
+    "price": 2415,
+    "image": "/assets/bidking/icons/icon_1012007.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1012008,
+    "name": "电水壶",
+    "quality": "绿",
+    "type": "家居日用",
+    "price": 1106,
+    "image": "/assets/bidking/icons/icon_1012008.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1012009,
+    "name": "遥控器",
+    "quality": "绿",
+    "type": "家居日用",
+    "price": 619,
+    "image": "/assets/bidking/icons/icon_1012009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1012010,
+    "name": "饮水机",
+    "quality": "绿",
+    "type": "家居日用",
+    "price": 1045,
+    "image": "/assets/bidking/icons/icon_1012010.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1013001,
+    "name": "烧烤架",
+    "quality": "蓝",
+    "type": "家居日用",
+    "price": 3855,
+    "image": "/assets/bidking/icons/icon_1013001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1013002,
+    "name": "电动牙刷",
+    "quality": "蓝",
+    "type": "家居日用",
+    "price": 1461,
+    "image": "/assets/bidking/icons/icon_1013002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1013003,
+    "name": "筋膜枪",
+    "quality": "蓝",
+    "type": "家居日用",
+    "price": 2045,
+    "image": "/assets/bidking/icons/icon_1013003.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1013004,
+    "name": "电动剃须刀",
+    "quality": "蓝",
+    "type": "家居日用",
+    "price": 1767,
+    "image": "/assets/bidking/icons/icon_1013004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1013005,
+    "name": "便携式手提箱",
+    "quality": "蓝",
+    "type": "家居日用",
+    "price": 3551,
+    "image": "/assets/bidking/icons/icon_1013005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1013006,
+    "name": "等身抱枕",
+    "quality": "蓝",
+    "type": "家居日用",
+    "price": 3870,
+    "image": "/assets/bidking/icons/icon_1013006.png",
+    "size": {
+      "width": 1,
+      "height": 3,
+      "key": "1x3"
+    }
+  },
+  {
+    "itemCid": 1013007,
+    "name": "BB机",
+    "quality": "蓝",
+    "type": "家居日用",
+    "price": 1175,
+    "image": "/assets/bidking/icons/icon_1013007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1013008,
+    "name": "便携式冰箱",
+    "quality": "蓝",
+    "type": "家居日用",
+    "price": 4761,
+    "image": "/assets/bidking/icons/icon_1013008.png",
+    "size": {
+      "width": 1,
+      "height": 3,
+      "key": "1x3"
+    }
+  },
+  {
+    "itemCid": 1013009,
+    "name": "电脑桌",
+    "quality": "蓝",
+    "type": "家居日用",
+    "price": 3791,
+    "image": "/assets/bidking/icons/icon_1013009.png",
+    "size": {
+      "width": 3,
+      "height": 1,
+      "key": "3x1"
+    }
+  },
+  {
+    "itemCid": 1013010,
+    "name": "纺织地毯",
+    "quality": "蓝",
+    "type": "家居日用",
+    "price": 2858,
+    "image": "/assets/bidking/icons/icon_1013010.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1014001,
+    "name": "宝宝哄睡椅",
+    "quality": "紫",
+    "type": "家居日用",
+    "price": 8974,
+    "image": "/assets/bidking/icons/icon_1014001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1014002,
+    "name": "除湿器",
+    "quality": "紫",
+    "type": "家居日用",
+    "price": 3454,
+    "image": "/assets/bidking/icons/icon_1014002.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1014003,
+    "name": "扫地机器人",
+    "quality": "紫",
+    "type": "家居日用",
+    "price": 8115,
+    "image": "/assets/bidking/icons/icon_1014003.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1014004,
+    "name": "吸尘器",
+    "quality": "紫",
+    "type": "家居日用",
+    "price": 6554,
+    "image": "/assets/bidking/icons/icon_1014004.png",
+    "size": {
+      "width": 1,
+      "height": 3,
+      "key": "1x3"
+    }
+  },
+  {
+    "itemCid": 1014005,
+    "name": "大哥大电话",
+    "quality": "紫",
+    "type": "家居日用",
+    "price": 4624,
+    "image": "/assets/bidking/icons/icon_1014005.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1014006,
+    "name": "壁挂式空调",
+    "quality": "紫",
+    "type": "家居日用",
+    "price": 9115,
+    "image": "/assets/bidking/icons/icon_1014006.png",
+    "size": {
+      "width": 3,
+      "height": 1,
+      "key": "3x1"
+    }
+  },
+  {
+    "itemCid": 1014007,
+    "name": "按摩椅",
+    "quality": "紫",
+    "type": "家居日用",
+    "price": 7758,
+    "image": "/assets/bidking/icons/icon_1014007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1014008,
+    "name": "金丝眼镜",
+    "quality": "紫",
+    "type": "家居日用",
+    "price": 2514,
+    "image": "/assets/bidking/icons/icon_1014008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1014009,
+    "name": "手办展示架",
+    "quality": "紫",
+    "type": "家居日用",
+    "price": 13251,
+    "image": "/assets/bidking/icons/icon_1014009.png",
+    "size": {
+      "width": 2,
+      "height": 4,
+      "key": "2x4"
+    }
+  },
+  {
+    "itemCid": 1014010,
+    "name": "智能马桶",
+    "quality": "紫",
+    "type": "家居日用",
+    "price": 10542,
+    "image": "/assets/bidking/icons/icon_1014010.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1015001,
+    "name": "章丘铁锅",
+    "quality": "金",
+    "type": "家居日用",
+    "price": 24969,
+    "image": "/assets/bidking/icons/icon_1015001.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1015002,
+    "name": "智能冰箱",
+    "quality": "金",
+    "type": "家居日用",
+    "price": 61143,
+    "image": "/assets/bidking/icons/icon_1015002.png",
+    "size": {
+      "width": 2,
+      "height": 4,
+      "key": "2x4"
+    }
+  },
+  {
+    "itemCid": 1015003,
+    "name": "智能温控空调",
+    "quality": "金",
+    "type": "家居日用",
+    "price": 30159,
+    "image": "/assets/bidking/icons/icon_1015003.png",
+    "size": {
+      "width": 1,
+      "height": 3,
+      "key": "1x3"
+    }
+  },
+  {
+    "itemCid": 1015004,
+    "name": "中古牛皮沙发",
+    "quality": "金",
+    "type": "家居日用",
+    "price": 65610,
+    "image": "/assets/bidking/icons/icon_1015004.png",
+    "size": {
+      "width": 3,
+      "height": 1,
+      "key": "3x1"
+    }
+  },
+  {
+    "itemCid": 1015005,
+    "name": "锦绣山河靠山石",
+    "quality": "金",
+    "type": "家居日用",
+    "price": 51801,
+    "image": "/assets/bidking/icons/icon_1015005.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1015006,
+    "name": "财神爷摆件",
+    "quality": "金",
+    "type": "家居日用",
+    "price": 71499,
+    "image": "/assets/bidking/icons/icon_1015006.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1015007,
+    "name": "发财树",
+    "quality": "金",
+    "type": "家居日用",
+    "price": 48703,
+    "image": "/assets/bidking/icons/icon_1015007.png",
+    "size": {
+      "width": 2,
+      "height": 4,
+      "key": "2x4"
+    }
+  },
+  {
+    "itemCid": 1015008,
+    "name": "貔貅茶宠",
+    "quality": "金",
+    "type": "家居日用",
+    "price": 15345,
+    "image": "/assets/bidking/icons/icon_1015008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1015009,
+    "name": "黄金打火机",
+    "quality": "金",
+    "type": "家居日用",
+    "price": 21201,
+    "image": "/assets/bidking/icons/icon_1015009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1015010,
+    "name": "航空碳纤维鱼竿",
+    "quality": "金",
+    "type": "家居日用",
+    "price": 50604,
+    "image": "/assets/bidking/icons/icon_1015010.png",
+    "size": {
+      "width": 1,
+      "height": 4,
+      "key": "1x4"
+    }
+  },
+  {
+    "itemCid": 1016001,
+    "name": "金丝楠木椅",
+    "quality": "红",
+    "type": "家居日用",
+    "price": 187812,
+    "image": "/assets/bidking/icons/icon_1016001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1016002,
+    "name": "小米全智能扫地机器人",
+    "quality": "红",
+    "type": "家居日用",
+    "price": 170362,
+    "image": "/assets/bidking/icons/icon_1016002.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1016003,
+    "name": "小米云端100寸液晶电视",
+    "quality": "红",
+    "type": "家居日用",
+    "price": 255115,
+    "image": "/assets/bidking/icons/icon_1016003.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1016004,
+    "name": "豪宅管理用黑盒",
+    "quality": "红",
+    "type": "家居日用",
+    "price": 7402320,
+    "image": "/assets/bidking/icons/icon_1016004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1016005,
+    "name": "黄金水龙头",
+    "quality": "红",
+    "type": "家居日用",
+    "price": 85623,
+    "image": "/assets/bidking/icons/icon_1016005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1016006,
+    "name": "红木屏风",
+    "quality": "红",
+    "type": "家居日用",
+    "price": 361000,
+    "image": "/assets/bidking/icons/icon_1016006.png",
+    "size": {
+      "width": 4,
+      "height": 4,
+      "key": "4x4"
+    }
+  },
+  {
+    "itemCid": 1016007,
+    "name": "决赛指定用球",
+    "quality": "红",
+    "type": "家居日用",
+    "price": 758000,
+    "image": "/assets/bidking/icons/icon_1016007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1021001,
+    "name": "注射用针",
+    "quality": "白",
+    "type": "医疗用品",
+    "price": 123,
+    "image": "/assets/bidking/icons/icon_1021001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1021002,
+    "name": "创可贴",
+    "quality": "白",
+    "type": "医疗用品",
+    "price": 146,
+    "image": "/assets/bidking/icons/icon_1021002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1021003,
+    "name": "消毒棉签",
+    "quality": "白",
+    "type": "医疗用品",
+    "price": 169,
+    "image": "/assets/bidking/icons/icon_1021003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1021004,
+    "name": "弹性绷带",
+    "quality": "白",
+    "type": "医疗用品",
+    "price": 346,
+    "image": "/assets/bidking/icons/icon_1021004.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1021005,
+    "name": "医用一次性口罩",
+    "quality": "白",
+    "type": "医疗用品",
+    "price": 207,
+    "image": "/assets/bidking/icons/icon_1021005.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1021006,
+    "name": "医用橡胶坐垫",
+    "quality": "白",
+    "type": "医疗用品",
+    "price": 414,
+    "image": "/assets/bidking/icons/icon_1021006.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1021007,
+    "name": "医用拄拐",
+    "quality": "白",
+    "type": "医疗用品",
+    "price": 386,
+    "image": "/assets/bidking/icons/icon_1021007.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1021008,
+    "name": "艾条",
+    "quality": "白",
+    "type": "医疗用品",
+    "price": 331,
+    "image": "/assets/bidking/icons/icon_1021008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1021009,
+    "name": "留置针",
+    "quality": "白",
+    "type": "医疗用品",
+    "price": 143,
+    "image": "/assets/bidking/icons/icon_1021009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1021010,
+    "name": "医用剪刀",
+    "quality": "白",
+    "type": "医疗用品",
+    "price": 134,
+    "image": "/assets/bidking/icons/icon_1021010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1022001,
+    "name": "急救毯",
+    "quality": "绿",
+    "type": "医疗用品",
+    "price": 770,
+    "image": "/assets/bidking/icons/icon_1022001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1022002,
+    "name": "血糖仪",
+    "quality": "绿",
+    "type": "医疗用品",
+    "price": 312,
+    "image": "/assets/bidking/icons/icon_1022002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1022003,
+    "name": "雾化器",
+    "quality": "绿",
+    "type": "医疗用品",
+    "price": 661,
+    "image": "/assets/bidking/icons/icon_1022003.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1022004,
+    "name": "生理盐水",
+    "quality": "绿",
+    "type": "医疗用品",
+    "price": 422,
+    "image": "/assets/bidking/icons/icon_1022004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1022005,
+    "name": "医药整理盒",
+    "quality": "绿",
+    "type": "医疗用品",
+    "price": 1433,
+    "image": "/assets/bidking/icons/icon_1022005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1022006,
+    "name": "Six god",
+    "quality": "绿",
+    "type": "医疗用品",
+    "price": 293,
+    "image": "/assets/bidking/icons/icon_1022006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1022007,
+    "name": "药碾子",
+    "quality": "绿",
+    "type": "医疗用品",
+    "price": 1044,
+    "image": "/assets/bidking/icons/icon_1022007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1022008,
+    "name": "拔罐器",
+    "quality": "绿",
+    "type": "医疗用品",
+    "price": 403,
+    "image": "/assets/bidking/icons/icon_1022008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1022009,
+    "name": "医用酒精",
+    "quality": "绿",
+    "type": "医疗用品",
+    "price": 277,
+    "image": "/assets/bidking/icons/icon_1022009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1022010,
+    "name": "宝宝降热贴",
+    "quality": "绿",
+    "type": "医疗用品",
+    "price": 654,
+    "image": "/assets/bidking/icons/icon_1022010.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1023001,
+    "name": "电子体温计",
+    "quality": "蓝",
+    "type": "医疗用品",
+    "price": 1433,
+    "image": "/assets/bidking/icons/icon_1023001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1023002,
+    "name": "胰岛素笔",
+    "quality": "蓝",
+    "type": "医疗用品",
+    "price": 855,
+    "image": "/assets/bidking/icons/icon_1023002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1023003,
+    "name": "医用缝合包",
+    "quality": "蓝",
+    "type": "医疗用品",
+    "price": 3083,
+    "image": "/assets/bidking/icons/icon_1023003.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1023004,
+    "name": "无菌手术衣",
+    "quality": "蓝",
+    "type": "医疗用品",
+    "price": 5040,
+    "image": "/assets/bidking/icons/icon_1023004.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1023005,
+    "name": "腰椎固定带",
+    "quality": "蓝",
+    "type": "医疗用品",
+    "price": 3294,
+    "image": "/assets/bidking/icons/icon_1023005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1023006,
+    "name": "便携式心电图仪",
+    "quality": "蓝",
+    "type": "医疗用品",
+    "price": 2385,
+    "image": "/assets/bidking/icons/icon_1023006.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1023007,
+    "name": "电子输液架",
+    "quality": "蓝",
+    "type": "医疗用品",
+    "price": 2322,
+    "image": "/assets/bidking/icons/icon_1023007.png",
+    "size": {
+      "width": 1,
+      "height": 3,
+      "key": "1x3"
+    }
+  },
+  {
+    "itemCid": 1023008,
+    "name": "呼吸湿化器",
+    "quality": "蓝",
+    "type": "医疗用品",
+    "price": 2052,
+    "image": "/assets/bidking/icons/icon_1023008.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1023009,
+    "name": "静脉注射用人免疫球蛋白",
+    "quality": "蓝",
+    "type": "医疗用品",
+    "price": 1313,
+    "image": "/assets/bidking/icons/icon_1023009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1023010,
+    "name": "家用急救医用箱",
+    "quality": "蓝",
+    "type": "医疗用品",
+    "price": 3798,
+    "image": "/assets/bidking/icons/icon_1023010.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1024001,
+    "name": "输液泵",
+    "quality": "紫",
+    "type": "医疗用品",
+    "price": 9880,
+    "image": "/assets/bidking/icons/icon_1024001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1024002,
+    "name": "除颤仪",
+    "quality": "紫",
+    "type": "医疗用品",
+    "price": 12976,
+    "image": "/assets/bidking/icons/icon_1024002.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1024003,
+    "name": "单克隆抗体药物",
+    "quality": "紫",
+    "type": "医疗用品",
+    "price": 6012,
+    "image": "/assets/bidking/icons/icon_1024003.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1024004,
+    "name": "气腹机",
+    "quality": "紫",
+    "type": "医疗用品",
+    "price": 6780,
+    "image": "/assets/bidking/icons/icon_1024004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1024005,
+    "name": "针灸人模型",
+    "quality": "紫",
+    "type": "医疗用品",
+    "price": 11424,
+    "image": "/assets/bidking/icons/icon_1024005.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1024006,
+    "name": "超声波治疗仪",
+    "quality": "紫",
+    "type": "医疗用品",
+    "price": 12581,
+    "image": "/assets/bidking/icons/icon_1024006.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1024007,
+    "name": "家用制氧呼吸机",
+    "quality": "紫",
+    "type": "医疗用品",
+    "price": 14240,
+    "image": "/assets/bidking/icons/icon_1024007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1024008,
+    "name": "龙涎香",
+    "quality": "紫",
+    "type": "医疗用品",
+    "price": 3640,
+    "image": "/assets/bidking/icons/icon_1024008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1024009,
+    "name": "特级鹿茸",
+    "quality": "紫",
+    "type": "医疗用品",
+    "price": 5724,
+    "image": "/assets/bidking/icons/icon_1024009.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1024010,
+    "name": "长白山野山参",
+    "quality": "紫",
+    "type": "医疗用品",
+    "price": 3780,
+    "image": "/assets/bidking/icons/icon_1024010.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1025001,
+    "name": "手术用显微镜",
+    "quality": "金",
+    "type": "医疗用品",
+    "price": 49920,
+    "image": "/assets/bidking/icons/icon_1025001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1025002,
+    "name": "心脏支架",
+    "quality": "金",
+    "type": "医疗用品",
+    "price": 40385,
+    "image": "/assets/bidking/icons/icon_1025002.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1025003,
+    "name": "全自动生化分析仪",
+    "quality": "金",
+    "type": "医疗用品",
+    "price": 86130,
+    "image": "/assets/bidking/icons/icon_1025003.png",
+    "size": {
+      "width": 3,
+      "height": 4,
+      "key": "3x4"
+    }
+  },
+  {
+    "itemCid": 1025004,
+    "name": "便携式超声诊断仪",
+    "quality": "金",
+    "type": "医疗用品",
+    "price": 62055,
+    "image": "/assets/bidking/icons/icon_1025004.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1025005,
+    "name": "个性化肿瘤疫苗",
+    "quality": "金",
+    "type": "医疗用品",
+    "price": 16200,
+    "image": "/assets/bidking/icons/icon_1025005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1025006,
+    "name": "医用负压吸引器",
+    "quality": "金",
+    "type": "医疗用品",
+    "price": 60342,
+    "image": "/assets/bidking/icons/icon_1025006.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1025007,
+    "name": "病理监护仪",
+    "quality": "金",
+    "type": "医疗用品",
+    "price": 76233,
+    "image": "/assets/bidking/icons/icon_1025007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1026001,
+    "name": "复苏呼吸机",
+    "quality": "红",
+    "type": "医疗用品",
+    "price": 1089660,
+    "image": "/assets/bidking/icons/icon_1026001.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1026002,
+    "name": "医用外骨骼",
+    "quality": "红",
+    "type": "医疗用品",
+    "price": 259165,
+    "image": "/assets/bidking/icons/icon_1026002.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1026003,
+    "name": "古医书《伤寒论》",
+    "quality": "红",
+    "type": "医疗用品",
+    "price": 158940,
+    "image": "/assets/bidking/icons/icon_1026003.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1026004,
+    "name": "紫檀木金针针灸套装",
+    "quality": "红",
+    "type": "医疗用品",
+    "price": 112896,
+    "image": "/assets/bidking/icons/icon_1026004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1026005,
+    "name": "安宫牛黄丸",
+    "quality": "红",
+    "type": "医疗用品",
+    "price": 54675,
+    "image": "/assets/bidking/icons/icon_1026005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1026006,
+    "name": "触摸感应仿生手",
+    "quality": "红",
+    "type": "医疗用品",
+    "price": 130296,
+    "image": "/assets/bidking/icons/icon_1026006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1026007,
+    "name": "超声波诊断仪",
+    "quality": "红",
+    "type": "医疗用品",
+    "price": 475000,
+    "image": "/assets/bidking/icons/icon_1026007.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1026008,
+    "name": "百年人参",
+    "quality": "红",
+    "type": "医疗用品",
+    "price": 1039000,
+    "image": "/assets/bidking/icons/icon_1026008.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1031001,
+    "name": "塑料发箍",
+    "quality": "白",
+    "type": "时尚潮流",
+    "price": 123,
+    "image": "/assets/bidking/icons/icon_1031001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1031002,
+    "name": "一次性纹身贴",
+    "quality": "白",
+    "type": "时尚潮流",
+    "price": 146,
+    "image": "/assets/bidking/icons/icon_1031002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1031003,
+    "name": "玩具美甲",
+    "quality": "白",
+    "type": "时尚潮流",
+    "price": 169,
+    "image": "/assets/bidking/icons/icon_1031003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1031004,
+    "name": "钥匙挂坠",
+    "quality": "白",
+    "type": "时尚潮流",
+    "price": 146,
+    "image": "/assets/bidking/icons/icon_1031004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1031005,
+    "name": "印花T恤",
+    "quality": "白",
+    "type": "时尚潮流",
+    "price": 369,
+    "image": "/assets/bidking/icons/icon_1031005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1031006,
+    "name": "防晒冰袖",
+    "quality": "白",
+    "type": "时尚潮流",
+    "price": 248,
+    "image": "/assets/bidking/icons/icon_1031006.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1031007,
+    "name": "图案徽章",
+    "quality": "白",
+    "type": "时尚潮流",
+    "price": 189,
+    "image": "/assets/bidking/icons/icon_1031007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1031008,
+    "name": "应援棒",
+    "quality": "白",
+    "type": "时尚潮流",
+    "price": 248,
+    "image": "/assets/bidking/icons/icon_1031008.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1031009,
+    "name": "应援灯牌",
+    "quality": "白",
+    "type": "时尚潮流",
+    "price": 299,
+    "image": "/assets/bidking/icons/icon_1031009.png",
+    "size": {
+      "width": 3,
+      "height": 1,
+      "key": "3x1"
+    }
+  },
+  {
+    "itemCid": 1031010,
+    "name": "卡贴",
+    "quality": "白",
+    "type": "时尚潮流",
+    "price": 115,
+    "image": "/assets/bidking/icons/icon_1031010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1032001,
+    "name": "时尚杂志",
+    "quality": "绿",
+    "type": "时尚潮流",
+    "price": 738,
+    "image": "/assets/bidking/icons/icon_1032001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1032002,
+    "name": "潮流手机壳",
+    "quality": "绿",
+    "type": "时尚潮流",
+    "price": 295,
+    "image": "/assets/bidking/icons/icon_1032002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1032003,
+    "name": "经典棒球帽",
+    "quality": "绿",
+    "type": "时尚潮流",
+    "price": 315,
+    "image": "/assets/bidking/icons/icon_1032003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1032004,
+    "name": "百搭丝巾",
+    "quality": "绿",
+    "type": "时尚潮流",
+    "price": 718,
+    "image": "/assets/bidking/icons/icon_1032004.png",
+    "size": {
+      "width": 1,
+      "height": 3,
+      "key": "1x3"
+    }
+  },
+  {
+    "itemCid": 1032005,
+    "name": "印花雨伞",
+    "quality": "绿",
+    "type": "时尚潮流",
+    "price": 708,
+    "image": "/assets/bidking/icons/icon_1032005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1032006,
+    "name": "裸靴",
+    "quality": "绿",
+    "type": "时尚潮流",
+    "price": 532,
+    "image": "/assets/bidking/icons/icon_1032006.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1032007,
+    "name": "帆布背包",
+    "quality": "绿",
+    "type": "时尚潮流",
+    "price": 886,
+    "image": "/assets/bidking/icons/icon_1032007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1032008,
+    "name": "连帽卫衣",
+    "quality": "绿",
+    "type": "时尚潮流",
+    "price": 1240,
+    "image": "/assets/bidking/icons/icon_1032008.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1032009,
+    "name": "墨镜",
+    "quality": "绿",
+    "type": "时尚潮流",
+    "price": 295,
+    "image": "/assets/bidking/icons/icon_1032009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1032010,
+    "name": "亚克力钥匙扣",
+    "quality": "绿",
+    "type": "时尚潮流",
+    "price": 288,
+    "image": "/assets/bidking/icons/icon_1032010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1033001,
+    "name": "兔兔背包",
+    "quality": "蓝",
+    "type": "时尚潮流",
+    "price": 2214,
+    "image": "/assets/bidking/icons/icon_1033001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1033002,
+    "name": "二次元痛包",
+    "quality": "蓝",
+    "type": "时尚潮流",
+    "price": 2214,
+    "image": "/assets/bidking/icons/icon_1033002.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1033003,
+    "name": "JK制服",
+    "quality": "蓝",
+    "type": "时尚潮流",
+    "price": 3875,
+    "image": "/assets/bidking/icons/icon_1033003.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1033004,
+    "name": "银制耳饰",
+    "quality": "蓝",
+    "type": "时尚潮流",
+    "price": 923,
+    "image": "/assets/bidking/icons/icon_1033004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1033005,
+    "name": "时尚腕饰",
+    "quality": "蓝",
+    "type": "时尚潮流",
+    "price": 923,
+    "image": "/assets/bidking/icons/icon_1033005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1033006,
+    "name": "真皮钱夹",
+    "quality": "蓝",
+    "type": "时尚潮流",
+    "price": 1661,
+    "image": "/assets/bidking/icons/icon_1033006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1033007,
+    "name": "水雾唇釉",
+    "quality": "蓝",
+    "type": "时尚潮流",
+    "price": 923,
+    "image": "/assets/bidking/icons/icon_1033007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1033008,
+    "name": "运动球鞋",
+    "quality": "蓝",
+    "type": "时尚潮流",
+    "price": 1661,
+    "image": "/assets/bidking/icons/icon_1033008.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1033009,
+    "name": "公仔玩偶",
+    "quality": "蓝",
+    "type": "时尚潮流",
+    "price": 1661,
+    "image": "/assets/bidking/icons/icon_1033009.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1033010,
+    "name": "联名键帽挂扣",
+    "quality": "蓝",
+    "type": "时尚潮流",
+    "price": 711,
+    "image": "/assets/bidking/icons/icon_1033010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1034001,
+    "name": "洛丽塔小裙子",
+    "quality": "紫",
+    "type": "时尚潮流",
+    "price": 9749,
+    "image": "/assets/bidking/icons/icon_1034001.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1034002,
+    "name": "名牌球鞋",
+    "quality": "紫",
+    "type": "时尚潮流",
+    "price": 4428,
+    "image": "/assets/bidking/icons/icon_1034002.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1034003,
+    "name": "限量手办",
+    "quality": "紫",
+    "type": "时尚潮流",
+    "price": 4428,
+    "image": "/assets/bidking/icons/icon_1034003.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1034004,
+    "name": "轻奢腕表",
+    "quality": "紫",
+    "type": "时尚潮流",
+    "price": 2460,
+    "image": "/assets/bidking/icons/icon_1034004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1034005,
+    "name": "8848烫金手机壳",
+    "quality": "紫",
+    "type": "时尚潮流",
+    "price": 2560,
+    "image": "/assets/bidking/icons/icon_1034005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1034006,
+    "name": "汉元素潮服",
+    "quality": "紫",
+    "type": "时尚潮流",
+    "price": 10332,
+    "image": "/assets/bidking/icons/icon_1034006.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1034007,
+    "name": "合金机器人模型",
+    "quality": "紫",
+    "type": "时尚潮流",
+    "price": 4428,
+    "image": "/assets/bidking/icons/icon_1034007.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1034008,
+    "name": "激光剑仿真玩具",
+    "quality": "紫",
+    "type": "时尚潮流",
+    "price": 7380,
+    "image": "/assets/bidking/icons/icon_1034008.png",
+    "size": {
+      "width": 4,
+      "height": 1,
+      "key": "4x1"
+    }
+  },
+  {
+    "itemCid": 1034009,
+    "name": "名牌挎包",
+    "quality": "紫",
+    "type": "时尚潮流",
+    "price": 8380,
+    "image": "/assets/bidking/icons/icon_1034009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1034010,
+    "name": "限定真人展示牌",
+    "quality": "紫",
+    "type": "时尚潮流",
+    "price": 25000,
+    "image": "/assets/bidking/icons/icon_1034010.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1035001,
+    "name": "限量时尚杂志",
+    "quality": "金",
+    "type": "时尚潮流",
+    "price": 28450,
+    "image": "/assets/bidking/icons/icon_1035001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1035002,
+    "name": "定制晚礼服",
+    "quality": "金",
+    "type": "时尚潮流",
+    "price": 38745,
+    "image": "/assets/bidking/icons/icon_1035002.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1035003,
+    "name": "限定球星收藏卡",
+    "quality": "金",
+    "type": "时尚潮流",
+    "price": 12225,
+    "image": "/assets/bidking/icons/icon_1035003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1035004,
+    "name": "铂金胸针",
+    "quality": "金",
+    "type": "时尚潮流",
+    "price": 15325,
+    "image": "/assets/bidking/icons/icon_1035004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1035005,
+    "name": "机械腕表",
+    "quality": "金",
+    "type": "时尚潮流",
+    "price": 9245,
+    "image": "/assets/bidking/icons/icon_1035005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1035006,
+    "name": "亲签球衣",
+    "quality": "金",
+    "type": "时尚潮流",
+    "price": 38745,
+    "image": "/assets/bidking/icons/icon_1035006.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1035007,
+    "name": "亲签球鞋",
+    "quality": "金",
+    "type": "时尚潮流",
+    "price": 26605,
+    "image": "/assets/bidking/icons/icon_1035007.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1035008,
+    "name": "顶级化妆礼盒",
+    "quality": "金",
+    "type": "时尚潮流",
+    "price": 27675,
+    "image": "/assets/bidking/icons/icon_1035008.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1035009,
+    "name": "满分斯诺克纪念球杆",
+    "quality": "金",
+    "type": "时尚潮流",
+    "price": 36511,
+    "image": "/assets/bidking/icons/icon_1035009.png",
+    "size": {
+      "width": 6,
+      "height": 1,
+      "key": "6x1"
+    }
+  },
+  {
+    "itemCid": 1035010,
+    "name": "伯纳普斯球场VIP赛季票",
+    "quality": "金",
+    "type": "时尚潮流",
+    "price": 24332,
+    "image": "/assets/bidking/icons/icon_1035010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1036001,
+    "name": "美容中心终身会员金卡",
+    "quality": "红",
+    "type": "时尚潮流",
+    "price": 88888,
+    "image": "/assets/bidking/icons/icon_1036001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1036002,
+    "name": "斯卡奥小金人",
+    "quality": "红",
+    "type": "时尚潮流",
+    "price": 168000,
+    "image": "/assets/bidking/icons/icon_1036002.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1036003,
+    "name": "永恒时尚指南",
+    "quality": "红",
+    "type": "时尚潮流",
+    "price": 266050,
+    "image": "/assets/bidking/icons/icon_1036003.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1036004,
+    "name": "宝斯终身VIP会员卡",
+    "quality": "红",
+    "type": "时尚潮流",
+    "price": 465000,
+    "image": "/assets/bidking/icons/icon_1036004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1036005,
+    "name": "环球小姐冠军皇冠",
+    "quality": "红",
+    "type": "时尚潮流",
+    "price": 195154,
+    "image": "/assets/bidking/icons/icon_1036005.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1036006,
+    "name": "世界冠军奖杯",
+    "quality": "红",
+    "type": "时尚潮流",
+    "price": 7202026,
+    "image": "/assets/bidking/icons/icon_1036006.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1036007,
+    "name": "“退钱”手举牌",
+    "quality": "红",
+    "type": "时尚潮流",
+    "price": 555555,
+    "image": "/assets/bidking/icons/icon_1036007.png",
+    "size": {
+      "width": 3,
+      "height": 4,
+      "key": "3x4"
+    }
+  },
+  {
+    "itemCid": 1036008,
+    "name": "传奇球星签名球衣",
+    "quality": "红",
+    "type": "时尚潮流",
+    "price": 1225000,
+    "image": "/assets/bidking/icons/icon_1036008.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1041001,
+    "name": "石块",
+    "quality": "白",
+    "type": "武器装备",
+    "price": 123,
+    "image": "/assets/bidking/icons/icon_1041001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1041002,
+    "name": "圆润的木杆",
+    "quality": "白",
+    "type": "武器装备",
+    "price": 438,
+    "image": "/assets/bidking/icons/icon_1041002.png",
+    "size": {
+      "width": 1,
+      "height": 4,
+      "key": "1x4"
+    }
+  },
+  {
+    "itemCid": 1041003,
+    "name": "竹木弹弓",
+    "quality": "白",
+    "type": "武器装备",
+    "price": 304,
+    "image": "/assets/bidking/icons/icon_1041003.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1041004,
+    "name": "玩具木剑",
+    "quality": "白",
+    "type": "武器装备",
+    "price": 346,
+    "image": "/assets/bidking/icons/icon_1041004.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1041005,
+    "name": "绳索",
+    "quality": "白",
+    "type": "武器装备",
+    "price": 276,
+    "image": "/assets/bidking/icons/icon_1041005.png",
+    "size": {
+      "width": 3,
+      "height": 1,
+      "key": "3x1"
+    }
+  },
+  {
+    "itemCid": 1041006,
+    "name": "556子弹",
+    "quality": "白",
+    "type": "武器装备",
+    "price": 138,
+    "image": "/assets/bidking/icons/icon_1041006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1041007,
+    "name": "捕兽夹",
+    "quality": "白",
+    "type": "武器装备",
+    "price": 483,
+    "image": "/assets/bidking/icons/icon_1041007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1041008,
+    "name": "飞镖",
+    "quality": "白",
+    "type": "武器装备",
+    "price": 184,
+    "image": "/assets/bidking/icons/icon_1041008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1041009,
+    "name": "泡泡水弹",
+    "quality": "白",
+    "type": "武器装备",
+    "price": 221,
+    "image": "/assets/bidking/icons/icon_1041009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1041010,
+    "name": "藤条",
+    "quality": "白",
+    "type": "武器装备",
+    "price": 388,
+    "image": "/assets/bidking/icons/icon_1041010.png",
+    "size": {
+      "width": 1,
+      "height": 3,
+      "key": "1x3"
+    }
+  },
+  {
+    "itemCid": 1042001,
+    "name": "烟雾弹",
+    "quality": "绿",
+    "type": "武器装备",
+    "price": 462,
+    "image": "/assets/bidking/icons/icon_1042001.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1042002,
+    "name": "手雷",
+    "quality": "绿",
+    "type": "武器装备",
+    "price": 312,
+    "image": "/assets/bidking/icons/icon_1042002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1042003,
+    "name": "127子弹",
+    "quality": "绿",
+    "type": "武器装备",
+    "price": 367,
+    "image": "/assets/bidking/icons/icon_1042003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1042004,
+    "name": "工地用头盔",
+    "quality": "绿",
+    "type": "武器装备",
+    "price": 1267,
+    "image": "/assets/bidking/icons/icon_1042004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1042005,
+    "name": "普通匕首",
+    "quality": "绿",
+    "type": "武器装备",
+    "price": 859,
+    "image": "/assets/bidking/icons/icon_1042005.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1042006,
+    "name": "沙袋背心",
+    "quality": "绿",
+    "type": "武器装备",
+    "price": 878,
+    "image": "/assets/bidking/icons/icon_1042006.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1042007,
+    "name": "土质硝酸甘油炸弹",
+    "quality": "绿",
+    "type": "武器装备",
+    "price": 1044,
+    "image": "/assets/bidking/icons/icon_1042007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1042008,
+    "name": "长枪",
+    "quality": "绿",
+    "type": "武器装备",
+    "price": 1452,
+    "image": "/assets/bidking/icons/icon_1042008.png",
+    "size": {
+      "width": 1,
+      "height": 5,
+      "key": "1x5"
+    }
+  },
+  {
+    "itemCid": 1042009,
+    "name": "双截棍",
+    "quality": "绿",
+    "type": "武器装备",
+    "price": 1375,
+    "image": "/assets/bidking/icons/icon_1042009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1042010,
+    "name": "充气玩具手枪",
+    "quality": "绿",
+    "type": "武器装备",
+    "price": 301,
+    "image": "/assets/bidking/icons/icon_1042010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1043001,
+    "name": "军用望远镜",
+    "quality": "蓝",
+    "type": "武器装备",
+    "price": 2565,
+    "image": "/assets/bidking/icons/icon_1043001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1043002,
+    "name": "战术背心",
+    "quality": "蓝",
+    "type": "武器装备",
+    "price": 4316,
+    "image": "/assets/bidking/icons/icon_1043002.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1043003,
+    "name": "卡宾枪",
+    "quality": "蓝",
+    "type": "武器装备",
+    "price": 3600,
+    "image": "/assets/bidking/icons/icon_1043003.png",
+    "size": {
+      "width": 4,
+      "height": 1,
+      "key": "4x1"
+    }
+  },
+  {
+    "itemCid": 1043004,
+    "name": "MP5冲锋枪",
+    "quality": "蓝",
+    "type": "武器装备",
+    "price": 3294,
+    "image": "/assets/bidking/icons/icon_1043004.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1043005,
+    "name": "合金弩枪",
+    "quality": "蓝",
+    "type": "武器装备",
+    "price": 3339,
+    "image": "/assets/bidking/icons/icon_1043005.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1043006,
+    "name": "夜视仪",
+    "quality": "蓝",
+    "type": "武器装备",
+    "price": 968,
+    "image": "/assets/bidking/icons/icon_1043006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1043007,
+    "name": "沙漠之鹰",
+    "quality": "蓝",
+    "type": "武器装备",
+    "price": 2052,
+    "image": "/assets/bidking/icons/icon_1043007.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1043008,
+    "name": "C4吸塑炸药",
+    "quality": "蓝",
+    "type": "武器装备",
+    "price": 2363,
+    "image": "/assets/bidking/icons/icon_1043008.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1043009,
+    "name": "UZI冲锋枪",
+    "quality": "蓝",
+    "type": "武器装备",
+    "price": 3851,
+    "image": "/assets/bidking/icons/icon_1043009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1043010,
+    "name": "多功能军刀",
+    "quality": "蓝",
+    "type": "武器装备",
+    "price": 1373,
+    "image": "/assets/bidking/icons/icon_1043010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1043011,
+    "name": "大宝剑",
+    "quality": "蓝",
+    "type": "武器装备",
+    "price": 4840,
+    "image": "/assets/bidking/icons/icon_1043011.png",
+    "size": {
+      "width": 5,
+      "height": 1,
+      "key": "5x1"
+    }
+  },
+  {
+    "itemCid": 1044001,
+    "name": "M249轻机枪",
+    "quality": "紫",
+    "type": "武器装备",
+    "price": 12584,
+    "image": "/assets/bidking/icons/icon_1044001.png",
+    "size": {
+      "width": 4,
+      "height": 2,
+      "key": "4x2"
+    }
+  },
+  {
+    "itemCid": 1044002,
+    "name": "RPG火箭筒",
+    "quality": "紫",
+    "type": "武器装备",
+    "price": 8976,
+    "image": "/assets/bidking/icons/icon_1044002.png",
+    "size": {
+      "width": 4,
+      "height": 1,
+      "key": "4x1"
+    }
+  },
+  {
+    "itemCid": 1044003,
+    "name": "AWM狙击步枪",
+    "quality": "紫",
+    "type": "武器装备",
+    "price": 16310,
+    "image": "/assets/bidking/icons/icon_1044003.png",
+    "size": {
+      "width": 5,
+      "height": 1,
+      "key": "5x1"
+    }
+  },
+  {
+    "itemCid": 1044004,
+    "name": "自爆式无人机",
+    "quality": "紫",
+    "type": "武器装备",
+    "price": 7140,
+    "image": "/assets/bidking/icons/icon_1044004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1044005,
+    "name": "M系列自动步枪",
+    "quality": "紫",
+    "type": "武器装备",
+    "price": 11752,
+    "image": "/assets/bidking/icons/icon_1044005.png",
+    "size": {
+      "width": 4,
+      "height": 2,
+      "key": "4x2"
+    }
+  },
+  {
+    "itemCid": 1044006,
+    "name": "全天候激光瞄准镜",
+    "quality": "紫",
+    "type": "武器装备",
+    "price": 2720,
+    "image": "/assets/bidking/icons/icon_1044006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1044007,
+    "name": "热感应夜视防护头盔",
+    "quality": "紫",
+    "type": "武器装备",
+    "price": 3180,
+    "image": "/assets/bidking/icons/icon_1044007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1044008,
+    "name": "竞赛级复合弓",
+    "quality": "紫",
+    "type": "武器装备",
+    "price": 10920,
+    "image": "/assets/bidking/icons/icon_1044008.png",
+    "size": {
+      "width": 1,
+      "height": 4,
+      "key": "1x4"
+    }
+  },
+  {
+    "itemCid": 1044009,
+    "name": "可折叠高韧性防护盾",
+    "quality": "紫",
+    "type": "武器装备",
+    "price": 20082,
+    "image": "/assets/bidking/icons/icon_1044009.png",
+    "size": {
+      "width": 3,
+      "height": 4,
+      "key": "3x4"
+    }
+  },
+  {
+    "itemCid": 1044010,
+    "name": "机动型水路两用气动靴",
+    "quality": "紫",
+    "type": "武器装备",
+    "price": 8830,
+    "image": "/assets/bidking/icons/icon_1044010.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1044011,
+    "name": "加特林重机枪",
+    "quality": "紫",
+    "type": "武器装备",
+    "price": 31688,
+    "image": "/assets/bidking/icons/icon_1044011.png",
+    "size": {
+      "width": 5,
+      "height": 2,
+      "key": "5x2"
+    }
+  },
+  {
+    "itemCid": 1045001,
+    "name": "巴雷特反器材狙击步枪",
+    "quality": "金",
+    "type": "武器装备",
+    "price": 67600,
+    "image": "/assets/bidking/icons/icon_1045001.png",
+    "size": {
+      "width": 5,
+      "height": 2,
+      "key": "5x2"
+    }
+  },
+  {
+    "itemCid": 1045002,
+    "name": "重型全生态作战防弹衣",
+    "quality": "金",
+    "type": "武器装备",
+    "price": 74745,
+    "image": "/assets/bidking/icons/icon_1045002.png",
+    "size": {
+      "width": 3,
+      "height": 4,
+      "key": "3x4"
+    }
+  },
+  {
+    "itemCid": 1045003,
+    "name": "单兵战场信息系统终端",
+    "quality": "金",
+    "type": "武器装备",
+    "price": 34490,
+    "image": "/assets/bidking/icons/icon_1045003.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1045004,
+    "name": "蜘蛛型自走机器人",
+    "quality": "金",
+    "type": "武器装备",
+    "price": 82740,
+    "image": "/assets/bidking/icons/icon_1045004.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1045005,
+    "name": "便携式军用雷达",
+    "quality": "金",
+    "type": "武器装备",
+    "price": 29500,
+    "image": "/assets/bidking/icons/icon_1045005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1045006,
+    "name": "模块化电磁突击步枪试用型",
+    "quality": "金",
+    "type": "武器装备",
+    "price": 55770,
+    "image": "/assets/bidking/icons/icon_1045006.png",
+    "size": {
+      "width": 4,
+      "height": 2,
+      "key": "4x2"
+    }
+  },
+  {
+    "itemCid": 1045007,
+    "name": "单兵水下推进器",
+    "quality": "金",
+    "type": "武器装备",
+    "price": 37350,
+    "image": "/assets/bidking/icons/icon_1045007.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1045008,
+    "name": "背挂式无线电干扰发生器",
+    "quality": "金",
+    "type": "武器装备",
+    "price": 42525,
+    "image": "/assets/bidking/icons/icon_1045008.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1045009,
+    "name": "高浓缩磁暴瘫痪手雷",
+    "quality": "金",
+    "type": "武器装备",
+    "price": 12400,
+    "image": "/assets/bidking/icons/icon_1045009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1045010,
+    "name": "无人作战车",
+    "quality": "金",
+    "type": "武器装备",
+    "price": 93753,
+    "image": "/assets/bidking/icons/icon_1045010.png",
+    "size": {
+      "width": 4,
+      "height": 3,
+      "key": "4x3"
+    }
+  },
+  {
+    "itemCid": 1046001,
+    "name": "全息雷达无人机",
+    "quality": "红",
+    "type": "武器装备",
+    "price": 226800,
+    "image": "/assets/bidking/icons/icon_1046001.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1046002,
+    "name": "007同款防弹西装",
+    "quality": "红",
+    "type": "武器装备",
+    "price": 199080,
+    "image": "/assets/bidking/icons/icon_1046002.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1046003,
+    "name": "刺猬猫·全息阅读终端",
+    "quality": "红",
+    "type": "数码电子",
+    "price": 54300,
+    "image": "/assets/bidking/icons/icon_1046003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1046004,
+    "name": "单兵外骨骼助力系统",
+    "quality": "红",
+    "type": "武器装备",
+    "price": 305920,
+    "image": "/assets/bidking/icons/icon_1046004.png",
+    "size": {
+      "width": 3,
+      "height": 4,
+      "key": "3x4"
+    }
+  },
+  {
+    "itemCid": 1046005,
+    "name": "名刀：菊一文字",
+    "quality": "红",
+    "type": "武器装备",
+    "price": 422002,
+    "image": "/assets/bidking/icons/icon_1046005.png",
+    "size": {
+      "width": 4,
+      "height": 2,
+      "key": "4x2"
+    }
+  },
+  {
+    "itemCid": 1046006,
+    "name": "高斯振动匕首",
+    "quality": "红",
+    "type": "武器装备",
+    "price": 531000,
+    "image": "/assets/bidking/icons/icon_1046006.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1046007,
+    "name": "古剑",
+    "quality": "红",
+    "type": "武器装备",
+    "price": 143100,
+    "image": "/assets/bidking/icons/icon_1046007.png",
+    "size": {
+      "width": 3,
+      "height": 1,
+      "key": "3x1"
+    }
+  },
+  {
+    "itemCid": 1046008,
+    "name": "相控阵雷达",
+    "quality": "红",
+    "type": "武器装备",
+    "price": 1003000,
+    "image": "/assets/bidking/icons/icon_1046008.png",
+    "size": {
+      "width": 3,
+      "height": 4,
+      "key": "3x4"
+    }
+  },
+  {
+    "itemCid": 1046009,
+    "name": "激光手枪",
+    "quality": "红",
+    "type": "武器装备",
+    "price": 104400,
+    "image": "/assets/bidking/icons/icon_1046009.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1051001,
+    "name": "沥青",
+    "quality": "白",
+    "type": "矿物珠宝",
+    "price": 123,
+    "image": "/assets/bidking/icons/icon_1051001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1051002,
+    "name": "鹅卵石",
+    "quality": "白",
+    "type": "矿物珠宝",
+    "price": 146,
+    "image": "/assets/bidking/icons/icon_1051002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1051003,
+    "name": "铁矿渣",
+    "quality": "白",
+    "type": "矿物珠宝",
+    "price": 507,
+    "image": "/assets/bidking/icons/icon_1051003.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1051004,
+    "name": "煤块",
+    "quality": "白",
+    "type": "矿物珠宝",
+    "price": 192,
+    "image": "/assets/bidking/icons/icon_1051004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1051005,
+    "name": "铝土矿石",
+    "quality": "白",
+    "type": "矿物珠宝",
+    "price": 345,
+    "image": "/assets/bidking/icons/icon_1051005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1051006,
+    "name": "石灰岩",
+    "quality": "白",
+    "type": "矿物珠宝",
+    "price": 414,
+    "image": "/assets/bidking/icons/icon_1051006.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1051007,
+    "name": "花岗岩（毛料）",
+    "quality": "白",
+    "type": "矿物珠宝",
+    "price": 902,
+    "image": "/assets/bidking/icons/icon_1051007.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1051008,
+    "name": "沙砾",
+    "quality": "白",
+    "type": "矿物珠宝",
+    "price": 184,
+    "image": "/assets/bidking/icons/icon_1051008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1051009,
+    "name": "人造玻璃",
+    "quality": "白",
+    "type": "矿物珠宝",
+    "price": 265,
+    "image": "/assets/bidking/icons/icon_1051009.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1051010,
+    "name": "乳白弹珠",
+    "quality": "白",
+    "type": "矿物珠宝",
+    "price": 125,
+    "image": "/assets/bidking/icons/icon_1051010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1053001,
+    "name": "大理石",
+    "quality": "蓝",
+    "type": "矿物珠宝",
+    "price": 5885,
+    "image": "/assets/bidking/icons/icon_1053001.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1053002,
+    "name": "石榴石",
+    "quality": "蓝",
+    "type": "矿物珠宝",
+    "price": 1300,
+    "image": "/assets/bidking/icons/icon_1053002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1053003,
+    "name": "月光石",
+    "quality": "蓝",
+    "type": "矿物珠宝",
+    "price": 1530,
+    "image": "/assets/bidking/icons/icon_1053003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1053004,
+    "name": "东陵玉原石",
+    "quality": "蓝",
+    "type": "矿物珠宝",
+    "price": 5280,
+    "image": "/assets/bidking/icons/icon_1053004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1053005,
+    "name": "岫岩玉原石",
+    "quality": "蓝",
+    "type": "矿物珠宝",
+    "price": 5970,
+    "image": "/assets/bidking/icons/icon_1053005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1053006,
+    "name": "琉璃",
+    "quality": "蓝",
+    "type": "矿物珠宝",
+    "price": 6710,
+    "image": "/assets/bidking/icons/icon_1053006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1053007,
+    "name": "云母碎片",
+    "quality": "蓝",
+    "type": "矿物珠宝",
+    "price": 1450,
+    "image": "/assets/bidking/icons/icon_1053007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1053008,
+    "name": "铜矿石",
+    "quality": "蓝",
+    "type": "矿物珠宝",
+    "price": 5040,
+    "image": "/assets/bidking/icons/icon_1053008.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1053009,
+    "name": "高岭土",
+    "quality": "蓝",
+    "type": "矿物珠宝",
+    "price": 5730,
+    "image": "/assets/bidking/icons/icon_1053009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1053010,
+    "name": "人造非洲之心",
+    "quality": "蓝",
+    "type": "矿物珠宝",
+    "price": 1780,
+    "image": "/assets/bidking/icons/icon_1053010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1054001,
+    "name": "萤石晶体簇",
+    "quality": "紫",
+    "type": "矿物珠宝",
+    "price": 8680,
+    "image": "/assets/bidking/icons/icon_1054001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1054002,
+    "name": "孔雀石原石",
+    "quality": "紫",
+    "type": "矿物珠宝",
+    "price": 8440,
+    "image": "/assets/bidking/icons/icon_1054002.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1054003,
+    "name": "虎睛石",
+    "quality": "紫",
+    "type": "矿物珠宝",
+    "price": 6152,
+    "image": "/assets/bidking/icons/icon_1054003.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1054004,
+    "name": "青金石",
+    "quality": "紫",
+    "type": "矿物珠宝",
+    "price": 10960,
+    "image": "/assets/bidking/icons/icon_1054004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1054005,
+    "name": "珍珠",
+    "quality": "紫",
+    "type": "矿物珠宝",
+    "price": 4240,
+    "image": "/assets/bidking/icons/icon_1054005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1054006,
+    "name": "琥珀",
+    "quality": "紫",
+    "type": "矿物珠宝",
+    "price": 5160,
+    "image": "/assets/bidking/icons/icon_1054006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1054007,
+    "name": "和田玉原石",
+    "quality": "紫",
+    "type": "矿物珠宝",
+    "price": 18240,
+    "image": "/assets/bidking/icons/icon_1054007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1054008,
+    "name": "翡翠原石",
+    "quality": "紫",
+    "type": "矿物珠宝",
+    "price": 21000,
+    "image": "/assets/bidking/icons/icon_1054008.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1054009,
+    "name": "黑曜石原石",
+    "quality": "紫",
+    "type": "矿物珠宝",
+    "price": 23760,
+    "image": "/assets/bidking/icons/icon_1054009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1054010,
+    "name": "铜矿堆",
+    "quality": "紫",
+    "type": "矿物珠宝",
+    "price": 16520,
+    "image": "/assets/bidking/icons/icon_1054010.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1054011,
+    "name": "1克拉钻石",
+    "quality": "紫",
+    "type": "矿物珠宝",
+    "price": 13000,
+    "image": "/assets/bidking/icons/icon_1054011.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1055001,
+    "name": "狗头金",
+    "quality": "金",
+    "type": "矿物珠宝",
+    "price": 13332,
+    "image": "/assets/bidking/icons/icon_1055001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1055002,
+    "name": "南洋金珠",
+    "quality": "金",
+    "type": "矿物珠宝",
+    "price": 14520,
+    "image": "/assets/bidking/icons/icon_1055002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1055003,
+    "name": "孔雀石雕件",
+    "quality": "金",
+    "type": "矿物珠宝",
+    "price": 96768,
+    "image": "/assets/bidking/icons/icon_1055003.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1055004,
+    "name": "枝状珊瑚",
+    "quality": "金",
+    "type": "矿物珠宝",
+    "price": 48096,
+    "image": "/assets/bidking/icons/icon_1055004.png",
+    "size": {
+      "width": 1,
+      "height": 3,
+      "key": "1x3"
+    }
+  },
+  {
+    "itemCid": 1055005,
+    "name": "玉化砗磲",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 68400,
+    "image": "/assets/bidking/icons/icon_1055005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1055006,
+    "name": "托帕石原石",
+    "quality": "金",
+    "type": "矿物珠宝",
+    "price": 34408,
+    "image": "/assets/bidking/icons/icon_1055006.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1055007,
+    "name": "海蓝宝晶体",
+    "quality": "金",
+    "type": "矿物珠宝",
+    "price": 39168,
+    "image": "/assets/bidking/icons/icon_1055007.png",
+    "size": {
+      "width": 1,
+      "height": 3,
+      "key": "1x3"
+    }
+  },
+  {
+    "itemCid": 1055008,
+    "name": "西瓜碧玺",
+    "quality": "金",
+    "type": "矿物珠宝",
+    "price": 34344,
+    "image": "/assets/bidking/icons/icon_1055008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1055009,
+    "name": "变彩欧泊",
+    "quality": "金",
+    "type": "矿物珠宝",
+    "price": 21840,
+    "image": "/assets/bidking/icons/icon_1055009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1056001,
+    "name": "帕拉伊巴碧玺",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 52500,
+    "image": "/assets/bidking/icons/icon_1056001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1056002,
+    "name": "亚历山大变石",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 128000,
+    "image": "/assets/bidking/icons/icon_1056002.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1056003,
+    "name": "鸽血红宝石",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 75500,
+    "image": "/assets/bidking/icons/icon_1056003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1056004,
+    "name": "祖母绿宝石",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 87000,
+    "image": "/assets/bidking/icons/icon_1056004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1056005,
+    "name": "黑欧泊",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 295500,
+    "image": "/assets/bidking/icons/icon_1056005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1056006,
+    "name": "冰种飘花翡翠",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 180000,
+    "image": "/assets/bidking/icons/icon_1056006.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1056007,
+    "name": "大溪地黑珍珠",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 71500,
+    "image": "/assets/bidking/icons/icon_1056007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1056008,
+    "name": "金绿猫眼石",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 94500,
+    "image": "/assets/bidking/icons/icon_1056008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1056009,
+    "name": "维纳斯级澳洲白珠",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 56000,
+    "image": "/assets/bidking/icons/icon_1056009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1056010,
+    "name": "钻石原石（巨粒）",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 512000,
+    "image": "/assets/bidking/icons/icon_1056010.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1056011,
+    "name": "星光红宝石",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 316000,
+    "image": "/assets/bidking/icons/icon_1056011.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1056012,
+    "name": "羊脂白玉籽和田玉",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 2516000,
+    "image": "/assets/bidking/icons/icon_1056012.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1056013,
+    "name": "非洲之心",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 13145200,
+    "image": "/assets/bidking/icons/icon_1056013.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1056014,
+    "name": "火焰欧泊",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 457200,
+    "image": "/assets/bidking/icons/icon_1056014.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1056015,
+    "name": "黑王子红宝石",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 3000000,
+    "image": "/assets/bidking/icons/icon_1056015.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1061001,
+    "name": "粗陶泥偶",
+    "quality": "白",
+    "type": "文玩古董",
+    "price": 107,
+    "image": "/assets/bidking/icons/icon_1061001.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1061002,
+    "name": "草编鲤鱼",
+    "quality": "白",
+    "type": "文玩古董",
+    "price": 205,
+    "image": "/assets/bidking/icons/icon_1061002.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1061003,
+    "name": "棕榈叶篮",
+    "quality": "白",
+    "type": "文玩古董",
+    "price": 315,
+    "image": "/assets/bidking/icons/icon_1061003.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1061004,
+    "name": "桦树皮盒",
+    "quality": "白",
+    "type": "文玩古董",
+    "price": 384,
+    "image": "/assets/bidking/icons/icon_1061004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1061005,
+    "name": "黏土哨笛",
+    "quality": "白",
+    "type": "文玩古董",
+    "price": 135,
+    "image": "/assets/bidking/icons/icon_1061005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1061006,
+    "name": "贝币串",
+    "quality": "白",
+    "type": "文玩古董",
+    "price": 142,
+    "image": "/assets/bidking/icons/icon_1061006.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1061007,
+    "name": "木雕小鱼",
+    "quality": "白",
+    "type": "文玩古董",
+    "price": 149,
+    "image": "/assets/bidking/icons/icon_1061007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1061008,
+    "name": "骨针筒",
+    "quality": "白",
+    "type": "文玩古董",
+    "price": 156,
+    "image": "/assets/bidking/icons/icon_1061008.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1061009,
+    "name": "绳编网兜",
+    "quality": "白",
+    "type": "文玩古董",
+    "price": 411,
+    "image": "/assets/bidking/icons/icon_1061009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1061010,
+    "name": "窗花剪纸",
+    "quality": "白",
+    "type": "文玩古董",
+    "price": 377,
+    "image": "/assets/bidking/icons/icon_1061010.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1062001,
+    "name": "锡制酒壶",
+    "quality": "绿",
+    "type": "文玩古董",
+    "price": 734,
+    "image": "/assets/bidking/icons/icon_1062001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1062002,
+    "name": "蜡染方巾",
+    "quality": "绿",
+    "type": "文玩古董",
+    "price": 1274,
+    "image": "/assets/bidking/icons/icon_1062002.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1062003,
+    "name": "竹节笔",
+    "quality": "绿",
+    "type": "文玩古董",
+    "price": 794,
+    "image": "/assets/bidking/icons/icon_1062003.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1062004,
+    "name": "玛瑙棋",
+    "quality": "绿",
+    "type": "文玩古董",
+    "price": 458,
+    "image": "/assets/bidking/icons/icon_1062004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1062005,
+    "name": "皮箭囊",
+    "quality": "绿",
+    "type": "文玩古董",
+    "price": 1426,
+    "image": "/assets/bidking/icons/icon_1062005.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1062006,
+    "name": "珊瑚珠",
+    "quality": "绿",
+    "type": "文玩古董",
+    "price": 252,
+    "image": "/assets/bidking/icons/icon_1062006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1062007,
+    "name": "陶埙",
+    "quality": "绿",
+    "type": "文玩古董",
+    "price": 269,
+    "image": "/assets/bidking/icons/icon_1062007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1062008,
+    "name": "木梭子",
+    "quality": "绿",
+    "type": "文玩古董",
+    "price": 514,
+    "image": "/assets/bidking/icons/icon_1062008.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1062009,
+    "name": "贝雕画",
+    "quality": "绿",
+    "type": "文玩古董",
+    "price": 907,
+    "image": "/assets/bidking/icons/icon_1062009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1062010,
+    "name": "玉扣",
+    "quality": "绿",
+    "type": "文玩古董",
+    "price": 319,
+    "image": "/assets/bidking/icons/icon_1062010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1063001,
+    "name": "景泰蓝镯",
+    "quality": "蓝",
+    "type": "文玩古董",
+    "price": 1050,
+    "image": "/assets/bidking/icons/icon_1063001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1063002,
+    "name": "银丝笔筒",
+    "quality": "蓝",
+    "type": "文玩古董",
+    "price": 1985,
+    "image": "/assets/bidking/icons/icon_1063002.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1063003,
+    "name": "檀香折扇",
+    "quality": "蓝",
+    "type": "文玩古董",
+    "price": 2079,
+    "image": "/assets/bidking/icons/icon_1063003.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1063004,
+    "name": "铜镇纸",
+    "quality": "蓝",
+    "type": "文玩古董",
+    "price": 3623,
+    "image": "/assets/bidking/icons/icon_1063004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1063005,
+    "name": "琉璃盏",
+    "quality": "蓝",
+    "type": "文玩古董",
+    "price": 1260,
+    "image": "/assets/bidking/icons/icon_1063005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1063006,
+    "name": "螺钿盒",
+    "quality": "蓝",
+    "type": "文玩古董",
+    "price": 3938,
+    "image": "/assets/bidking/icons/icon_1063006.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1063007,
+    "name": "银咖啡具",
+    "quality": "蓝",
+    "type": "文玩古董",
+    "price": 5733,
+    "image": "/assets/bidking/icons/icon_1063007.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1063008,
+    "name": "骨笛",
+    "quality": "蓝",
+    "type": "文玩古董",
+    "price": 2552,
+    "image": "/assets/bidking/icons/icon_1063008.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1063009,
+    "name": "绣挂毯",
+    "quality": "蓝",
+    "type": "文玩古董",
+    "price": 6174,
+    "image": "/assets/bidking/icons/icon_1063009.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1063010,
+    "name": "银烛台",
+    "quality": "蓝",
+    "type": "文玩古董",
+    "price": 2318,
+    "image": "/assets/bidking/icons/icon_1063010.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1063011,
+    "name": "石狮子",
+    "quality": "蓝",
+    "type": "文玩古董",
+    "price": 9168,
+    "image": "/assets/bidking/icons/icon_1063011.png",
+    "size": {
+      "width": 4,
+      "height": 4,
+      "key": "4x4"
+    }
+  },
+  {
+    "itemCid": 1064001,
+    "name": "青花瓷瓶",
+    "quality": "紫",
+    "type": "文玩古董",
+    "price": 9600,
+    "image": "/assets/bidking/icons/icon_1064001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1064002,
+    "name": "琥珀挂坠",
+    "quality": "紫",
+    "type": "文玩古董",
+    "price": 4828,
+    "image": "/assets/bidking/icons/icon_1064002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1064003,
+    "name": "螺钿妆匣",
+    "quality": "紫",
+    "type": "文玩古董",
+    "price": 9440,
+    "image": "/assets/bidking/icons/icon_1064003.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1064004,
+    "name": "罗盘仪",
+    "quality": "紫",
+    "type": "文玩古董",
+    "price": 6620,
+    "image": "/assets/bidking/icons/icon_1064004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1064005,
+    "name": "玉山子",
+    "quality": "紫",
+    "type": "文玩古董",
+    "price": 15456,
+    "image": "/assets/bidking/icons/icon_1064005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1064006,
+    "name": "铜钟",
+    "quality": "紫",
+    "type": "文玩古董",
+    "price": 12045,
+    "image": "/assets/bidking/icons/icon_1064006.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1064007,
+    "name": "牙帆船",
+    "quality": "紫",
+    "type": "文玩古董",
+    "price": 11768,
+    "image": "/assets/bidking/icons/icon_1064007.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1064008,
+    "name": "唐卡",
+    "quality": "紫",
+    "type": "文玩古董",
+    "price": 3650,
+    "image": "/assets/bidking/icons/icon_1064008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1064009,
+    "name": "铜香炉",
+    "quality": "紫",
+    "type": "文玩古董",
+    "price": 9960,
+    "image": "/assets/bidking/icons/icon_1064009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1064010,
+    "name": "青金石盒",
+    "quality": "紫",
+    "type": "文玩古董",
+    "price": 10380,
+    "image": "/assets/bidking/icons/icon_1064010.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1065001,
+    "name": "翡翠观音",
+    "quality": "金",
+    "type": "文玩古董",
+    "price": 56700,
+    "image": "/assets/bidking/icons/icon_1065001.png",
+    "size": {
+      "width": 1,
+      "height": 3,
+      "key": "1x3"
+    }
+  },
+  {
+    "itemCid": 1065002,
+    "name": "错金铜鼎",
+    "quality": "金",
+    "type": "文玩古董",
+    "price": 78540,
+    "image": "/assets/bidking/icons/icon_1065002.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1065003,
+    "name": "金佛塔",
+    "quality": "金",
+    "type": "文玩古董",
+    "price": 43650,
+    "image": "/assets/bidking/icons/icon_1065003.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1065004,
+    "name": "缂丝袍",
+    "quality": "金",
+    "type": "文玩古董",
+    "price": 60600,
+    "image": "/assets/bidking/icons/icon_1065004.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1065005,
+    "name": "水晶杯",
+    "quality": "金",
+    "type": "文玩古董",
+    "price": 15542,
+    "image": "/assets/bidking/icons/icon_1065005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1065006,
+    "name": "乌木椅",
+    "quality": "金",
+    "type": "文玩古董",
+    "price": 48300,
+    "image": "/assets/bidking/icons/icon_1065006.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1065007,
+    "name": "羊脂玉璧",
+    "quality": "金",
+    "type": "文玩古董",
+    "price": 27450,
+    "image": "/assets/bidking/icons/icon_1065007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1065008,
+    "name": "银法典",
+    "quality": "金",
+    "type": "文玩古董",
+    "price": 29025,
+    "image": "/assets/bidking/icons/icon_1065008.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1065009,
+    "name": "唐刀",
+    "quality": "金",
+    "type": "文玩古董",
+    "price": 30600,
+    "image": "/assets/bidking/icons/icon_1065009.png",
+    "size": {
+      "width": 1,
+      "height": 4,
+      "key": "1x4"
+    }
+  },
+  {
+    "itemCid": 1065010,
+    "name": "波斯毯",
+    "quality": "金",
+    "type": "文玩古董",
+    "price": 85800,
+    "image": "/assets/bidking/icons/icon_1065010.png",
+    "size": {
+      "width": 3,
+      "height": 4,
+      "key": "3x4"
+    }
+  },
+  {
+    "itemCid": 1065011,
+    "name": "大展宏图",
+    "quality": "金",
+    "type": "文玩古董",
+    "price": 73682,
+    "image": "/assets/bidking/icons/icon_1065011.png",
+    "size": {
+      "width": 4,
+      "height": 2,
+      "key": "4x2"
+    }
+  },
+  {
+    "itemCid": 1065012,
+    "name": "大圣残缺石像",
+    "quality": "金",
+    "type": "文玩古董",
+    "price": 89461,
+    "image": "/assets/bidking/icons/icon_1065012.png",
+    "size": {
+      "width": 2,
+      "height": 5,
+      "key": "2x5"
+    }
+  },
+  {
+    "itemCid": 1066001,
+    "name": "曜变天目盏",
+    "quality": "红",
+    "type": "文玩古董",
+    "price": 112500,
+    "image": "/assets/bidking/icons/icon_1066001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1066002,
+    "name": "黄金权杖",
+    "quality": "红",
+    "type": "文玩古董",
+    "price": 141300,
+    "image": "/assets/bidking/icons/icon_1066002.png",
+    "size": {
+      "width": 1,
+      "height": 4,
+      "key": "1x4"
+    }
+  },
+  {
+    "itemCid": 1066003,
+    "name": "敦煌绢画",
+    "quality": "红",
+    "type": "文玩古董",
+    "price": 255840,
+    "image": "/assets/bidking/icons/icon_1066003.png",
+    "size": {
+      "width": 1,
+      "height": 3,
+      "key": "1x3"
+    }
+  },
+  {
+    "itemCid": 1066004,
+    "name": "青铜神树",
+    "quality": "红",
+    "type": "文玩古董",
+    "price": 287280,
+    "image": "/assets/bidking/icons/icon_1066004.png",
+    "size": {
+      "width": 2,
+      "height": 5,
+      "key": "2x5"
+    }
+  },
+  {
+    "itemCid": 1066005,
+    "name": "法贝热蛋",
+    "quality": "红",
+    "type": "文玩古董",
+    "price": 160200,
+    "image": "/assets/bidking/icons/icon_1066005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1066006,
+    "name": "翡翠屏风",
+    "quality": "红",
+    "type": "文玩古董",
+    "price": 844000,
+    "image": "/assets/bidking/icons/icon_1066006.png",
+    "size": {
+      "width": 4,
+      "height": 4,
+      "key": "4x4"
+    }
+  },
+  {
+    "itemCid": 1066007,
+    "name": "金编钟",
+    "quality": "红",
+    "type": "文玩古董",
+    "price": 322560,
+    "image": "/assets/bidking/icons/icon_1066007.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1066008,
+    "name": "金丝冠",
+    "quality": "红",
+    "type": "文玩古董",
+    "price": 179100,
+    "image": "/assets/bidking/icons/icon_1066008.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1066009,
+    "name": "金缕玉衣",
+    "quality": "红",
+    "type": "文玩古董",
+    "price": 281600,
+    "image": "/assets/bidking/icons/icon_1066009.png",
+    "size": {
+      "width": 4,
+      "height": 2,
+      "key": "4x2"
+    }
+  },
+  {
+    "itemCid": 1066010,
+    "name": "拜占庭冠",
+    "quality": "红",
+    "type": "文玩古董",
+    "price": 167800,
+    "image": "/assets/bidking/icons/icon_1066010.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1066011,
+    "name": "双羊尊",
+    "quality": "红",
+    "type": "文玩古董",
+    "price": 567900,
+    "image": "/assets/bidking/icons/icon_1066011.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1071001,
+    "name": "复古游戏机",
+    "quality": "白",
+    "type": "数码电子",
+    "price": 247,
+    "image": "/assets/bidking/icons/icon_1071001.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1071002,
+    "name": "手机支架",
+    "quality": "白",
+    "type": "数码电子",
+    "price": 120,
+    "image": "/assets/bidking/icons/icon_1071002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1071003,
+    "name": "卡牌入门包",
+    "quality": "白",
+    "type": "数码电子",
+    "price": 126,
+    "image": "/assets/bidking/icons/icon_1071003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1071004,
+    "name": "耳机防尘塞",
+    "quality": "白",
+    "type": "数码电子",
+    "price": 137,
+    "image": "/assets/bidking/icons/icon_1071004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1071005,
+    "name": "设备装饰贴",
+    "quality": "白",
+    "type": "数码电子",
+    "price": 127,
+    "image": "/assets/bidking/icons/icon_1071005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1071006,
+    "name": "游戏纪念币",
+    "quality": "白",
+    "type": "数码电子",
+    "price": 178,
+    "image": "/assets/bidking/icons/icon_1071006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1071007,
+    "name": "点卡充值",
+    "quality": "白",
+    "type": "数码电子",
+    "price": 168,
+    "image": "/assets/bidking/icons/icon_1071007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1071008,
+    "name": "3D观影镜",
+    "quality": "白",
+    "type": "数码电子",
+    "price": 360,
+    "image": "/assets/bidking/icons/icon_1071008.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1071009,
+    "name": "卡带保护壳",
+    "quality": "白",
+    "type": "数码电子",
+    "price": 161,
+    "image": "/assets/bidking/icons/icon_1071009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1071010,
+    "name": "自拍杆",
+    "quality": "白",
+    "type": "数码电子",
+    "price": 338,
+    "image": "/assets/bidking/icons/icon_1071010.png",
+    "size": {
+      "width": 1,
+      "height": 4,
+      "key": "1x4"
+    }
+  },
+  {
+    "itemCid": 1072001,
+    "name": "多功能读卡器",
+    "quality": "绿",
+    "type": "数码电子",
+    "price": 401,
+    "image": "/assets/bidking/icons/icon_1072001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1072002,
+    "name": "笔记本散热器",
+    "quality": "绿",
+    "type": "数码电子",
+    "price": 1346,
+    "image": "/assets/bidking/icons/icon_1072002.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1072003,
+    "name": "手机VR眼镜",
+    "quality": "绿",
+    "type": "数码电子",
+    "price": 613,
+    "image": "/assets/bidking/icons/icon_1072003.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1072004,
+    "name": "有线游戏手柄",
+    "quality": "绿",
+    "type": "数码电子",
+    "price": 505,
+    "image": "/assets/bidking/icons/icon_1072004.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1072005,
+    "name": "键盘保护膜",
+    "quality": "绿",
+    "type": "数码电子",
+    "price": 1411,
+    "image": "/assets/bidking/icons/icon_1072005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1072006,
+    "name": "快充数据线",
+    "quality": "绿",
+    "type": "数码电子",
+    "price": 466,
+    "image": "/assets/bidking/icons/icon_1072006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1072007,
+    "name": "USB氛围灯",
+    "quality": "绿",
+    "type": "数码电子",
+    "price": 870,
+    "image": "/assets/bidking/icons/icon_1072007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1072008,
+    "name": "贴膜工具包",
+    "quality": "绿",
+    "type": "数码电子",
+    "price": 420,
+    "image": "/assets/bidking/icons/icon_1072008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1072009,
+    "name": "蓝牙触控板",
+    "quality": "绿",
+    "type": "数码电子",
+    "price": 914,
+    "image": "/assets/bidking/icons/icon_1072009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1072010,
+    "name": "补光灯",
+    "quality": "绿",
+    "type": "数码电子",
+    "price": 1166,
+    "image": "/assets/bidking/icons/icon_1072010.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1073001,
+    "name": "绘图数位板",
+    "quality": "蓝",
+    "type": "数码电子",
+    "price": 3893,
+    "image": "/assets/bidking/icons/icon_1073001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1073002,
+    "name": "录音笔",
+    "quality": "蓝",
+    "type": "数码电子",
+    "price": 923,
+    "image": "/assets/bidking/icons/icon_1073002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1073003,
+    "name": "电子阅读器",
+    "quality": "蓝",
+    "type": "数码电子",
+    "price": 1005,
+    "image": "/assets/bidking/icons/icon_1073003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1073004,
+    "name": "便携游戏机",
+    "quality": "蓝",
+    "type": "数码电子",
+    "price": 2133,
+    "image": "/assets/bidking/icons/icon_1073004.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1073005,
+    "name": "机械键盘",
+    "quality": "蓝",
+    "type": "数码电子",
+    "price": 2588,
+    "image": "/assets/bidking/icons/icon_1073005.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1073006,
+    "name": "电竞显示器",
+    "quality": "蓝",
+    "type": "数码电子",
+    "price": 7644,
+    "image": "/assets/bidking/icons/icon_1073006.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1073007,
+    "name": "蓝牙音箱",
+    "quality": "蓝",
+    "type": "数码电子",
+    "price": 1651,
+    "image": "/assets/bidking/icons/icon_1073007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1073008,
+    "name": "游戏耳机",
+    "quality": "蓝",
+    "type": "数码电子",
+    "price": 2541,
+    "image": "/assets/bidking/icons/icon_1073008.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1073009,
+    "name": "网络摄像头",
+    "quality": "蓝",
+    "type": "数码电子",
+    "price": 1178,
+    "image": "/assets/bidking/icons/icon_1073009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1073010,
+    "name": "数位笔",
+    "quality": "蓝",
+    "type": "数码电子",
+    "price": 810,
+    "image": "/assets/bidking/icons/icon_1073010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1074001,
+    "name": "智能手表",
+    "quality": "紫",
+    "type": "数码电子",
+    "price": 3960,
+    "image": "/assets/bidking/icons/icon_1074001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1074002,
+    "name": "VR头显",
+    "quality": "紫",
+    "type": "数码电子",
+    "price": 12000,
+    "image": "/assets/bidking/icons/icon_1074002.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1074003,
+    "name": "运动相机",
+    "quality": "紫",
+    "type": "数码电子",
+    "price": 2400,
+    "image": "/assets/bidking/icons/icon_1074003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1074004,
+    "name": "视频采集卡",
+    "quality": "紫",
+    "type": "数码电子",
+    "price": 3120,
+    "image": "/assets/bidking/icons/icon_1074004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1074005,
+    "name": "赛车方向盘",
+    "quality": "紫",
+    "type": "数码电子",
+    "price": 9604,
+    "image": "/assets/bidking/icons/icon_1074005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1074006,
+    "name": "平板电脑",
+    "quality": "紫",
+    "type": "数码电子",
+    "price": 8360,
+    "image": "/assets/bidking/icons/icon_1074006.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1074007,
+    "name": "彩色打印机",
+    "quality": "紫",
+    "type": "数码电子",
+    "price": 14364,
+    "image": "/assets/bidking/icons/icon_1074007.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1074008,
+    "name": "数位屏",
+    "quality": "紫",
+    "type": "数码电子",
+    "price": 10500,
+    "image": "/assets/bidking/icons/icon_1074008.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1074009,
+    "name": "电脑主板",
+    "quality": "紫",
+    "type": "数码电子",
+    "price": 11880,
+    "image": "/assets/bidking/icons/icon_1074009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1074010,
+    "name": "显卡扩展坞",
+    "quality": "紫",
+    "type": "数码电子",
+    "price": 19096,
+    "image": "/assets/bidking/icons/icon_1074010.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1075001,
+    "name": "曲面带鱼屏显示器",
+    "quality": "金",
+    "type": "数码电子",
+    "price": 54495,
+    "image": "/assets/bidking/icons/icon_1075001.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1075002,
+    "name": "旗舰手机",
+    "quality": "金",
+    "type": "数码电子",
+    "price": 7800,
+    "image": "/assets/bidking/icons/icon_1075002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1075003,
+    "name": "全画幅微单",
+    "quality": "金",
+    "type": "数码电子",
+    "price": 37800,
+    "image": "/assets/bidking/icons/icon_1075003.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1075004,
+    "name": "高端VR套装",
+    "quality": "金",
+    "type": "数码电子",
+    "price": 51660,
+    "image": "/assets/bidking/icons/icon_1075004.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1075005,
+    "name": "移动工作站",
+    "quality": "金",
+    "type": "数码电子",
+    "price": 78120,
+    "image": "/assets/bidking/icons/icon_1075005.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1075006,
+    "name": "长焦镜头",
+    "quality": "金",
+    "type": "数码电子",
+    "price": 12675,
+    "image": "/assets/bidking/icons/icon_1075006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1075007,
+    "name": "行业无人机",
+    "quality": "金",
+    "type": "数码电子",
+    "price": 41850,
+    "image": "/assets/bidking/icons/icon_1075007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1075008,
+    "name": "专业声卡",
+    "quality": "金",
+    "type": "数码电子",
+    "price": 19845,
+    "image": "/assets/bidking/icons/icon_1075008.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1075009,
+    "name": "数字调音台",
+    "quality": "金",
+    "type": "数码电子",
+    "price": 70140,
+    "image": "/assets/bidking/icons/icon_1075009.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1075010,
+    "name": "电影定焦镜头",
+    "quality": "金",
+    "type": "数码电子",
+    "price": 14850,
+    "image": "/assets/bidking/icons/icon_1075010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1075011,
+    "name": "服务器机柜",
+    "quality": "金",
+    "type": "数码电子",
+    "price": 97382,
+    "image": "/assets/bidking/icons/icon_1075011.png",
+    "size": {
+      "width": 3,
+      "height": 5,
+      "key": "3x5"
+    }
+  },
+  {
+    "itemCid": 1076001,
+    "name": "电影级摄影机",
+    "quality": "红",
+    "type": "数码电子",
+    "price": 258760,
+    "image": "/assets/bidking/icons/icon_1076001.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1076002,
+    "name": "全画幅相机",
+    "quality": "红",
+    "type": "数码电子",
+    "price": 186900,
+    "image": "/assets/bidking/icons/icon_1076002.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1076003,
+    "name": "中画幅相机",
+    "quality": "红",
+    "type": "数码电子",
+    "price": 122600,
+    "image": "/assets/bidking/icons/icon_1076003.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1076004,
+    "name": "AI服务器",
+    "quality": "红",
+    "type": "数码电子",
+    "price": 470400,
+    "image": "/assets/bidking/icons/icon_1076004.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1076005,
+    "name": "GPU计算柜",
+    "quality": "红",
+    "type": "数码电子",
+    "price": 375000,
+    "image": "/assets/bidking/icons/icon_1076005.png",
+    "size": {
+      "width": 3,
+      "height": 5,
+      "key": "3x5"
+    }
+  },
+  {
+    "itemCid": 1076006,
+    "name": "麒麟处理器芯片",
+    "quality": "红",
+    "type": "数码电子",
+    "price": 54600,
+    "image": "/assets/bidking/icons/icon_1076006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1076007,
+    "name": "土豆服务器",
+    "quality": "红",
+    "type": "数码电子",
+    "price": 990000,
+    "image": "/assets/bidking/icons/icon_1076007.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1081001,
+    "name": "雨刮胶条",
+    "quality": "白",
+    "type": "交通工具",
+    "price": 112,
+    "image": "/assets/bidking/icons/icon_1081001.png",
+    "size": {
+      "width": 1,
+      "height": 3,
+      "key": "1x3"
+    }
+  },
+  {
+    "itemCid": 1081002,
+    "name": "反光贴纸",
+    "quality": "白",
+    "type": "交通工具",
+    "price": 168,
+    "image": "/assets/bidking/icons/icon_1081002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1081003,
+    "name": "玻璃水",
+    "quality": "白",
+    "type": "交通工具",
+    "price": 185,
+    "image": "/assets/bidking/icons/icon_1081003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1081004,
+    "name": "车用毛巾",
+    "quality": "白",
+    "type": "交通工具",
+    "price": 315,
+    "image": "/assets/bidking/icons/icon_1081004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1081005,
+    "name": "挪车牌",
+    "quality": "白",
+    "type": "交通工具",
+    "price": 340,
+    "image": "/assets/bidking/icons/icon_1081005.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1081006,
+    "name": "遮阳挡",
+    "quality": "白",
+    "type": "交通工具",
+    "price": 754,
+    "image": "/assets/bidking/icons/icon_1081006.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1081007,
+    "name": "空气滤芯",
+    "quality": "白",
+    "type": "交通工具",
+    "price": 170,
+    "image": "/assets/bidking/icons/icon_1081007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1081008,
+    "name": "木板车",
+    "quality": "白",
+    "type": "交通工具",
+    "price": 609,
+    "image": "/assets/bidking/icons/icon_1081008.png",
+    "size": {
+      "width": 4,
+      "height": 2,
+      "key": "4x2"
+    }
+  },
+  {
+    "itemCid": 1081009,
+    "name": "临时停车牌",
+    "quality": "白",
+    "type": "交通工具",
+    "price": 200,
+    "image": "/assets/bidking/icons/icon_1081009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1081010,
+    "name": "车用拖车绳",
+    "quality": "白",
+    "type": "交通工具",
+    "price": 277,
+    "image": "/assets/bidking/icons/icon_1081010.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1082001,
+    "name": "车衣",
+    "quality": "绿",
+    "type": "交通工具",
+    "price": 2297,
+    "image": "/assets/bidking/icons/icon_1082001.png",
+    "size": {
+      "width": 3,
+      "height": 1,
+      "key": "3x1"
+    }
+  },
+  {
+    "itemCid": 1082002,
+    "name": "车载充气泵",
+    "quality": "绿",
+    "type": "交通工具",
+    "price": 804,
+    "image": "/assets/bidking/icons/icon_1082002.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1082003,
+    "name": "行车记录仪",
+    "quality": "绿",
+    "type": "交通工具",
+    "price": 979,
+    "image": "/assets/bidking/icons/icon_1082003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1082004,
+    "name": "备胎",
+    "quality": "绿",
+    "type": "交通工具",
+    "price": 1426,
+    "image": "/assets/bidking/icons/icon_1082004.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1082005,
+    "name": "蓄电池",
+    "quality": "绿",
+    "type": "交通工具",
+    "price": 806,
+    "image": "/assets/bidking/icons/icon_1082005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1082006,
+    "name": "安全锤",
+    "quality": "绿",
+    "type": "交通工具",
+    "price": 466,
+    "image": "/assets/bidking/icons/icon_1082006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1082007,
+    "name": "辅助轮儿童自行车",
+    "quality": "绿",
+    "type": "交通工具",
+    "price": 1440,
+    "image": "/assets/bidking/icons/icon_1082007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1082008,
+    "name": "绞盘",
+    "quality": "绿",
+    "type": "交通工具",
+    "price": 1835,
+    "image": "/assets/bidking/icons/icon_1082008.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1082009,
+    "name": "手推货运车",
+    "quality": "绿",
+    "type": "交通工具",
+    "price": 1210,
+    "image": "/assets/bidking/icons/icon_1082009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1082010,
+    "name": "儿童安全座椅",
+    "quality": "绿",
+    "type": "交通工具",
+    "price": 1130,
+    "image": "/assets/bidking/icons/icon_1082010.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1082011,
+    "name": "电动三轮车",
+    "quality": "绿",
+    "type": "交通工具",
+    "price": 5129,
+    "image": "/assets/bidking/icons/icon_1082011.png",
+    "size": {
+      "width": 4,
+      "height": 3,
+      "key": "4x3"
+    }
+  },
+  {
+    "itemCid": 1083001,
+    "name": "电动踏板",
+    "quality": "蓝",
+    "type": "交通工具",
+    "price": 6258,
+    "image": "/assets/bidking/icons/icon_1083001.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1083002,
+    "name": "倒车雷达",
+    "quality": "蓝",
+    "type": "交通工具",
+    "price": 3488,
+    "image": "/assets/bidking/icons/icon_1083002.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1083003,
+    "name": "电动滑板车",
+    "quality": "蓝",
+    "type": "交通工具",
+    "price": 4118,
+    "image": "/assets/bidking/icons/icon_1083003.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1083004,
+    "name": "氙气大灯",
+    "quality": "蓝",
+    "type": "交通工具",
+    "price": 1388,
+    "image": "/assets/bidking/icons/icon_1083004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1083005,
+    "name": "越野轮胎",
+    "quality": "蓝",
+    "type": "交通工具",
+    "price": 4915,
+    "image": "/assets/bidking/icons/icon_1083005.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1083006,
+    "name": "小型汽油发电机",
+    "quality": "蓝",
+    "type": "交通工具",
+    "price": 4410,
+    "image": "/assets/bidking/icons/icon_1083006.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1083007,
+    "name": "桶装汽油",
+    "quality": "蓝",
+    "type": "交通工具",
+    "price": 3173,
+    "image": "/assets/bidking/icons/icon_1083007.png",
+    "size": {
+      "width": 2,
+      "height": 4,
+      "key": "2x4"
+    }
+  },
+  {
+    "itemCid": 1083008,
+    "name": "拖车钩",
+    "quality": "蓝",
+    "type": "交通工具",
+    "price": 1470,
+    "image": "/assets/bidking/icons/icon_1083008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1083009,
+    "name": "进气歧管",
+    "quality": "蓝",
+    "type": "交通工具",
+    "price": 4208,
+    "image": "/assets/bidking/icons/icon_1083009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1083010,
+    "name": "摩托车骑行服",
+    "quality": "蓝",
+    "type": "交通工具",
+    "price": 3906,
+    "image": "/assets/bidking/icons/icon_1083010.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1083011,
+    "name": "小型面包车",
+    "quality": "蓝",
+    "type": "交通工具",
+    "price": 14659,
+    "image": "/assets/bidking/icons/icon_1083011.png",
+    "size": {
+      "width": 5,
+      "height": 3,
+      "key": "5x3"
+    }
+  },
+  {
+    "itemCid": 1084001,
+    "name": "高级驾驶辅助系统",
+    "quality": "紫",
+    "type": "交通工具",
+    "price": 11940,
+    "image": "/assets/bidking/icons/icon_1084001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1084002,
+    "name": "全地形卡丁车",
+    "quality": "紫",
+    "type": "交通工具",
+    "price": 22064,
+    "image": "/assets/bidking/icons/icon_1084002.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1084003,
+    "name": "混合动力单元",
+    "quality": "紫",
+    "type": "交通工具",
+    "price": 15680,
+    "image": "/assets/bidking/icons/icon_1084003.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1084004,
+    "name": "电动摩托车",
+    "quality": "紫",
+    "type": "交通工具",
+    "price": 10080,
+    "image": "/assets/bidking/icons/icon_1084004.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1084005,
+    "name": "赛车座椅",
+    "quality": "紫",
+    "type": "交通工具",
+    "price": 18872,
+    "image": "/assets/bidking/icons/icon_1084005.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1084006,
+    "name": "超级电动车电池组",
+    "quality": "紫",
+    "type": "交通工具",
+    "price": 12296,
+    "image": "/assets/bidking/icons/icon_1084006.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1084007,
+    "name": "专业级充气泵",
+    "quality": "紫",
+    "type": "交通工具",
+    "price": 10620,
+    "image": "/assets/bidking/icons/icon_1084007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1084008,
+    "name": "隐藏式行车记录仪",
+    "quality": "紫",
+    "type": "交通工具",
+    "price": 2600,
+    "image": "/assets/bidking/icons/icon_1084008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1084009,
+    "name": "车辆定位器",
+    "quality": "紫",
+    "type": "交通工具",
+    "price": 3940,
+    "image": "/assets/bidking/icons/icon_1084009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1084010,
+    "name": "无线CarPlay盒子",
+    "quality": "紫",
+    "type": "交通工具",
+    "price": 3040,
+    "image": "/assets/bidking/icons/icon_1084010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1084011,
+    "name": "隆中牌制动间隙自动调整臂",
+    "quality": "紫",
+    "type": "交通工具",
+    "price": 7655,
+    "image": "/assets/bidking/icons/icon_1084011.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1085001,
+    "name": "碳纤维轮毂",
+    "quality": "金",
+    "type": "交通工具",
+    "price": 31950,
+    "image": "/assets/bidking/icons/icon_1085001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1085002,
+    "name": "竞技离合器套件",
+    "quality": "金",
+    "type": "交通工具",
+    "price": 34425,
+    "image": "/assets/bidking/icons/icon_1085002.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1085003,
+    "name": "可调式尾翼",
+    "quality": "金",
+    "type": "交通工具",
+    "price": 39690,
+    "image": "/assets/bidking/icons/icon_1085003.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1085004,
+    "name": "赛车方向盘",
+    "quality": "金",
+    "type": "交通工具",
+    "price": 25875,
+    "image": "/assets/bidking/icons/icon_1085004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1085005,
+    "name": "竞技避震套装",
+    "quality": "金",
+    "type": "交通工具",
+    "price": 51240,
+    "image": "/assets/bidking/icons/icon_1085005.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1085006,
+    "name": "氢燃料电池堆栈",
+    "quality": "金",
+    "type": "交通工具",
+    "price": 101400,
+    "image": "/assets/bidking/icons/icon_1085006.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1085007,
+    "name": "轻量化锂电池",
+    "quality": "金",
+    "type": "交通工具",
+    "price": 199900,
+    "image": "/assets/bidking/icons/icon_1085007.png",
+    "size": {
+      "width": 4,
+      "height": 4,
+      "key": "4x4"
+    }
+  },
+  {
+    "itemCid": 1085008,
+    "name": "豪华旅行摩托车",
+    "quality": "金",
+    "type": "交通工具",
+    "price": 77700,
+    "image": "/assets/bidking/icons/icon_1085008.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1085009,
+    "name": "单人郊游快艇",
+    "quality": "金",
+    "type": "交通工具",
+    "price": 106500,
+    "image": "/assets/bidking/icons/icon_1085009.png",
+    "size": {
+      "width": 6,
+      "height": 3,
+      "key": "6x3"
+    }
+  },
+  {
+    "itemCid": 1085010,
+    "name": "私人飞机租赁证明",
+    "quality": "金",
+    "type": "交通工具",
+    "price": 11175,
+    "image": "/assets/bidking/icons/icon_1085010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1085011,
+    "name": "隆中牌气压盘式制动器",
+    "quality": "金",
+    "type": "交通工具",
+    "price": 45231,
+    "image": "/assets/bidking/icons/icon_1085011.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1086001,
+    "name": "碳纤维单体壳车身",
+    "quality": "红",
+    "type": "交通工具",
+    "price": 444000,
+    "image": "/assets/bidking/icons/icon_1086001.png",
+    "size": {
+      "width": 4,
+      "height": 4,
+      "key": "4x4"
+    }
+  },
+  {
+    "itemCid": 1086002,
+    "name": "超级跑车钥匙",
+    "quality": "红",
+    "type": "交通工具",
+    "price": 1495000,
+    "image": "/assets/bidking/icons/icon_1086002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1086003,
+    "name": "重型巡航摩托车",
+    "quality": "红",
+    "type": "交通工具",
+    "price": 357040,
+    "image": "/assets/bidking/icons/icon_1086003.png",
+    "size": {
+      "width": 4,
+      "height": 3,
+      "key": "4x3"
+    }
+  },
+  {
+    "itemCid": 1086004,
+    "name": "私人直升机黑匣子",
+    "quality": "红",
+    "type": "交通工具",
+    "price": 1688400,
+    "image": "/assets/bidking/icons/icon_1086004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1086005,
+    "name": "可控核聚变电池包",
+    "quality": "红",
+    "type": "交通工具",
+    "price": 362400,
+    "image": "/assets/bidking/icons/icon_1086005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1086006,
+    "name": "全集成AI自动驾驶系统",
+    "quality": "红",
+    "type": "交通工具",
+    "price": 68800,
+    "image": "/assets/bidking/icons/icon_1086006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1086007,
+    "name": "民用垂直起降飞行器",
+    "quality": "红",
+    "type": "交通工具",
+    "price": 452800,
+    "image": "/assets/bidking/icons/icon_1086007.png",
+    "size": {
+      "width": 5,
+      "height": 3,
+      "key": "5x3"
+    }
+  },
+  {
+    "itemCid": 1086008,
+    "name": "时尚轿跑",
+    "quality": "红",
+    "type": "交通工具",
+    "price": 293400,
+    "image": "/assets/bidking/icons/icon_1086008.png",
+    "size": {
+      "width": 5,
+      "height": 3,
+      "key": "5x3"
+    }
+  },
+  {
+    "itemCid": 1091001,
+    "name": "苹果",
+    "quality": "白",
+    "type": "食品烹饪",
+    "price": 200,
+    "image": "/assets/bidking/icons/icon_1091001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1091002,
+    "name": "初榨菜籽油",
+    "quality": "白",
+    "type": "食品烹饪",
+    "price": 344,
+    "image": "/assets/bidking/icons/icon_1091002.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1091003,
+    "name": "老坛酸菜",
+    "quality": "白",
+    "type": "食品烹饪",
+    "price": 486,
+    "image": "/assets/bidking/icons/icon_1091003.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1091004,
+    "name": "阳光小麦粉",
+    "quality": "白",
+    "type": "食品烹饪",
+    "price": 437,
+    "image": "/assets/bidking/icons/icon_1091004.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1091005,
+    "name": "农家土鸡蛋",
+    "quality": "白",
+    "type": "食品烹饪",
+    "price": 107,
+    "image": "/assets/bidking/icons/icon_1091005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1091006,
+    "name": "风干腊肉",
+    "quality": "白",
+    "type": "食品烹饪",
+    "price": 320,
+    "image": "/assets/bidking/icons/icon_1091006.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1091007,
+    "name": "花椒",
+    "quality": "白",
+    "type": "食品烹饪",
+    "price": 150,
+    "image": "/assets/bidking/icons/icon_1091007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1091008,
+    "name": "黑胡椒粉",
+    "quality": "白",
+    "type": "食品烹饪",
+    "price": 139,
+    "image": "/assets/bidking/icons/icon_1091008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1091009,
+    "name": "白砂糖",
+    "quality": "白",
+    "type": "食品烹饪",
+    "price": 192,
+    "image": "/assets/bidking/icons/icon_1091009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1091010,
+    "name": "淀粉肠",
+    "quality": "白",
+    "type": "食品烹饪",
+    "price": 186,
+    "image": "/assets/bidking/icons/icon_1091010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1092001,
+    "name": "古法红糖",
+    "quality": "绿",
+    "type": "食品烹饪",
+    "price": 458,
+    "image": "/assets/bidking/icons/icon_1092001.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1092002,
+    "name": "烟熏辣椒粉",
+    "quality": "绿",
+    "type": "食品烹饪",
+    "price": 473,
+    "image": "/assets/bidking/icons/icon_1092002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1092003,
+    "name": "精酿啤酒",
+    "quality": "绿",
+    "type": "食品烹饪",
+    "price": 346,
+    "image": "/assets/bidking/icons/icon_1092003.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1092004,
+    "name": "海盐",
+    "quality": "绿",
+    "type": "食品烹饪",
+    "price": 360,
+    "image": "/assets/bidking/icons/icon_1092004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1092005,
+    "name": "桂皮",
+    "quality": "绿",
+    "type": "食品烹饪",
+    "price": 475,
+    "image": "/assets/bidking/icons/icon_1092005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1092006,
+    "name": "手打鱼丸",
+    "quality": "绿",
+    "type": "食品烹饪",
+    "price": 480,
+    "image": "/assets/bidking/icons/icon_1092006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1092007,
+    "name": "风干香肠",
+    "quality": "绿",
+    "type": "食品烹饪",
+    "price": 635,
+    "image": "/assets/bidking/icons/icon_1092007.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1092008,
+    "name": "芝麻香油",
+    "quality": "绿",
+    "type": "食品烹饪",
+    "price": 430,
+    "image": "/assets/bidking/icons/icon_1092008.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1092009,
+    "name": "糯米酒",
+    "quality": "绿",
+    "type": "食品烹饪",
+    "price": 446,
+    "image": "/assets/bidking/icons/icon_1092009.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1092010,
+    "name": "黑巧克力",
+    "quality": "绿",
+    "type": "食品烹饪",
+    "price": 262,
+    "image": "/assets/bidking/icons/icon_1092010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1093001,
+    "name": "十年花雕酒",
+    "quality": "蓝",
+    "type": "食品烹饪",
+    "price": 3285,
+    "image": "/assets/bidking/icons/icon_1093001.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1093002,
+    "name": "雪水云绿茶",
+    "quality": "蓝",
+    "type": "食品烹饪",
+    "price": 1350,
+    "image": "/assets/bidking/icons/icon_1093002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1093003,
+    "name": "意大利黑醋",
+    "quality": "蓝",
+    "type": "食品烹饪",
+    "price": 938,
+    "image": "/assets/bidking/icons/icon_1093003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1093004,
+    "name": "熟成火腿",
+    "quality": "蓝",
+    "type": "食品烹饪",
+    "price": 5261,
+    "image": "/assets/bidking/icons/icon_1093004.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1093005,
+    "name": "单一麦芽威士忌",
+    "quality": "蓝",
+    "type": "食品烹饪",
+    "price": 2484,
+    "image": "/assets/bidking/icons/icon_1093005.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1093006,
+    "name": "帕玛森奶酪",
+    "quality": "蓝",
+    "type": "食品烹饪",
+    "price": 1125,
+    "image": "/assets/bidking/icons/icon_1093006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1093007,
+    "name": "手磨咖啡豆",
+    "quality": "蓝",
+    "type": "食品烹饪",
+    "price": 1863,
+    "image": "/assets/bidking/icons/icon_1093007.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1093008,
+    "name": "苹果白兰地",
+    "quality": "蓝",
+    "type": "食品烹饪",
+    "price": 848,
+    "image": "/assets/bidking/icons/icon_1093008.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1093009,
+    "name": "蓝纹奶酪",
+    "quality": "蓝",
+    "type": "食品烹饪",
+    "price": 4578,
+    "image": "/assets/bidking/icons/icon_1093009.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1093010,
+    "name": "鱼子酱",
+    "quality": "蓝",
+    "type": "食品烹饪",
+    "price": 983,
+    "image": "/assets/bidking/icons/icon_1093010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1094001,
+    "name": "二十年汾酒",
+    "quality": "紫",
+    "type": "食品烹饪",
+    "price": 11280,
+    "image": "/assets/bidking/icons/icon_1094001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1094002,
+    "name": "蓝山咖啡豆",
+    "quality": "紫",
+    "type": "食品烹饪",
+    "price": 5040,
+    "image": "/assets/bidking/icons/icon_1094002.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1094003,
+    "name": "黑钻松露",
+    "quality": "紫",
+    "type": "食品烹饪",
+    "price": 2100,
+    "image": "/assets/bidking/icons/icon_1094003.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1094004,
+    "name": "冰酒",
+    "quality": "紫",
+    "type": "食品烹饪",
+    "price": 4788,
+    "image": "/assets/bidking/icons/icon_1094004.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1094005,
+    "name": "特级初榨茶油",
+    "quality": "紫",
+    "type": "食品烹饪",
+    "price": 5076,
+    "image": "/assets/bidking/icons/icon_1094005.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1094006,
+    "name": "熟成和牛",
+    "quality": "紫",
+    "type": "食品烹饪",
+    "price": 6540,
+    "image": "/assets/bidking/icons/icon_1094006.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1094007,
+    "name": "西班牙藏红花",
+    "quality": "紫",
+    "type": "食品烹饪",
+    "price": 2160,
+    "image": "/assets/bidking/icons/icon_1094007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1094008,
+    "name": "伊比利亚火腿",
+    "quality": "紫",
+    "type": "食品烹饪",
+    "price": 16212,
+    "image": "/assets/bidking/icons/icon_1094008.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1094009,
+    "name": "猫屎咖啡",
+    "quality": "紫",
+    "type": "食品烹饪",
+    "price": 3920,
+    "image": "/assets/bidking/icons/icon_1094009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1094010,
+    "name": "蓝龙虾",
+    "quality": "紫",
+    "type": "食品烹饪",
+    "price": 6960,
+    "image": "/assets/bidking/icons/icon_1094010.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1095001,
+    "name": "酱香忘情水",
+    "quality": "金",
+    "type": "食品烹饪",
+    "price": 18600,
+    "image": "/assets/bidking/icons/icon_1095001.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1095002,
+    "name": "西湖龙井明前",
+    "quality": "金",
+    "type": "食品烹饪",
+    "price": 12825,
+    "image": "/assets/bidking/icons/icon_1095002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1095003,
+    "name": "伊比利亚橡果火腿",
+    "quality": "金",
+    "type": "食品烹饪",
+    "price": 54180,
+    "image": "/assets/bidking/icons/icon_1095003.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1095004,
+    "name": "野生皇冠鱼子酱",
+    "quality": "金",
+    "type": "食品烹饪",
+    "price": 12600,
+    "image": "/assets/bidking/icons/icon_1095004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1095005,
+    "name": "白松露",
+    "quality": "金",
+    "type": "食品烹饪",
+    "price": 33000,
+    "image": "/assets/bidking/icons/icon_1095005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1095006,
+    "name": "金芽普洱茶",
+    "quality": "金",
+    "type": "食品烹饪",
+    "price": 49200,
+    "image": "/assets/bidking/icons/icon_1095006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1095007,
+    "name": "蓝鳍金枪鱼腹",
+    "quality": "金",
+    "type": "食品烹饪",
+    "price": 42975,
+    "image": "/assets/bidking/icons/icon_1095007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1095008,
+    "name": "康帝葡萄酒",
+    "quality": "金",
+    "type": "食品烹饪",
+    "price": 19600,
+    "image": "/assets/bidking/icons/icon_1095008.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1095009,
+    "name": "野生大红袍",
+    "quality": "金",
+    "type": "食品烹饪",
+    "price": 29025,
+    "image": "/assets/bidking/icons/icon_1095009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1095010,
+    "name": "手作羊奶酪",
+    "quality": "金",
+    "type": "食品烹饪",
+    "price": 39600,
+    "image": "/assets/bidking/icons/icon_1095010.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1096001,
+    "name": "罗曼尼康帝",
+    "quality": "红",
+    "type": "食品烹饪",
+    "price": 92880,
+    "image": "/assets/bidking/icons/icon_1096001.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1096002,
+    "name": "武夷山母树大红袍",
+    "quality": "红",
+    "type": "食品烹饪",
+    "price": 390000,
+    "image": "/assets/bidking/icons/icon_1096002.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1096003,
+    "name": "藏区冬虫夏草",
+    "quality": "红",
+    "type": "食品烹饪",
+    "price": 168000,
+    "image": "/assets/bidking/icons/icon_1096003.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1096004,
+    "name": "佛跳墙",
+    "quality": "红",
+    "type": "食品烹饪",
+    "price": 68100,
+    "image": "/assets/bidking/icons/icon_1096004.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1096005,
+    "name": "野生大黄鱼",
+    "quality": "红",
+    "type": "食品烹饪",
+    "price": 127260,
+    "image": "/assets/bidking/icons/icon_1096005.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1096006,
+    "name": "陈年干邑",
+    "quality": "红",
+    "type": "食品烹饪",
+    "price": 249000,
+    "image": "/assets/bidking/icons/icon_1096006.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1096007,
+    "name": "蓝鳍金枪鱼",
+    "quality": "红",
+    "type": "食品烹饪",
+    "price": 1552500,
+    "image": "/assets/bidking/icons/icon_1096007.png",
+    "size": {
+      "width": 3,
+      "height": 5,
+      "key": "3x5"
+    }
+  },
+  {
+    "itemCid": 1096008,
+    "name": "大目金枪鱼",
+    "quality": "红",
+    "type": "食品烹饪",
+    "price": 294000,
+    "image": "/assets/bidking/icons/icon_1096008.png",
+    "size": {
+      "width": 3,
+      "height": 5,
+      "key": "3x5"
+    }
+  },
+  {
+    "itemCid": 1096009,
+    "name": "黄唇鱼鱼胶",
+    "quality": "红",
+    "type": "食品烹饪",
+    "price": 193200,
+    "image": "/assets/bidking/icons/icon_1096009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1101001,
+    "name": "素描用画板",
+    "quality": "白",
+    "type": "书籍绘画",
+    "price": 360,
+    "image": "/assets/bidking/icons/icon_1101001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1101002,
+    "name": "中国新年春联一",
+    "quality": "白",
+    "type": "书籍绘画",
+    "price": 341,
+    "image": "/assets/bidking/icons/icon_1101002.png",
+    "size": {
+      "width": 1,
+      "height": 4,
+      "key": "1x4"
+    }
+  },
+  {
+    "itemCid": 1101003,
+    "name": "中国新年春联二",
+    "quality": "白",
+    "type": "书籍绘画",
+    "price": 317,
+    "image": "/assets/bidking/icons/icon_1101003.png",
+    "size": {
+      "width": 1,
+      "height": 4,
+      "key": "1x4"
+    }
+  },
+  {
+    "itemCid": 1101004,
+    "name": "中国新年春联横幅",
+    "quality": "白",
+    "type": "书籍绘画",
+    "price": 218,
+    "image": "/assets/bidking/icons/icon_1101004.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1101005,
+    "name": "印刷广告卡通圆扇",
+    "quality": "白",
+    "type": "书籍绘画",
+    "price": 221,
+    "image": "/assets/bidking/icons/icon_1101005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1101006,
+    "name": "生日贺卡",
+    "quality": "白",
+    "type": "书籍绘画",
+    "price": 114,
+    "image": "/assets/bidking/icons/icon_1101006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1101007,
+    "name": "印刷风景明信片",
+    "quality": "白",
+    "type": "书籍绘画",
+    "price": 137,
+    "image": "/assets/bidking/icons/icon_1101007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1101008,
+    "name": "A4印刷用纸",
+    "quality": "白",
+    "type": "书籍绘画",
+    "price": 257,
+    "image": "/assets/bidking/icons/icon_1101008.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1101009,
+    "name": "喷灌类墨水",
+    "quality": "白",
+    "type": "书籍绘画",
+    "price": 308,
+    "image": "/assets/bidking/icons/icon_1101009.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1101010,
+    "name": "素描铅笔",
+    "quality": "白",
+    "type": "书籍绘画",
+    "price": 117,
+    "image": "/assets/bidking/icons/icon_1101010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1102001,
+    "name": "印刷画折扇",
+    "quality": "绿",
+    "type": "书籍绘画",
+    "price": 441,
+    "image": "/assets/bidking/icons/icon_1102001.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1102002,
+    "name": "书法用卷轴",
+    "quality": "绿",
+    "type": "书籍绘画",
+    "price": 1089,
+    "image": "/assets/bidking/icons/icon_1102002.png",
+    "size": {
+      "width": 1,
+      "height": 3,
+      "key": "1x3"
+    }
+  },
+  {
+    "itemCid": 1102003,
+    "name": "大本盗印网络小说",
+    "quality": "绿",
+    "type": "书籍绘画",
+    "price": 1246,
+    "image": "/assets/bidking/icons/icon_1102003.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1102004,
+    "name": "印刷山水画壁纸",
+    "quality": "绿",
+    "type": "书籍绘画",
+    "price": 2016,
+    "image": "/assets/bidking/icons/icon_1102004.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1102005,
+    "name": "连载漫画一",
+    "quality": "绿",
+    "type": "书籍绘画",
+    "price": 786,
+    "image": "/assets/bidking/icons/icon_1102005.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1102006,
+    "name": "连载漫画二",
+    "quality": "绿",
+    "type": "书籍绘画",
+    "price": 760,
+    "image": "/assets/bidking/icons/icon_1102006.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1102007,
+    "name": "连载漫画三",
+    "quality": "绿",
+    "type": "书籍绘画",
+    "price": 536,
+    "image": "/assets/bidking/icons/icon_1102007.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1102008,
+    "name": "连载漫画四",
+    "quality": "绿",
+    "type": "书籍绘画",
+    "price": 721,
+    "image": "/assets/bidking/icons/icon_1102008.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1102009,
+    "name": "练字用描红本",
+    "quality": "绿",
+    "type": "书籍绘画",
+    "price": 734,
+    "image": "/assets/bidking/icons/icon_1102009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1102010,
+    "name": "水写毛笔练字字帖",
+    "quality": "绿",
+    "type": "书籍绘画",
+    "price": 1119,
+    "image": "/assets/bidking/icons/icon_1102010.png",
+    "size": {
+      "width": 3,
+      "height": 1,
+      "key": "3x1"
+    }
+  },
+  {
+    "itemCid": 1103001,
+    "name": "游戏概念设定集",
+    "quality": "蓝",
+    "type": "书籍绘画",
+    "price": 2700,
+    "image": "/assets/bidking/icons/icon_1103001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1103002,
+    "name": "同人画册",
+    "quality": "蓝",
+    "type": "书籍绘画",
+    "price": 3960,
+    "image": "/assets/bidking/icons/icon_1103002.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1103003,
+    "name": "西游记连环画本",
+    "quality": "蓝",
+    "type": "书籍绘画",
+    "price": 1796,
+    "image": "/assets/bidking/icons/icon_1103003.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1103004,
+    "name": "手办原型设计图",
+    "quality": "蓝",
+    "type": "书籍绘画",
+    "price": 2565,
+    "image": "/assets/bidking/icons/icon_1103004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1103005,
+    "name": "墙面涂鸦墙",
+    "quality": "蓝",
+    "type": "书籍绘画",
+    "price": 8880,
+    "image": "/assets/bidking/icons/icon_1103005.png",
+    "size": {
+      "width": 5,
+      "height": 4,
+      "key": "5x4"
+    }
+  },
+  {
+    "itemCid": 1103006,
+    "name": "绘画墨水集合",
+    "quality": "蓝",
+    "type": "书籍绘画",
+    "price": 3240,
+    "image": "/assets/bidking/icons/icon_1103006.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1103007,
+    "name": "手绘写实人像画",
+    "quality": "蓝",
+    "type": "书籍绘画",
+    "price": 4343,
+    "image": "/assets/bidking/icons/icon_1103007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1103008,
+    "name": "三国演义连环画本",
+    "quality": "蓝",
+    "type": "书籍绘画",
+    "price": 2768,
+    "image": "/assets/bidking/icons/icon_1103008.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1103009,
+    "name": "水浒传连环画本",
+    "quality": "蓝",
+    "type": "书籍绘画",
+    "price": 4388,
+    "image": "/assets/bidking/icons/icon_1103009.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1103010,
+    "name": "红楼梦连环画本",
+    "quality": "蓝",
+    "type": "书籍绘画",
+    "price": 3690,
+    "image": "/assets/bidking/icons/icon_1103010.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1104001,
+    "name": "现代画家手稿",
+    "quality": "紫",
+    "type": "书籍绘画",
+    "price": 8940,
+    "image": "/assets/bidking/icons/icon_1104001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1104002,
+    "name": "临摹版清明上河图",
+    "quality": "紫",
+    "type": "书籍绘画",
+    "price": 6824,
+    "image": "/assets/bidking/icons/icon_1104002.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1104003,
+    "name": "《心经》高僧手抄卷",
+    "quality": "紫",
+    "type": "书籍绘画",
+    "price": 7472,
+    "image": "/assets/bidking/icons/icon_1104003.png",
+    "size": {
+      "width": 4,
+      "height": 1,
+      "key": "4x1"
+    }
+  },
+  {
+    "itemCid": 1104004,
+    "name": "限量画集",
+    "quality": "紫",
+    "type": "书籍绘画",
+    "price": 11760,
+    "image": "/assets/bidking/icons/icon_1104004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1104005,
+    "name": "蝉翼拓片宣纸",
+    "quality": "紫",
+    "type": "书籍绘画",
+    "price": 11520,
+    "image": "/assets/bidking/icons/icon_1104005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1104006,
+    "name": "蕉叶白端砚",
+    "quality": "紫",
+    "type": "书籍绘画",
+    "price": 8240,
+    "image": "/assets/bidking/icons/icon_1104006.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1104007,
+    "name": "金栗山藏经纸 ",
+    "quality": "紫",
+    "type": "书籍绘画",
+    "price": 10260,
+    "image": "/assets/bidking/icons/icon_1104007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1104008,
+    "name": "古韵臂搁",
+    "quality": "紫",
+    "type": "书籍绘画",
+    "price": 6624,
+    "image": "/assets/bidking/icons/icon_1104008.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1104009,
+    "name": "沉香木镂空笔架",
+    "quality": "紫",
+    "type": "书籍绘画",
+    "price": 8700,
+    "image": "/assets/bidking/icons/icon_1104009.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1104010,
+    "name": "《淳化阁帖》宋拓本仿制册页",
+    "quality": "紫",
+    "type": "书籍绘画",
+    "price": 14112,
+    "image": "/assets/bidking/icons/icon_1104010.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1105001,
+    "name": "《敦煌遗书》唐代写经卷仿制卷",
+    "quality": "金",
+    "type": "书籍绘画",
+    "price": 35200,
+    "image": "/assets/bidking/icons/icon_1105001.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1105002,
+    "name": "《营造法式》彩画作制度图样精仿本",
+    "quality": "金",
+    "type": "书籍绘画",
+    "price": 37920,
+    "image": "/assets/bidking/icons/icon_1105002.png",
+    "size": {
+      "width": 2,
+      "height": 1,
+      "key": "2x1"
+    }
+  },
+  {
+    "itemCid": 1105003,
+    "name": "《黄庭经》卷仿本",
+    "quality": "金",
+    "type": "书籍绘画",
+    "price": 55440,
+    "image": "/assets/bidking/icons/icon_1105003.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1105004,
+    "name": "宗教壁画残片",
+    "quality": "金",
+    "type": "书籍绘画",
+    "price": 53550,
+    "image": "/assets/bidking/icons/icon_1105004.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1105005,
+    "name": "浪漫主义风景素描原作",
+    "quality": "金",
+    "type": "书籍绘画",
+    "price": 29700,
+    "image": "/assets/bidking/icons/icon_1105005.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1105006,
+    "name": "洛可可风格沙龙速写",
+    "quality": "金",
+    "type": "书籍绘画",
+    "price": 58395,
+    "image": "/assets/bidking/icons/icon_1105006.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1105007,
+    "name": "植物水彩图",
+    "quality": "金",
+    "type": "书籍绘画",
+    "price": 25875,
+    "image": "/assets/bidking/icons/icon_1105007.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1105008,
+    "name": "芒画派肖像油画",
+    "quality": "金",
+    "type": "书籍绘画",
+    "price": 57540,
+    "image": "/assets/bidking/icons/icon_1105008.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1105009,
+    "name": "祈祷书彩绘插页",
+    "quality": "金",
+    "type": "书籍绘画",
+    "price": 24435,
+    "image": "/assets/bidking/icons/icon_1105009.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1105010,
+    "name": "刺绣《千里江山图》",
+    "quality": "金",
+    "type": "书籍绘画",
+    "price": 88473,
+    "image": "/assets/bidking/icons/icon_1105010.png",
+    "size": {
+      "width": 2,
+      "height": 4,
+      "key": "2x4"
+    }
+  },
+  {
+    "itemCid": 1105011,
+    "name": "现代书法家题字",
+    "quality": "金",
+    "type": "书籍绘画",
+    "price": 79825,
+    "image": "/assets/bidking/icons/icon_1105011.png",
+    "size": {
+      "width": 6,
+      "height": 1,
+      "key": "6x1"
+    }
+  },
+  {
+    "itemCid": 1106001,
+    "name": "清明上河图复刻",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 240660,
+    "image": "/assets/bidking/icons/icon_1106001.png",
+    "size": {
+      "width": 6,
+      "height": 1,
+      "key": "6x1"
+    }
+  },
+  {
+    "itemCid": 1106002,
+    "name": "《岩间圣母》",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 120600,
+    "image": "/assets/bidking/icons/icon_1106002.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1106003,
+    "name": "《戴珍珠耳环的少女》",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 160200,
+    "image": "/assets/bidking/icons/icon_1106003.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1106004,
+    "name": "《自由引导人民》",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 191800,
+    "image": "/assets/bidking/icons/icon_1106004.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1106005,
+    "name": "《星空》",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 170200,
+    "image": "/assets/bidking/icons/icon_1106005.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1106006,
+    "name": "《亚威农少女》",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 282240,
+    "image": "/assets/bidking/icons/icon_1106006.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1106007,
+    "name": "《凯尔经》",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 175500,
+    "image": "/assets/bidking/icons/icon_1106007.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1106008,
+    "name": "《天工开物》",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 148840,
+    "image": "/assets/bidking/icons/icon_1106008.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1106009,
+    "name": "永乐大典残本一",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 1491800,
+    "image": "/assets/bidking/icons/icon_1106009.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1106010,
+    "name": "永乐大典残本二",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 1553900,
+    "image": "/assets/bidking/icons/icon_1106010.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1106011,
+    "name": "《富春山居图》",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 1236666,
+    "image": "/assets/bidking/icons/icon_1106011.png",
+    "size": {
+      "width": 3,
+      "height": 1,
+      "key": "3x1"
+    }
+  },
+  {
+    "itemCid": 1106012,
+    "name": "《般若神掌》",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 284519,
+    "image": "/assets/bidking/icons/icon_1106012.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  }
+]

@@ -1,0 +1,52 @@
+.number-pad {
+  position: fixed;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: repeat(4, 48px);
+  grid-auto-flow: row;
+  width: 228px;
+  min-width: 228px;
+  max-width: 228px;
+  min-height: 0;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.28);
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.number-pad[hidden] {
+  display: none !important;
+}
+
+.number-pad button {
+  all: unset;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 0;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.number-pad button:hover {
+  border-color: var(--muted);
+  background: var(--surface-3);
+}
+
+.number-pad .wide {
+  grid-column: span 2;
+}
+
+.number-pad:not(.decimal) [data-number-key="."] {
+  opacity: 0.38;
+}

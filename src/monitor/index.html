@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor · BKToolBox</title>
+<script>
+try {
+  const theme = localStorage.getItem('bidking-theme');
+  const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  document.documentElement.dataset.theme = theme === 'light' || theme === 'dark' || theme === 'system'
+    ? theme
+    : (prefersLight ? 'light' : 'dark');
+} catch (_error) {
+  document.documentElement.dataset.theme = 'dark';
+}
+</script>
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

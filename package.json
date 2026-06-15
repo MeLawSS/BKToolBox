@@ -1,0 +1,139 @@
+{
+  "name": "bktoolbox",
+  "version": "1.0.0",
+  "description": "BidKing 工具箱",
+  "main": "electron/main.js",
+  "scripts": {
+    "build:home": "vite build",
+    "build:elsa": "vite build --config vite.elsa.config.js",
+    "build:ahmed": "vite build --config vite.ahmed.config.js",
+    "build:ethan": "vite build --config vite.ethan.config.js",
+    "build:monitor": "vite build --config vite.monitor.config.js",
+    "build:price": "vite build --config vite.price.config.js",
+    "build:inject": "vite build --config vite.inject.config.js",
+    "clean:pages": "node scripts/clean-page-builds.mjs",
+    "build:pages": "npm run clean:pages && npm run build:home && npm run build:elsa && npm run build:ahmed && npm run build:ethan && npm run build:monitor && npm run build:price && npm run build:inject",
+    "start": "npm run build:pages && node server.js",
+    "desktop": "npm run build:pages && electron .",
+    "setup:tools": "node scripts/setup-tools.mjs",
+    "prepare:dumpcap": "node scripts/prepare-dumpcap-runtime.mjs",
+    "pack": "node scripts/pack-win-dir.mjs",
+    "dist:win": "npm run build:pages && npm run prepare:dumpcap && electron-builder --win portable && node scripts/patch-win-icons.js dist",
+    "extract:collectibles": "node scripts/extract-bidking-collectibles.js",
+    "watch:game-log": "node scripts/watch-bidking-game-log.mjs",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "verify": "npm test && npm run test:coverage && npm run build:pages",
+    "test:watch": "vitest"
+  },
+  "keywords": [],
+  "author": {
+    "name": "melo"
+  },
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "optionalDependencies": {
+    "@rolldown/binding-linux-x64-gnu": "1.0.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@vitest/coverage-v8": "^4.1.6",
+    "@vue/test-utils": "^2.4.10",
+    "chart.js": "^4.5.1",
+    "electron": "^37.0.0",
+    "electron-builder": "^26.8.1",
+    "happy-dom": "^20.9.0",
+    "supertest": "^7.2.2",
+    "vite": "^8.0.13",
+    "vitest": "^4.1.6",
+    "vue": "^3.5.34",
+    "vue-chartjs": "^5.3.3"
+  },
+  "build": {
+    "appId": "com.bktoolbox.desktop",
+    "productName": "BKToolBox",
+    "asar": false,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "afterPack": "build/after-pack.js",
+    "electronDownload": {
+      "mirror": "https://npmmirror.com/mirrors/electron/"
+    },
+    "files": [
+      "BidKing.png",
+      "electron/**/*",
+      "lib/**/*.js",
+      "public/**/*",
+      "runtime-paths.js",
+      "server.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "collectibles.json",
+        "to": "runtime/collectibles.json"
+      },
+      {
+        "from": "Archive/BidKing/BidKing_Data/StreamingAssets/Tables/Item.txt",
+        "to": "runtime/Archive/BidKing/BidKing_Data/StreamingAssets/Tables/Item.txt"
+      },
+      {
+        "from": "Archive/BidKing/BidKing_Data/StreamingAssets/Tables/Item_Type.txt",
+        "to": "runtime/Archive/BidKing/BidKing_Data/StreamingAssets/Tables/Item_Type.txt"
+      },
+      {
+        "from": "lib",
+        "to": "runtime/lib"
+      },
+      {
+        "from": "build/runtime-capture/dumpcap",
+        "to": "runtime/tools/dumpcap"
+      },
+      {
+        "from": "tools/inject",
+        "to": "runtime/tools/inject",
+        "filter": [
+          "**/*.dll",
+          "**/*.exe",
+          "**/*.cmd",
+          "**/*.ps1"
+        ]
+      },
+      {
+        "from": "build/runtime-capture/npcap",
+        "to": "runtime/tools/npcap"
+      },
+      {
+        "from": ".",
+        "to": "runtime",
+        "filter": [
+          "solve-*.js",
+          "scripts/*.mjs"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "requestedExecutionLevel": "requireAdministrator",
+      "signAndEditExecutable": true,
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
+    }
+  }
+}

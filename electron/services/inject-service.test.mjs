@@ -1,0 +1,1015 @@
+/* @vitest-environment node */
+import { EventEmitter } from 'events';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+const service = await import('./inject-service.js');
+
+const tempRoots = [];
+
+function makeTempRoot() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bidking-inject-service-'));
+  tempRoots.push(root);
+  return root;
+}
+
+afterEach(() => {
+  for (const root of tempRoots.splice(0)) {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+  vi.restoreAllMocks();
+});
+
+describe('inject-service cabinet reward', () => {
+  it('injects with CabinetReward command and returns the file written by the payload', async () => {
+    const documentsDir = makeTempRoot();
+    const execFile = vi.fn((_exe, _args, _opts, callback) => {
+      const outDir = path.join(documentsDir, 'BidKing');
+      fs.mkdirSync(outDir, { recursive: true });
+      fs.writeFileSync(path.join(outDir, 'cabinet-reward.json'), JSON.stringify({
+        ok: true,
+        observedAt: '2026-06-01T03:04:05.000Z',
+        awardCount: 12345,
+      }));
+      callback(null, 'Injected', '');
+    });
+
+    const result = await service.queryCabinetReward({
+      execFile,
+      documentsDir,
+      pollIntervalMs: 1,
+      timeoutMs: 100,
+    });
+
+    expect(execFile).toHaveBeenCalledWith(
+      'powershell.exe',
+      expect.arrayContaining([
+        '-DllPath',
+        expect.stringContaining('BKCabinetRewardPayload64.dll'),
+        '-Command',
+        'CabinetReward',
+      ]),
+      expect.objectContaining({ windowsHide: true }),
+      expect.any(Function),
+    );
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      value: expect.objectContaining({ awardCount: 12345 }),
+    }));
+  });
+
+  it('injects with ClaimCabinetReward command and returns the refreshed reward file', async () => {
+    const documentsDir = makeTempRoot();
+    const execFile = vi.fn((_exe, _args, _opts, callback) => {
+      const outDir = path.join(documentsDir, 'BidKing');
+      fs.mkdirSync(outDir, { recursive: true });
+      fs.writeFileSync(path.join(outDir, 'cabinet-reward.json'), JSON.stringify({
+        ok: true,
+        observedAt: '2026-06-01T03:05:06.000Z',
+        awardCount: 0,
+        cabinetCount: 1,
+        source: 'PlayerManager.GetCabinetReward',
+      }));
+      callback(null, 'Injected', '');
+    });
+
+    const result = await service.claimCabinetReward({
+      execFile,
+      documentsDir,
+      pollIntervalMs: 1,
+      timeoutMs: 100,
+    });
+
+    expect(execFile).toHaveBeenCalledWith(
+      'powershell.exe',
+      expect.arrayContaining([
+        '-DllPath',
+        expect.stringContaining('BKCabinetRewardPayload64.dll'),
+        '-Command',
+        'ClaimCabinetReward',
+      ]),
+      expect.objectContaining({ windowsHide: true }),
+      expect.any(Function),
+    );
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      value: expect.objectContaining({
+        awardCount: 0,
+        source: 'PlayerManager.GetCabinetReward',
+      }),
+    }));
+  });
+});
+
+describe('inject-service AutoOperation Agent', () => {
+  it('accepts AutoOperation frames larger than 64KB', async () => {
+    class MockSocket extends EventEmitter {
+      constructor() {
+        super();
+        this.writes = [];
+      }
+
+      setTimeout(_timeoutMs, _handler) {}
+
+      write(chunk) {
+        this.writes.push(Buffer.from(chunk));
+        return true;
+      }
+
+      destroy() {}
+    }
+
+    const socket = new MockSocket();
+    const net = {
+      createConnection: vi.fn(() => {
+        queueMicrotask(() => socket.emit('connect'));
+        return socket;
+      }),
+    };
+    const id = 'large-frame';
+    const responsePromise = service.sendAutoOperationCommand('GetStockContainers', {}, {
+      net,
+      id,
+      timeoutMs: 100,
+    });
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const frame = JSON.stringify({
+      id,
+      ok: true,
+      result: {
+        padding: 'x'.repeat(70000),
+      },
+    });
+    const body = Buffer.from(frame, 'utf8');
+    const header = Buffer.allocUnsafe(4);
+    header.writeUInt32LE(body.length, 0);
+    socket.emit('data', Buffer.concat([header, body]));
+
+    await expect(responsePromise).resolves.toEqual(expect.objectContaining({
+      id,
+      ok: true,
+      result: expect.objectContaining({
+        padding: expect.any(String),
+      }),
+    }));
+  });
+
+  it('reuses a reachable AutoOperation Agent instead of injecting it again', async () => {
+    const execFile = vi.fn();
+    const sendAutoOperationCommand = vi.fn().mockResolvedValue({
+      id: '1',
+      ok: true,
+      result: { pong: true },
+    });
+
+    const result = await service.startAutoOperationAgent({
+      execFile,
+      sendAutoOperationCommand,
+    });
+
+    expect(execFile).not.toHaveBeenCalled();
+    expect(sendAutoOperationCommand).toHaveBeenCalledWith('Ping', {}, expect.any(Object));
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      value: expect.objectContaining({ pong: true }),
+      reused: true,
+    }));
+  });
+
+  it('injects the AutoOperation Agent DLL and verifies it with Ping', async () => {
+    const documentsDir = makeTempRoot();
+    const execFile = vi.fn((_exe, _args, _opts, callback) => {
+      callback(null, 'Injected', '');
+    });
+    const sendAutoOperationCommand = vi.fn()
+      .mockRejectedValueOnce(new Error('connect ENOENT \\\\.\\pipe\\BKAutoOp'))
+      .mockResolvedValueOnce({
+        id: '1',
+        ok: true,
+        result: { pong: true },
+      });
+
+    const result = await service.startAutoOperationAgent({
+      execFile,
+      documentsDir,
+      sendAutoOperationCommand,
+    });
+
+    expect(execFile).toHaveBeenCalledWith(
+      'powershell.exe',
+      expect.arrayContaining([
+        '-DllPath',
+        expect.stringContaining('BKAutoOpAgent.dll'),
+        '-Command',
+        'AutoOperationAgent',
+      ]),
+      expect.objectContaining({ windowsHide: true }),
+      expect.any(Function),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(1, 'Ping', {}, expect.any(Object));
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(2, 'Ping', {}, expect.any(Object));
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      injection: expect.objectContaining({ output: 'Injected' }),
+      value: expect.objectContaining({ pong: true }),
+    }));
+  });
+
+  it('includes injector output when AutoOperation Agent ping fails after injection', async () => {
+    const execFile = vi.fn((_exe, _args, _opts, callback) => {
+      callback(null, 'Target: BidKing PID=123\nInjected', '');
+    });
+    const sendAutoOperationCommand = vi.fn().mockRejectedValue(new Error('connect ENOENT \\\\.\\pipe\\BKAutoOp'));
+
+    await expect(service.startAutoOperationAgent({
+      execFile,
+      sendAutoOperationCommand,
+      agentTimeoutMs: 1,
+      agentPollIntervalMs: 1,
+    })).rejects.toThrow('Injector output: Target: BidKing PID=123');
+  });
+
+  it('runs a generic AutoOperation command through the Agent pipe', async () => {
+    const sendAutoOperationCommand = vi.fn().mockResolvedValue({
+      id: '7',
+      ok: true,
+      result: { panel: 'TradingExchange_Main' },
+    });
+
+    const result = await service.runAutoOperationCommand('GetCurrentUI', {}, {
+      sendAutoOperationCommand,
+    });
+
+    expect(sendAutoOperationCommand).toHaveBeenCalledWith('GetCurrentUI', {}, expect.any(Object));
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      value: expect.objectContaining({ panel: 'TradingExchange_Main' }),
+    }));
+  });
+
+  it('preserves MoveStockItem refresh metadata from the Agent pipe', async () => {
+    const sendAutoOperationCommand = vi.fn().mockResolvedValue({
+      id: '9',
+      ok: true,
+      result: {
+        moved: true,
+        stocksRefreshed: true,
+        containers: [
+          { stockId: 1, items: [] },
+          { stockId: 2, items: [{ itemUid: 'boots-a', stockId: 2, pos: 5 }] },
+        ],
+      },
+    });
+
+    const result = await service.runAutoOperationCommand('MoveStockItem', {
+      oldStockId: 1,
+      oldSlot: 0,
+      newStockId: 2,
+      newSlot: 5,
+      isRotate: false,
+    }, {
+      sendAutoOperationCommand,
+    });
+
+    expect(sendAutoOperationCommand).toHaveBeenCalledWith('MoveStockItem', {
+      oldStockId: 1,
+      oldSlot: 0,
+      newStockId: 2,
+      newSlot: 5,
+      isRotate: false,
+    }, expect.any(Object));
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      value: expect.objectContaining({
+        moved: true,
+        stocksRefreshed: true,
+        containers: expect.any(Array),
+      }),
+    }));
+  });
+
+  it('preserves MoveStockItem refresh flags from the Agent pipe response', async () => {
+    const sendAutoOperationCommand = vi.fn().mockResolvedValue({
+      id: '9',
+      ok: true,
+      result: {
+        moved: true,
+        stocksRefreshed: true,
+        containers: [
+          {
+            stockId: 2,
+            items: [
+              { itemUid: '123456789', itemCid: 1032006, pos: 5 },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await service.runAutoOperationCommand('MoveStockItem', {
+      oldStockId: 1,
+      oldSlot: 0,
+      newStockId: 2,
+      newSlot: 5,
+      isRotate: false,
+    }, {
+      sendAutoOperationCommand,
+    });
+
+    expect(sendAutoOperationCommand).toHaveBeenCalledWith(
+      'MoveStockItem',
+      {
+        oldStockId: 1,
+        oldSlot: 0,
+        newStockId: 2,
+        newSlot: 5,
+        isRotate: false,
+      },
+      expect.any(Object),
+    );
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      value: expect.objectContaining({
+        moved: true,
+        stocksRefreshed: true,
+        containers: expect.arrayContaining([
+          expect.objectContaining({ stockId: 2 }),
+        ]),
+      }),
+    }));
+  });
+
+  it('waits for the AutoOperation Agent to disappear when running UnloadAgent through the generic command path', async () => {
+    const sendAutoOperationCommand = vi.fn()
+      .mockResolvedValueOnce({
+        id: '7',
+        ok: true,
+        result: { unloading: true, delayMs: 200 },
+      })
+      .mockResolvedValueOnce({
+        id: '8',
+        ok: true,
+        result: { pong: true },
+      })
+      .mockRejectedValueOnce(new Error('connect ENOENT \\\\.\\pipe\\BKAutoOp'));
+
+    const result = await service.runAutoOperationCommand('UnloadAgent', { delayMs: 200 }, {
+      sendAutoOperationCommand,
+      unloadPollIntervalMs: 1,
+      unloadTimeoutMs: 50,
+      unloadGraceMs: 0,
+    });
+
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      1,
+      'UnloadAgent',
+      { delayMs: 200 },
+      expect.any(Object),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      2,
+      'Ping',
+      {},
+      expect.any(Object),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      3,
+      'Ping',
+      {},
+      expect.any(Object),
+    );
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      value: expect.objectContaining({ unloading: true, unloaded: true }),
+    }));
+  });
+
+  it('does not treat ping timeout as proof that UnloadAgent finished', async () => {
+    const sendAutoOperationCommand = vi.fn()
+      .mockResolvedValueOnce({
+        id: '7',
+        ok: true,
+        result: { unloading: true, delayMs: 200 },
+      })
+      .mockRejectedValue(new Error('ping timed out'));
+
+    await expect(service.runAutoOperationCommand('UnloadAgent', { delayMs: 200 }, {
+      sendAutoOperationCommand,
+      unloadPollIntervalMs: 1,
+      unloadTimeoutMs: 10,
+      unloadGraceMs: 0,
+    })).rejects.toThrow('AutoOperation Agent did not unload before timeout');
+  });
+
+  it('uses longer pipe timeouts for long-running AutoOperation commands', async () => {
+    const sendAutoOperationCommand = vi.fn().mockResolvedValue({
+      id: '8',
+      ok: true,
+      result: {},
+    });
+
+    await service.runAutoOperationCommand('GetCollectionItemCids', {}, { sendAutoOperationCommand });
+    await service.runAutoOperationCommand('GetItemTradeInfo', { itemCid: 1032006 }, { sendAutoOperationCommand });
+    await service.runAutoOperationCommand('GetWarehouseItemList', {}, { sendAutoOperationCommand });
+    await service.runAutoOperationCommand('GetStockCollectibleCounts', {}, { sendAutoOperationCommand });
+    await service.runAutoOperationCommand('GetStockContainers', {}, { sendAutoOperationCommand });
+    await service.runAutoOperationCommand('MoveStockItem', {
+      oldStockId: 1,
+      oldSlot: 24,
+      newStockId: 2,
+      newSlot: 13,
+      isRotate: false,
+    }, { sendAutoOperationCommand });
+    await service.runAutoOperationCommand('ExchangeItem', {
+      itemCid: 1032006,
+      count: 1,
+      unitPrice: 6200,
+      timeoutMs: 60000,
+    }, { sendAutoOperationCommand });
+
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      1,
+      'GetCollectionItemCids',
+      {},
+      expect.objectContaining({ timeoutMs: 45000 }),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      2,
+      'GetItemTradeInfo',
+      { itemCid: 1032006 },
+      expect.objectContaining({ timeoutMs: 45000 }),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      3,
+      'GetWarehouseItemList',
+      {},
+      expect.objectContaining({ timeoutMs: 45000 }),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      4,
+      'GetStockCollectibleCounts',
+      {},
+      expect.objectContaining({ timeoutMs: 45000 }),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      5,
+      'GetStockContainers',
+      {},
+      expect.objectContaining({ timeoutMs: 45000 }),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      6,
+      'MoveStockItem',
+      {
+        oldStockId: 1,
+        oldSlot: 24,
+        newStockId: 2,
+        newSlot: 13,
+        isRotate: false,
+      },
+      expect.objectContaining({ timeoutMs: 45000 }),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      7,
+      'ExchangeItem',
+      {
+        itemCid: 1032006,
+        count: 1,
+        unitPrice: 6200,
+        timeoutMs: 60000,
+      },
+      expect.objectContaining({ timeoutMs: 185000 }),
+    );
+  });
+
+  it('unloads the AutoOperation Agent with a short timeout', async () => {
+    const sendAutoOperationCommand = vi.fn()
+      .mockResolvedValueOnce({
+        id: '9',
+        ok: true,
+        result: { unloading: true, delayMs: 200 },
+      })
+      .mockResolvedValueOnce({
+        id: '10',
+        ok: true,
+        result: { pong: true },
+      })
+      .mockRejectedValueOnce(new Error('connect ENOENT \\\\.\\pipe\\BKAutoOp'));
+
+    const result = await service.unloadAutoOperationAgent({
+      sendAutoOperationCommand,
+      unloadPollIntervalMs: 1,
+      unloadTimeoutMs: 50,
+      unloadGraceMs: 0,
+    });
+
+    expect(sendAutoOperationCommand).toHaveBeenCalledWith(
+      'UnloadAgent',
+      { delayMs: 200 },
+      expect.objectContaining({ timeoutMs: 2000 }),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      2,
+      'Ping',
+      {},
+      expect.any(Object),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      3,
+      'Ping',
+      {},
+      expect.any(Object),
+    );
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      value: expect.objectContaining({ unloading: true, unloaded: true }),
+    }));
+  });
+
+  it('does not throw when unloading the AutoOperation Agent fails during shutdown', async () => {
+    const sendAutoOperationCommand = vi.fn().mockRejectedValue(new Error('pipe not found'));
+
+    const result = await service.unloadAutoOperationAgent({ sendAutoOperationCommand });
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'pipe not found',
+    });
+  });
+
+  it('reports failure when the AutoOperation Agent still responds after the unload timeout', async () => {
+    const sendAutoOperationCommand = vi.fn()
+      .mockResolvedValueOnce({
+        id: '9',
+        ok: true,
+        result: { unloading: true, delayMs: 200 },
+      })
+      .mockResolvedValue({
+        id: '10',
+        ok: true,
+        result: { pong: true },
+      });
+
+    const result = await service.unloadAutoOperationAgent({
+      sendAutoOperationCommand,
+      unloadPollIntervalMs: 1,
+      unloadTimeoutMs: 5,
+      unloadGraceMs: 0,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'AutoOperation Agent did not unload before timeout',
+    });
+  });
+});
+
+describe('single item trade info refresh', () => {
+  it('starts the Agent, queries one item, records the snapshot, and returns the written summary', async () => {
+    const startAutoOperationAgent = vi.fn().mockResolvedValue({ ok: true });
+    const runAutoOperationCommand = vi.fn().mockResolvedValue({
+      ok: true,
+      value: {
+        itemCid: 1022002,
+        minPrice: 3996,
+        tierCount: 1,
+        totalCount: 3,
+        tiers: [{ price: 3996, count: 3 }],
+      },
+    });
+    const recordTradeInfoSnapshot = vi.fn().mockReturnValue({
+      ok: true,
+      itemCid: 1022002,
+      minPrice: 3996,
+      tierCount: 1,
+      totalCount: 3,
+    });
+
+    const result = await service.refreshItemTradeInfo(1022002, {
+      startAutoOperationAgent,
+      runAutoOperationCommand,
+      recordTradeInfoSnapshot,
+    });
+
+    expect(startAutoOperationAgent).toHaveBeenCalledTimes(1);
+    expect(runAutoOperationCommand).toHaveBeenCalledWith('GetItemTradeInfo', { itemCid: 1022002 }, expect.any(Object));
+    expect(recordTradeInfoSnapshot).toHaveBeenCalledWith({
+      itemCid: 1022002,
+      minPrice: 3996,
+      tierCount: 1,
+      totalCount: 3,
+      tiers: [{ price: 3996, count: 3 }],
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        ok: true,
+        itemCid: 1022002,
+        minPrice: 3996,
+        tierCount: 1,
+        totalCount: 3,
+      },
+    });
+  });
+
+  it('rejects invalid item cids before starting the Agent', async () => {
+    const startAutoOperationAgent = vi.fn();
+
+    await expect(service.refreshItemTradeInfo('bad', { startAutoOperationAgent }))
+      .rejects.toThrow('itemCid is required');
+    expect(startAutoOperationAgent).not.toHaveBeenCalled();
+  });
+
+  it('throws the writer error when the snapshot cannot be recorded', async () => {
+    await expect(service.refreshItemTradeInfo(1022002, {
+      startAutoOperationAgent: vi.fn().mockResolvedValue({ ok: true }),
+      runAutoOperationCommand: vi.fn().mockResolvedValue({
+        ok: true,
+        value: { itemCid: 1022002, tiers: [] },
+      }),
+      recordTradeInfoSnapshot: vi.fn().mockReturnValue({ ok: false, error: 'invalid trade info snapshot' }),
+    })).rejects.toThrow('invalid trade info snapshot');
+  });
+});
+
+describe('collection price scan desktop helpers', () => {
+  it('passes collection scan start/stop/status to the controller', async () => {
+    const controller = {
+      start: vi.fn().mockResolvedValue({ state: 'running' }),
+      stop: vi.fn().mockReturnValue({ state: 'stopped' }),
+      getState: vi.fn().mockReturnValue({ state: 'running' }),
+      updateConfig: vi.fn().mockReturnValue({ config: { scanIntervalMinutes: 30 } }),
+    };
+
+    expect(await service.startCollectionPriceScan({ scanIntervalMinutes: 30 }, { controller }))
+      .toEqual({ state: 'running' });
+    expect(service.stopCollectionPriceScan({ controller })).toEqual({ state: 'stopped' });
+    expect(service.getCollectionPriceScanStatus({ controller })).toEqual({ state: 'running' });
+    expect(service.updateCollectionPriceScanConfig({ scanIntervalMinutes: 30 }, { controller }))
+      .toEqual({ config: { scanIntervalMinutes: 30 } });
+
+    expect(controller.start).toHaveBeenCalledWith({ scanIntervalMinutes: 30 });
+    expect(controller.stop).toHaveBeenCalledTimes(1);
+    expect(controller.getState).toHaveBeenCalledTimes(1);
+    expect(controller.updateConfig).toHaveBeenCalledWith({ scanIntervalMinutes: 30 });
+  });
+
+  it('throws a clear error when the controller is unavailable', async () => {
+    await expect(service.startCollectionPriceScan({}, {}))
+      .rejects.toThrow('Collection price scan controller is unavailable');
+    expect(() => service.stopCollectionPriceScan({}))
+      .toThrow('Collection price scan controller is unavailable');
+    expect(() => service.getCollectionPriceScanStatus({}))
+      .toThrow('Collection price scan controller is unavailable');
+    expect(() => service.updateCollectionPriceScanConfig({}, {}))
+      .toThrow('Collection price scan controller is unavailable');
+  });
+});
+
+describe('inject-service exchange listing guard', () => {
+  const baseAdvice = {
+    state: 'list_now',
+    count: 2,
+    suggestedUnitPrice: 1250,
+    netRevenuePerItem: 1180,
+    listingFee: 20,
+    tradeTax: 50,
+    minimumSafePrice: 1100,
+    sellThrough24h: 3,
+    expirationRisk: 'low',
+    confidence: 0.82,
+    reason: 'stable gap',
+    item: {
+      itemCid: 10001,
+      cid: 10001,
+      name: 'Test Relic',
+      basePrice: 1000,
+    },
+    marketSnapshot: [{ unitPrice: 1300, count: 1 }],
+  };
+
+  it('rejects when refreshed advice is no longer list_now', async () => {
+    const runAutoOperationCommand = vi.fn();
+
+    await expect(service.confirmHighPriceExchangeListing({
+      itemCid: 10001,
+      count: 2,
+      expectedUnitPrice: 1250,
+    }, {
+      fetchListingAdvice: vi.fn().mockResolvedValue({ ...baseAdvice, state: 'wait' }),
+      runAutoOperationCommand,
+    })).rejects.toThrow('Listing advice is no longer list_now');
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+  });
+
+  it('rejects when refreshed advice price changed', async () => {
+    const runAutoOperationCommand = vi.fn();
+
+    await expect(service.confirmHighPriceExchangeListing({
+      itemCid: 10001,
+      count: 2,
+      expectedUnitPrice: 1250,
+    }, {
+      fetchListingAdvice: vi.fn().mockResolvedValue({ ...baseAdvice, suggestedUnitPrice: 1300 }),
+      runAutoOperationCommand,
+    })).rejects.toThrow('Listing advice price changed');
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+  });
+
+  it('rejects when refreshed advice item or count changed', async () => {
+    const runAutoOperationCommand = vi.fn();
+
+    await expect(service.confirmHighPriceExchangeListing({
+      itemCid: 10001,
+      count: 2,
+      expectedUnitPrice: 1250,
+    }, {
+      fetchListingAdvice: vi.fn().mockResolvedValue({
+        ...baseAdvice,
+        item: { ...baseAdvice.item, itemCid: 10002, cid: 10002 },
+      }),
+      runAutoOperationCommand,
+    })).rejects.toThrow('Listing advice item or count changed');
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+
+    await expect(service.confirmHighPriceExchangeListing({
+      itemCid: 10001,
+      count: 2,
+      expectedUnitPrice: 1250,
+    }, {
+      fetchListingAdvice: vi.fn().mockResolvedValue({ ...baseAdvice, count: 1 }),
+      runAutoOperationCommand,
+    })).rejects.toThrow('Listing advice item or count changed');
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+  });
+
+  it('rejects when refreshed advice net revenue is below base price', async () => {
+    const runAutoOperationCommand = vi.fn();
+
+    await expect(service.confirmHighPriceExchangeListing({
+      itemCid: 10001,
+      count: 2,
+      expectedUnitPrice: 1250,
+    }, {
+      fetchListingAdvice: vi.fn().mockResolvedValue({ ...baseAdvice, netRevenuePerItem: 999 }),
+      runAutoOperationCommand,
+    })).rejects.toThrow('Net revenue is below base price');
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed refreshed advice revenue data before running ExchangeItem', async () => {
+    const runAutoOperationCommand = vi.fn();
+
+    await expect(service.confirmHighPriceExchangeListing({
+      itemCid: 10001,
+      count: 2,
+      expectedUnitPrice: 1250,
+    }, {
+      fetchListingAdvice: vi.fn().mockResolvedValue({
+        ...baseAdvice,
+        netRevenuePerItem: undefined,
+      }),
+      runAutoOperationCommand,
+    })).rejects.toThrow('Listing advice is missing revenue data');
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+
+    await expect(service.confirmHighPriceExchangeListing({
+      itemCid: 10001,
+      count: 2,
+      expectedUnitPrice: 1250,
+    }, {
+      fetchListingAdvice: vi.fn().mockResolvedValue({
+        ...baseAdvice,
+        item: { ...baseAdvice.item, basePrice: undefined },
+      }),
+      runAutoOperationCommand,
+    })).rejects.toThrow('Listing advice is missing revenue data');
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-number guarded listing request integers at the IPC boundary', async () => {
+    await expect(service.confirmHighPriceExchangeListing({
+      itemCid: '1083009',
+      count: 1,
+      expectedUnitPrice: 7799,
+    }, {
+      fetchListingAdvice: vi.fn(),
+      runAutoOperationCommand: vi.fn(),
+    })).rejects.toThrow('itemCid is required');
+
+    await expect(service.confirmHighPriceExchangeListing({
+      itemCid: 1083009,
+      count: '1',
+      expectedUnitPrice: 7799,
+    }, {
+      fetchListingAdvice: vi.fn(),
+      runAutoOperationCommand: vi.fn(),
+    })).rejects.toThrow('count is required');
+
+    await expect(service.confirmHighPriceExchangeListing({
+      itemCid: 1083009,
+      count: 1,
+      expectedUnitPrice: true,
+    }, {
+      fetchListingAdvice: vi.fn(),
+      runAutoOperationCommand: vi.fn(),
+    })).rejects.toThrow('expectedUnitPrice is required');
+
+    await expect(service.confirmHighPriceExchangeListing({
+      itemCid: 1083009,
+      count: 1,
+      expectedUnitPrice: [7799],
+    }, {
+      fetchListingAdvice: vi.fn(),
+      runAutoOperationCommand: vi.fn(),
+    })).rejects.toThrow('expectedUnitPrice is required');
+  });
+
+  it('defaults omitted count to one', async () => {
+    const fetchListingAdvice = vi.fn().mockResolvedValue({ ...baseAdvice, count: 1 });
+    const runAutoOperationCommand = vi.fn().mockResolvedValue({
+      ok: true,
+      value: { listed: true },
+    });
+
+    await service.confirmHighPriceExchangeListing({
+      itemCid: 10001,
+      expectedUnitPrice: 1250,
+    }, {
+      fetchListingAdvice,
+      runAutoOperationCommand,
+    });
+
+    expect(fetchListingAdvice).toHaveBeenCalledWith({ itemCid: 10001, count: 1, hours: 24 });
+    expect(runAutoOperationCommand).toHaveBeenCalledWith('ExchangeItem', {
+      itemCid: 10001,
+      count: 1,
+      unitPrice: 1250,
+    }, expect.any(Object));
+  });
+
+  it('runs ExchangeItem and appends an exchange listing JSONL row', async () => {
+    const documentsDir = makeTempRoot();
+    const fetchListingAdvice = vi.fn().mockResolvedValue(baseAdvice);
+    const runAutoOperationCommand = vi.fn().mockResolvedValue({
+      ok: true,
+      value: { listed: true, orderId: 'abc123' },
+    });
+
+    const result = await service.confirmHighPriceExchangeListing({
+      itemCid: 10001,
+      count: 2,
+      expectedUnitPrice: 1250,
+      hours: 6,
+    }, {
+      documentsDir,
+      fetchListingAdvice,
+      runAutoOperationCommand,
+    });
+
+    expect(fetchListingAdvice).toHaveBeenCalledWith({ itemCid: 10001, count: 2, hours: 6 });
+    expect(runAutoOperationCommand).toHaveBeenCalledWith('ExchangeItem', {
+      itemCid: 10001,
+      count: 2,
+      unitPrice: 1250,
+    }, expect.any(Object));
+
+    const logPath = service.getExchangeListingsLogPath(documentsDir);
+    const rows = fs.readFileSync(logPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual(expect.objectContaining({
+      itemCid: 10001,
+      name: 'Test Relic',
+      count: 2,
+      unitPrice: 1250,
+      totalPrice: 2500,
+      basePrice: 1000,
+      listingFee: 20,
+      tradeTax: 50,
+      netRevenuePerItem: 1180,
+      minimumSafePrice: 1100,
+      sellThrough24h: 3,
+      expirationRisk: 'low',
+      strategy: 'high_price_stable_gap',
+      confidence: 0.82,
+      reason: 'stable gap',
+      marketSnapshot: [{ unitPrice: 1300, count: 1 }],
+      result: { listed: true, orderId: 'abc123' },
+      logPath,
+    }));
+    expect(rows[0].observedAt).toEqual(expect.any(String));
+    expect(result).toEqual({ ok: true, value: rows[0] });
+  });
+
+  it('returns ok with logError when appending the listing log fails after ExchangeItem', async () => {
+    const root = makeTempRoot();
+    const documentsDir = path.join(root, 'documents-file');
+    fs.writeFileSync(documentsDir, 'not a directory');
+    const runAutoOperationCommand = vi.fn().mockResolvedValue({
+      ok: true,
+      value: { listed: true, orderId: 'abc123' },
+    });
+
+    const result = await service.confirmHighPriceExchangeListing({
+      itemCid: 10001,
+      count: 2,
+      expectedUnitPrice: 1250,
+    }, {
+      documentsDir,
+      fetchListingAdvice: vi.fn().mockResolvedValue(baseAdvice),
+      runAutoOperationCommand,
+    });
+
+    expect(runAutoOperationCommand).toHaveBeenCalledWith('ExchangeItem', {
+      itemCid: 10001,
+      count: 2,
+      unitPrice: 1250,
+    }, expect.any(Object));
+    expect(result.ok).toBe(true);
+    expect(result.value).toEqual(expect.objectContaining({
+      itemCid: 10001,
+      result: { listed: true, orderId: 'abc123' },
+      logError: expect.any(String),
+    }));
+    expect(result.value.logPath).toBeUndefined();
+  });
+});
+
+describe('inject-service stock move saved lists', () => {
+  it('saves a stock move list under Documents/BidKing/stock-move-lists', async () => {
+    const documentsDir = makeTempRoot();
+    const writeFile = vi.spyOn(fs.promises, 'writeFile');
+    const rename = vi.spyOn(fs.promises, 'rename');
+
+    const result = await service.saveStockMoveList({
+      name: '主仓高频车件',
+      itemCids: [1083009, 1032006, 1083009],
+      items: [
+        { itemCid: 1083009, name: 'Intake Manifold', quality: 'blue', type: 'vehicle', sizeKey: '1x2' },
+      ],
+    }, { documentsDir });
+
+    expect(result.ok).toBe(true);
+    expect(result.value.name).toBe('主仓高频车件');
+    expect(result.value.itemCids).toEqual([1083009, 1032006]);
+    expect(result.value.id).toMatch(/^\d{14}-[a-z0-9]+$/);
+
+    const listDir = path.join(documentsDir, 'BidKing', 'stock-move-lists');
+    const finalPath = path.join(listDir, `${result.value.id}.json`);
+    expect(writeFile).toHaveBeenCalledTimes(1);
+    expect(rename).toHaveBeenCalledTimes(1);
+    expect(writeFile.mock.calls[0][0]).not.toBe(finalPath);
+    expect(path.dirname(writeFile.mock.calls[0][0])).toBe(listDir);
+    expect(rename).toHaveBeenCalledWith(writeFile.mock.calls[0][0], finalPath);
+    expect(fs.readdirSync(listDir)).toEqual([`${result.value.id}.json`]);
+  });
+
+  it('lists saved stock move lists sorted by savedAt desc and skips broken files', async () => {
+    const documentsDir = makeTempRoot();
+    const listDir = path.join(documentsDir, 'BidKing', 'stock-move-lists');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    fs.mkdirSync(listDir, { recursive: true });
+    fs.writeFileSync(path.join(listDir, 'older.json'), JSON.stringify({
+      id: 'older',
+      name: 'older',
+      savedAt: '2026-06-05T01:00:00.000Z',
+      itemCids: [1011001],
+      items: [],
+    }));
+    fs.writeFileSync(path.join(listDir, 'broken.json'), '{broken');
+    fs.writeFileSync(path.join(listDir, 'newer.json'), JSON.stringify({
+      id: 'newer',
+      name: 'newer',
+      savedAt: '2026-06-05T02:00:00.000Z',
+      itemCids: [1032006],
+      items: [],
+    }));
+
+    const result = await service.listStockMoveLists({ documentsDir });
+
+    expect(result.ok).toBe(true);
+    expect(result.value.map((entry) => entry.id)).toEqual(['newer', 'older']);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls.flat().join(' ')).toContain('broken.json');
+  });
+
+  it('rejects blank names and empty itemCid arrays', async () => {
+    const documentsDir = makeTempRoot();
+
+    await expect(service.saveStockMoveList({
+      name: '   ',
+      itemCids: [1083009],
+      items: [],
+    }, { documentsDir })).rejects.toThrow('name is required');
+
+    await expect(service.saveStockMoveList({
+      name: 'valid',
+      itemCids: [],
+      items: [],
+    }, { documentsDir })).rejects.toThrow('itemCids is required');
+  });
+});
