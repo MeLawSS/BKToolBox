@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, toRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue';
 import { useI18n } from '../../shared/i18n.js';
 import { useControllerUiAutomation } from './useControllerUiAutomation.js';
 
@@ -39,9 +39,6 @@ const {
   selectedPanel,
   interactiveNodes,
   selectedNodePath,
-  selectedNode,
-  selectedNodeSupportsClick,
-  selectedNodeSupportsTextInput,
   nodeInputDraft,
   nodeSubmitAfterInput,
   uiAutomationError,
@@ -88,12 +85,36 @@ const displayedInteractiveNodes = computed(() => {
     });
 });
 
+const displayedSelectedNode = computed(() => (
+  displayedInteractiveNodes.value.find((node) => node.path === selectedNodePath.value) || null
+));
+
 const selectedNodeTypesText = computed(() => {
-  if (!selectedNode.value?.componentTypes?.length) {
+  if (!displayedSelectedNode.value?.componentTypes?.length) {
     return '-';
   }
-  return selectedNode.value.componentTypes.join(', ');
+  return displayedSelectedNode.value.componentTypes.join(', ');
 });
+
+const displayedSelectedNodeSupportsClick = computed(() => (
+  nodeSupportsCompactClick(displayedSelectedNode.value)
+));
+
+const displayedSelectedNodeSupportsTextInput = computed(() => Boolean(
+  displayedSelectedNode.value &&
+  (
+    displayedSelectedNode.value.componentTypes.includes('TMP_InputField') ||
+    displayedSelectedNode.value.componentTypes.includes('NumericInputField')
+  ),
+));
+
+const canRunDisplayedClickAction = computed(() => Boolean(
+  displayedSelectedNode.value && canRunClickAction.value
+));
+
+const canRunDisplayedSetTextAction = computed(() => Boolean(
+  displayedSelectedNode.value && canRunSetTextAction.value
+));
 
 const listPlaceholderText = computed(() => {
   if (!props.transportReady) {
@@ -167,8 +188,11 @@ function formatBoolean(value) {
   return value ? t('inject.controllerBooleanYes') : t('inject.controllerBooleanNo');
 }
 
-function handleSelectedPanelChange(event) {
-  switchPanel(event?.target?.value || '');
+async function handleSelectedPanelChange(event) {
+  const didSwitch = await switchPanel(event?.target?.value || '');
+  if (didSwitch) {
+    clearRowFeedback();
+  }
 }
 
 function resolveNodeDisplayName(node) {
@@ -231,6 +255,13 @@ async function handleNodeDoubleClick(node) {
   setRowFeedback(node.path, didClick ? 'success' : 'error');
 }
 
+async function handleRefreshClick() {
+  const didRefresh = await refreshUi();
+  if (didRefresh) {
+    clearRowFeedback();
+  }
+}
+
 async function loadNodeDisplayLabelMap() {
   if (typeof fetch !== 'function') {
     return;
@@ -263,6 +294,15 @@ async function loadNodeDisplayLabelMap() {
 onMounted(() => {
   loadNodeDisplayLabelMap();
 });
+
+watch(
+  () => props.isActive,
+  (isActive) => {
+    if (!isActive) {
+      clearRowFeedback();
+    }
+  },
+);
 
 onBeforeUnmount(() => {
   clearRowFeedback();
@@ -304,7 +344,7 @@ onBeforeUnmount(() => {
           type="button"
           :disabled="!canRefreshUi"
           data-testid="controller-ui-refresh-button"
-          @click="refreshUi()"
+          @click="handleRefreshClick"
         >
           {{ t('inject.controllerRefreshUi') }}
         </button>
@@ -371,7 +411,7 @@ onBeforeUnmount(() => {
       </section>
 
       <section
-        v-if="selectedNode"
+        v-if="displayedSelectedNode"
         class="controller-ui-detail-section"
       >
         <h3>{{ t('inject.controllerNodeDetails') }}</h3>
@@ -382,7 +422,7 @@ onBeforeUnmount(() => {
           </div>
           <div data-testid="controller-ui-detail-path">
             <span>{{ t('inject.controllerNodePath') }}</span>
-            <strong>{{ selectedNode.path }}</strong>
+            <strong>{{ displayedSelectedNode.path }}</strong>
           </div>
           <div data-testid="controller-ui-detail-types">
             <span>{{ t('inject.controllerNodeTypes') }}</span>
@@ -390,21 +430,21 @@ onBeforeUnmount(() => {
           </div>
           <div>
             <span>{{ t('inject.controllerNodeActive') }}</span>
-            <strong>{{ formatBoolean(selectedNode.active) }}</strong>
+            <strong>{{ formatBoolean(displayedSelectedNode.active) }}</strong>
           </div>
           <div>
             <span>{{ t('inject.controllerNodeInteractive') }}</span>
-            <strong>{{ formatBoolean(selectedNode.interactive) }}</strong>
+            <strong>{{ formatBoolean(displayedSelectedNode.interactive) }}</strong>
           </div>
         </div>
 
         <div class="controller-ui-actions">
           <div class="controller-ui-detail-actions">
             <button
-              v-if="selectedNodeSupportsClick"
+              v-if="displayedSelectedNodeSupportsClick"
               class="command-button"
               type="button"
-              :disabled="!canRunClickAction"
+              :disabled="!canRunDisplayedClickAction"
               data-testid="controller-ui-click-button"
               @click="clickSelectedNode"
             >
@@ -412,7 +452,7 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
-          <template v-if="selectedNodeSupportsTextInput">
+          <template v-if="displayedSelectedNodeSupportsTextInput">
             <label class="controller-ui-select">
               <span>{{ t('inject.controllerSetTextAction') }}</span>
               <input
@@ -433,7 +473,7 @@ onBeforeUnmount(() => {
             <button
               class="command-button"
               type="button"
-              :disabled="!canRunSetTextAction"
+              :disabled="!canRunDisplayedSetTextAction"
               data-testid="controller-ui-set-text-button"
               @click="setSelectedNodeText"
             >
