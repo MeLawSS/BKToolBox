@@ -184,6 +184,56 @@ describe('useControllerUiAutomation', () => {
     ]);
   });
 
+  it('retries the activation refresh after the shared command lock clears', async () => {
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'GetCurrentUI') {
+        return { ok: true, result: { panel: 'UIMain' } };
+      }
+      if (command === 'GetVisiblePanels') {
+        return { ok: true, result: { panels: ['UIMain'] } };
+      }
+      if (command === 'DumpPanelTree') {
+        return {
+          ok: true,
+          result: {
+            panel: 'UIMain',
+            rootPath: '',
+            truncated: false,
+            nodes: [{ path: 'BtnTrade', name: 'BtnTrade', active: true, interactive: true, componentTypes: ['Button'] }],
+          },
+        };
+      }
+      throw new Error(`unexpected command: ${command}`);
+    });
+    window.bidkingDesktop = { runAutoOperationCommand };
+
+    const harness = mountUiAutomation({
+      isActive: true,
+      transportReady: true,
+      commandLoading: 'Listing:Refresh',
+    });
+    await flushPromises();
+    await nextTick();
+
+    const api = harness.getApi();
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+    expect(api.hasLoadedUiAutomationOnce.value).toBe(false);
+
+    harness.commandLoading.value = '';
+    await flushPromises();
+    await nextTick();
+
+    expect(runAutoOperationCommand.mock.calls.map(([command]) => command)).toEqual([
+      'GetCurrentUI',
+      'GetVisiblePanels',
+      'DumpPanelTree',
+    ]);
+    expect(api.currentMainPanel.value).toBe('UIMain');
+    expect(api.selectedPanel.value).toBe('UIMain');
+    expect(api.interactiveNodes.value[0].path).toBe('BtnTrade');
+    expect(api.hasLoadedUiAutomationOnce.value).toBe(true);
+  });
+
   it('stores a structured action result on click success', async () => {
     const runAutoOperationCommand = vi.fn()
       .mockResolvedValueOnce({ ok: true, result: { panel: 'UIMain' } })

@@ -293,6 +293,24 @@ describe('InjectUiAutomationPanel', () => {
     expect(wrapper.get('[data-testid="controller-ui-action-result"]').text()).toContain('7799');
   });
 
+  it('clears the previous action result when a different node is selected', async () => {
+    const { wrapper } = await mountPanel({ isActive: true });
+
+    await wrapper.get('[data-testid="controller-ui-node-row-0"]').trigger('click');
+    await wrapper.get('[data-testid="controller-ui-click-button"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="controller-ui-action-result"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="controller-ui-node-row-1"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="controller-ui-action-result-label"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="controller-ui-action-result"]').exists()).toBe(false);
+  });
+
   it('resets the input draft when selection changes', async () => {
     const { wrapper } = await mountPanel({ isActive: true });
 

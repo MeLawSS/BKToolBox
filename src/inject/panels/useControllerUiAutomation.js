@@ -98,6 +98,7 @@ export function useControllerUiAutomation({
   const hasLoadedUiAutomationOnce = ref(false);
   const nodeListTruncated = ref(false);
   const localCommandLoading = ref('');
+  const pendingActivationRefresh = ref(false);
 
   const effectiveCommandLoading = computed(() => commandLoading.value || localCommandLoading.value);
   const selectedNode = computed(() => (
@@ -128,6 +129,7 @@ export function useControllerUiAutomation({
     nodeInputDraft.value = '';
     nodeSubmitAfterInput.value = false;
     uiActionError.value = '';
+    lastUiActionResult.value = null;
   }
 
   function setSelectedNode(path) {
@@ -331,16 +333,40 @@ export function useControllerUiAutomation({
   }
 
   watch(
-    [() => Boolean(isActive.value), () => Boolean(transportReady.value)],
-    ([nextActive, nextReady], previousValues = [false, false]) => {
-      const [previousActive, previousReady] = previousValues;
-      const shouldRefresh = nextActive && nextReady && (
+    [
+      () => Boolean(isActive.value),
+      () => Boolean(transportReady.value),
+      () => effectiveCommandLoading.value,
+    ],
+    ([nextActive, nextReady, nextCommandLoading], previousValues = [false, false, '']) => {
+      const [previousActive, previousReady, previousCommandLoading] = previousValues;
+
+      if (!nextActive || !nextReady) {
+        pendingActivationRefresh.value = false;
+        return;
+      }
+
+      const shouldRefresh = (
         (!previousActive && nextActive) ||
         (!previousReady && nextReady)
       );
-      if (shouldRefresh) {
-        refreshUi({ preserveSelectedPanel: false });
+      const shouldRetryQueuedRefresh = Boolean(
+        pendingActivationRefresh.value &&
+        !nextCommandLoading &&
+        previousCommandLoading
+      );
+
+      if (!shouldRefresh && !shouldRetryQueuedRefresh) {
+        return;
       }
+
+      if (nextCommandLoading) {
+        pendingActivationRefresh.value = true;
+        return;
+      }
+
+      pendingActivationRefresh.value = false;
+      refreshUi({ preserveSelectedPanel: false });
     },
     { immediate: true },
   );
