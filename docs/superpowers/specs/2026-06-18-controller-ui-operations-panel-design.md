@@ -112,15 +112,20 @@ Recommended internal structure:
   - owns top-level Controller layout
   - owns readiness cards already present today
   - receives an explicit `isActive` signal from `App.vue`
+  - passes `isActive` and `commandLoading` through to `InjectUiAutomationPanel.vue`
   - renders:
     - `UI 操作` sub-area
     - generic command console sub-area
+  - relays child `command-loading-change` events upward to `App.vue`
 - new focused child component, e.g. `InjectUiAutomationPanel.vue`
   - owns current UI / visible panel / interactive node workflow
+  - watches the `isActive` prop transition from `false -> true` to trigger the required first-open / re-open auto-refresh behavior
+  - participates in the shared command lock via prop + emit relay, not by importing any separate global locking mechanism
 - new focused composable, e.g. `useControllerUiAutomation.js`
   - owns refresh flow
   - owns selected panel / selected node state
   - owns UI action execution and result state
+  - is invoked by `InjectUiAutomationPanel.vue`, which remains the boundary responsible for wiring command lock props/events into the composable-driven actions
 
 This is intentionally a bounded split:
 
@@ -185,6 +190,30 @@ Actions:
   - show `设置文本` action
 
 If a node exposes multiple supported capabilities, the detail area must render all applicable supported actions in phase 1.
+
+### Layout guidance
+
+The `UI 操作` section should use a master-detail layout:
+
+- top row:
+  - section title
+  - current main UI
+  - visible panel selector
+  - `刷新 UI` button
+- main body on desktop:
+  - left column: interactive node list
+  - right column: selected node detail/action area
+- main body on narrow/mobile widths:
+  - stack node list above detail area
+
+Suggested CSS surface:
+
+- a dedicated wrapper for the whole UI-operations section
+- a header row class for the top controls
+- a two-column body class for node-list/detail layout
+- a selected-row state class for interactive node list items
+
+The exact class names may follow current Inject naming conventions, but the master-detail structure is required.
 
 ## Data Flow
 
@@ -297,6 +326,22 @@ Selection model:
 
 This prevents stale object references after refresh.
 
+Recommended prop/event wiring between Controller shell and the UI-operations child:
+
+- props into `InjectUiAutomationPanel.vue`:
+  - `isActive`
+  - `commandLoading`
+- events out of `InjectUiAutomationPanel.vue`:
+  - `command-loading-change`
+
+This keeps the lock path explicit and consistent with the rest of Inject:
+
+- `App.vue`
+  -> `InjectControllerPanel.vue`
+  -> `InjectUiAutomationPanel.vue`
+  -> emit back upward
+  -> `App.vue`
+
 ## Command Execution Model
 
 All UI-operations commands must continue using the same page-level AutoOperation command lock already shared by:
@@ -310,6 +355,7 @@ That means:
 
 - `UI 操作` actions cannot run concurrently with other active AutoOperation panel actions
 - when shared `commandLoading` is occupied, `UI 操作` controls render as unavailable/disabled
+- `InjectUiAutomationPanel.vue` must request and release that lock by emitting `command-loading-change`, with `InjectControllerPanel.vue` acting only as a relay layer to `App.vue`
 
 Phase 1 commands used by the structured UI:
 
@@ -336,6 +382,17 @@ Phase 1 must distinguish these states explicitly:
 
 Do not collapse them into one generic empty message.
 
+Minimum empty-state mapping:
+
+- `!hasLoadedUiAutomationOnce && !uiAutomationRefreshing`
+  - show the "not refreshed yet" state
+- `uiAutomationRefreshing`
+  - show a refreshing/loading state
+- `hasLoadedUiAutomationOnce && visiblePanels.length === 0`
+  - show the "no visible panels" state
+- `hasLoadedUiAutomationOnce && selectedPanel && interactiveNodes.length === 0`
+  - show the "selected panel has no interactive nodes" state
+
 ### Node selection behavior
 
 When the user selects a node:
@@ -350,7 +407,9 @@ For `Button` / `Toggle` nodes:
 
 - trigger `ClickNode`
 - pass the currently selected panel
+- always pass `rootPath: ""`
 - use the node path from the selected row
+- always pass `pathMode: "exact"`
 - always use `component: "auto"` in phase 1
 
 ### Input action behavior
@@ -360,6 +419,10 @@ For `TMP_InputField` / `NumericInputField` nodes:
 - user edits a local text draft
 - user can toggle `submit`
 - `设置文本` triggers `SetInputText`
+- always pass the currently selected panel
+- always pass `rootPath: ""`
+- always pass the selected row path
+- always pass `pathMode: "exact"`
 
 The draft is tied to the selected node only.
 
@@ -425,12 +488,40 @@ Minimum feedback content:
 - selected node path
 - compact success or failure payload
 
+## i18n Additions
+
+Phase 1 must add explicit i18n keys for the new structured UI-operations surface rather than reusing ad hoc inline copy.
+
+Minimum key set:
+
+- `inject.controllerUiOperations`
+- `inject.controllerRefreshUi`
+- `inject.controllerCurrentMainUi`
+- `inject.controllerVisiblePanels`
+- `inject.controllerSelectedPanel`
+- `inject.controllerInteractiveNodes`
+- `inject.controllerNodeDetails`
+- `inject.controllerNodePath`
+- `inject.controllerNodeTypes`
+- `inject.controllerNodeActive`
+- `inject.controllerNodeInteractive`
+- `inject.controllerClickAction`
+- `inject.controllerSetTextAction`
+- `inject.controllerSubmitAfterSetText`
+- `inject.controllerUiActionResult`
+- `inject.controllerNodeListNotRefreshed`
+- `inject.controllerNodeListRefreshing`
+- `inject.controllerNodeListNoVisiblePanels`
+- `inject.controllerNodeListEmpty`
+- `inject.controllerNoSelectedNode`
+
 ## Testing Requirements
 
 At minimum, tests must cover:
 
 - Controller panel auto-refreshes `GetCurrentUI -> GetVisiblePanels -> DumpPanelTree` when transport is ready
 - Controller panel auto-refresh is triggered by an explicit active-state transition, not only by first mount
+- `App.vue` passes `isActive` into `InjectControllerPanel.vue`, and that signal is threaded into the UI-operations child to gate refresh behavior
 - switching visible panel only reruns `DumpPanelTree`
 - manual refresh preserves the user-selected panel when it remains visible
 - interactive node list shows only interactive nodes from dump output
