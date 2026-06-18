@@ -111,6 +111,7 @@ Recommended internal structure:
 - `InjectControllerPanel.vue`
   - owns top-level Controller layout
   - owns readiness cards already present today
+  - receives an explicit `isActive` signal from `App.vue`
   - renders:
     - `UI 操作` sub-area
     - generic command console sub-area
@@ -126,6 +127,8 @@ This is intentionally a bounded split:
 - Controller shell stays responsible for page-facing composition
 - UI automation logic stays responsible for UI automation workflow only
 - generic command console remains independent and reusable within the same panel
+
+Because the Inject workspace keeps visited panels mounted and only toggles them with `v-show`, the UI-operations surface must not rely on child `mounted` alone for refresh behavior. `App.vue` must pass an `isActive` boolean into `InjectControllerPanel.vue`, and the UI-operations flow must watch the transition from inactive to active to implement the required "first open / re-open auto-refresh" behavior.
 
 ## UI Layout
 
@@ -199,14 +202,21 @@ This happens automatically:
 - on first open of the Controller panel
 - when returning to the Controller panel after leaving it
 
-There is also a manual `刷新 UI` action that reruns the full chain.
+There is also a manual `刷新 UI` action that reruns the full chain, but it must preserve the user's currently selected panel if that panel is still present in the refreshed visible-panel list.
 
 ### Selected panel logic
 
-Panel selection rules:
+Panel selection rules for automatic refresh on first open or re-open:
 
 - prefer `GetCurrentUI.panel`
 - if the current main panel is missing from visible panels, fall back to the first visible panel
+- if there are no visible panels, selected panel becomes empty
+
+Panel selection rules for manual refresh:
+
+- if the current `selectedPanel` is still present in the refreshed `visiblePanels`, keep it selected
+- otherwise fall back to `GetCurrentUI.panel`
+- if `GetCurrentUI.panel` is not present, fall back to the first visible panel
 - if there are no visible panels, selected panel becomes empty
 
 When the user manually switches panel:
@@ -214,6 +224,29 @@ When the user manually switches panel:
 - do not rerun `GetCurrentUI`
 - do not rerun `GetVisiblePanels`
 - only rerun `DumpPanelTree` for the newly selected panel
+
+### Refresh commit semantics
+
+Refresh must use staged results rather than committing each command result directly into visible UI state.
+
+Required rule:
+
+- `GetCurrentUI`
+- `GetVisiblePanels`
+- selected panel resolution
+- `DumpPanelTree`
+
+must complete into temporary refresh-local variables first
+
+- only after `DumpPanelTree` succeeds may the implementation commit the new header state and new node list into the visible UI state together
+
+This avoids mixed states such as:
+
+- new current main UI + old visible panel list
+- new header + old node list
+- new selected panel + stale node list from another panel
+
+If any command in the refresh chain fails, the previous successfully committed visible state must remain on screen and only the refresh error state should update.
 
 ### Interactive node list derivation
 
@@ -254,6 +287,7 @@ Recommended local state:
 - `uiAutomationError`
 - `uiActionError`
 - `lastUiActionResult`
+- `hasLoadedUiAutomationOnce`
 
 Selection model:
 
@@ -344,7 +378,8 @@ Examples:
 Behavior:
 
 - show the error at the top of the `UI 操作` section
-- preserve the last successful visible data instead of clearing the whole surface
+- preserve the last successfully committed visible data instead of clearing the whole surface
+- do not partially commit new header state when the matching `DumpPanelTree` call for that refresh fails
 
 ### 2. Action-level errors
 
@@ -395,14 +430,16 @@ Minimum feedback content:
 At minimum, tests must cover:
 
 - Controller panel auto-refreshes `GetCurrentUI -> GetVisiblePanels -> DumpPanelTree` when transport is ready
+- Controller panel auto-refresh is triggered by an explicit active-state transition, not only by first mount
 - switching visible panel only reruns `DumpPanelTree`
+- manual refresh preserves the user-selected panel when it remains visible
 - interactive node list shows only interactive nodes from dump output
 - selecting a row updates detail area with the correct path and component types
 - button/toggle node action calls `ClickNode`
 - input node action calls `SetInputText`
 - switching selected node resets the input draft
 - refresh clears stale selection when `selectedNodePath` no longer exists
-- refresh failure preserves previous successful UI data
+- refresh failure preserves the previous committed UI data without mixing new header state with old node data
 - shared `commandLoading` disables refresh and action controls
 
 ## Out of Scope
