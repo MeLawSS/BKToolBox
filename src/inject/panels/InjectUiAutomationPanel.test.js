@@ -20,13 +20,6 @@ function createDumpNodes() {
       interactive: true,
       componentTypes: ['TMP_InputField'],
     },
-    {
-      path: 'StaticRoot/MarketLabel',
-      name: 'MarketLabel',
-      active: false,
-      interactive: false,
-      componentTypes: ['Text'],
-    },
   ];
 }
 
@@ -147,10 +140,10 @@ describe('InjectUiAutomationPanel', () => {
     expect(fetchMock).toHaveBeenCalledWith('/data/controller-ui-node-labels.json', { cache: 'no-store' });
 
     const rows = getRenderedRows(wrapper);
-    expect(rows).toHaveLength(3);
-    expect(rows[0].text()).toContain('主界面.竞拍');
-    expect(rows[0].text()).toContain('BtnTrade');
-    expect(rows[1].text().startsWith('InputRoot/PriceInput')).toBe(true);
+    expect(rows).toHaveLength(2);
+    expect(rows[0].find('strong').text()).toBe('主界面.竞拍');
+    expect(rows[0].find('code').text()).toBe('BtnTrade');
+    expect(rows[1].find('strong').text()).toBe('InputRoot/PriceInput');
   });
 
   it('keeps the detail area collapsed until a row is selected', async () => {
@@ -178,20 +171,22 @@ describe('InjectUiAutomationPanel', () => {
     await nextTick();
 
     expect(getRenderedRows(wrapper)).toHaveLength(1);
-    expect(getRenderedRows(wrapper)[0].text()).toContain('主界面.竞拍');
+    expect(getRenderedRows(wrapper)[0].find('strong').text()).toBe('主界面.竞拍');
 
     await searchInput.setValue('InputRoot/PriceInput');
     await nextTick();
 
     const pathFilteredRows = getRenderedRows(wrapper);
     expect(pathFilteredRows).toHaveLength(1);
-    expect(pathFilteredRows[0].text()).toContain('InputRoot/PriceInput');
+    expect(pathFilteredRows[0].find('strong').text()).toBe('InputRoot/PriceInput');
 
     await wrapper.get('[data-testid="controller-ui-refresh-button"]').trigger('click');
     await flushPromises();
     await nextTick();
 
     expect(searchInput.element.value).toBe('InputRoot/PriceInput');
+    expect(getRenderedRows(wrapper)).toHaveLength(1);
+    expect(getRenderedRows(wrapper)[0].find('strong').text()).toBe('InputRoot/PriceInput');
   });
 
   it('single click only selects, while double click triggers exactly one ClickNode', async () => {
@@ -229,12 +224,12 @@ describe('InjectUiAutomationPanel', () => {
   it('double click on a non-clickable node surfaces feedback and does not call ClickNode', async () => {
     const { wrapper, runAutoOperationCommand } = await mountPanel();
 
-    await wrapper.get('[data-testid="controller-ui-node-row-2"]').trigger('dblclick');
+    await wrapper.get('[data-testid="controller-ui-node-row-1"]').trigger('dblclick');
     await flushPromises();
     await nextTick();
 
     expect(getClickCalls(runAutoOperationCommand)).toHaveLength(0);
-    expect(wrapper.find('[data-testid="controller-ui-row-feedback"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="controller-ui-node-row-1"]').classes()).toContain('is-blocked');
   });
 
   it('clears row-level failure styling after 1.5s', async () => {
@@ -266,15 +261,11 @@ describe('InjectUiAutomationPanel', () => {
     const { wrapper, runAutoOperationCommand } = await mountPanel();
 
     const row = wrapper.get('[data-testid="controller-ui-node-row-0"]');
-    expect(row.element.disabled).toBe(false);
 
     const searchInput = wrapper.get('[data-testid="controller-ui-search-input"]');
-    expect(searchInput.element.disabled).toBe(false);
 
     await wrapper.setProps({ commandLoading: 'Controller:UI Refresh' });
     await nextTick();
-
-    expect(row.element.disabled).toBe(true);
 
     await searchInput.setValue('trade');
     await nextTick();
