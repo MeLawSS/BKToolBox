@@ -69,6 +69,15 @@ function nodeSupportsTextInput(node) {
   );
 }
 
+function buildUiActionResult(action, panel, path, payload) {
+  return {
+    action,
+    panel,
+    path,
+    payload,
+  };
+}
+
 export function useControllerUiAutomation({
   isActive,
   transportReady,
@@ -262,20 +271,28 @@ export function useControllerUiAutomation({
     }
 
     uiActionError.value = '';
+    const panel = selectedPanel.value;
+    const path = selectedNode.value.path;
 
     try {
-      lastUiActionResult.value = await withSharedCommandLock('Controller:UI ClickNode', async () => (
+      const payload = await withSharedCommandLock('Controller:UI ClickNode', async () => (
         runCommand('ClickNode', {
-          panel: selectedPanel.value,
+          panel,
           rootPath: '',
-          path: selectedNode.value.path,
+          path,
           pathMode: 'exact',
           component: 'auto',
         })
       ));
+      lastUiActionResult.value = buildUiActionResult('ClickNode', panel, path, payload);
       return true;
     } catch (error) {
-      uiActionError.value = error?.message || 'Failed to click selected node';
+      const message = error?.message || 'Failed to click selected node';
+      uiActionError.value = message;
+      lastUiActionResult.value = buildUiActionResult('ClickNode', panel, path, {
+        ok: false,
+        error: message,
+      });
       return false;
     }
   }
@@ -286,21 +303,29 @@ export function useControllerUiAutomation({
     }
 
     uiActionError.value = '';
+    const panel = selectedPanel.value;
+    const path = selectedNode.value.path;
 
     try {
-      lastUiActionResult.value = await withSharedCommandLock('Controller:UI SetInputText', async () => (
+      const payload = await withSharedCommandLock('Controller:UI SetInputText', async () => (
         runCommand('SetInputText', {
-          panel: selectedPanel.value,
+          panel,
           rootPath: '',
-          path: selectedNode.value.path,
+          path,
           pathMode: 'exact',
           text: nodeInputDraft.value,
           submit: nodeSubmitAfterInput.value,
         })
       ));
+      lastUiActionResult.value = buildUiActionResult('SetInputText', panel, path, payload);
       return true;
     } catch (error) {
-      uiActionError.value = error?.message || 'Failed to set selected node text';
+      const message = error?.message || 'Failed to set selected node text';
+      uiActionError.value = message;
+      lastUiActionResult.value = buildUiActionResult('SetInputText', panel, path, {
+        ok: false,
+        error: message,
+      });
       return false;
     }
   }
