@@ -199,9 +199,37 @@ describe('Inject App', () => {
   });
 
   it('does not trigger an extra Ping when opening the controller panel', async () => {
-    const runAutoOperationCommand = vi.fn().mockResolvedValue({
-      ok: true,
-      value: { pong: true },
+    const runAutoOperationCommand = vi.fn(async (command, args) => {
+      if (command === 'Ping') {
+        return { ok: true, value: { pong: true } };
+      }
+      if (command === 'GetCurrentUI') {
+        expect(args).toEqual({});
+        return { ok: true, result: { panel: 'UIMain' } };
+      }
+      if (command === 'GetVisiblePanels') {
+        expect(args).toEqual({});
+        return { ok: true, result: { panels: ['UIMain'] } };
+      }
+      if (command === 'DumpPanelTree') {
+        expect(args).toEqual({
+          panel: 'UIMain',
+          rootPath: '',
+          interactiveOnly: true,
+          maxDepth: 4,
+          nodeLimit: 200,
+        });
+        return {
+          ok: true,
+          result: {
+            panel: 'UIMain',
+            rootPath: '',
+            truncated: false,
+            nodes: [],
+          },
+        };
+      }
+      throw new Error(`unexpected command: ${command}`);
     });
     window.bidkingDesktop = {
       isDesktop: true,
@@ -220,7 +248,69 @@ describe('Inject App', () => {
 
     await activatePanel(wrapper, 'controller');
 
-    expect(runAutoOperationCommand).toHaveBeenCalledTimes(1);
+    expect(runAutoOperationCommand.mock.calls.map(([command]) => command)).toEqual([
+      'Ping',
+      'GetCurrentUI',
+      'GetVisiblePanels',
+      'DumpPanelTree',
+    ]);
+  });
+
+  it('auto-refreshes controller UI on first open and again on re-open without re-pinging', async () => {
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'Ping') {
+        return { ok: true, value: { pong: true } };
+      }
+      if (command === 'GetCurrentUI') {
+        return { ok: true, result: { panel: 'UIMain' } };
+      }
+      if (command === 'GetVisiblePanels') {
+        return { ok: true, result: { panels: ['UIMain'] } };
+      }
+      if (command === 'DumpPanelTree') {
+        return {
+          ok: true,
+          result: {
+            panel: 'UIMain',
+            rootPath: '',
+            truncated: false,
+            nodes: [],
+          },
+        };
+      }
+      throw new Error(`unexpected command: ${command}`);
+    });
+    window.bidkingDesktop = {
+      isDesktop: true,
+      queryCabinetReward: vi.fn(),
+      claimCabinetReward: vi.fn(),
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand,
+    };
+
+    const wrapper = await mountApp();
+    const commandHistoryBeforeOpen = runAutoOperationCommand.mock.calls.map(([command]) => command);
+
+    expect(wrapper.find('[data-testid="inject-panel-controller"]').exists()).toBe(false);
+    expect(commandHistoryBeforeOpen.filter((command) => command === 'Ping')).toHaveLength(1);
+
+    await activatePanel(wrapper, 'controller');
+    expect(runAutoOperationCommand.mock.calls.map(([command]) => command).slice(commandHistoryBeforeOpen.length)).toEqual([
+      'GetCurrentUI',
+      'GetVisiblePanels',
+      'DumpPanelTree',
+    ]);
+
+    await activatePanel(wrapper, 'cabinet');
+    const commandHistoryAfterClose = runAutoOperationCommand.mock.calls.map(([command]) => command);
+
+    await activatePanel(wrapper, 'controller');
+    expect(runAutoOperationCommand.mock.calls.map(([command]) => command).slice(commandHistoryAfterClose.length)).toEqual([
+      'GetCurrentUI',
+      'GetVisiblePanels',
+      'DumpPanelTree',
+    ]);
+    expect(runAutoOperationCommand.mock.calls.map(([command]) => command).filter((command) => command === 'Ping')).toHaveLength(1);
   });
 
   it('shows the shared agent status in the controller panel after the topbar switch loads the agent', async () => {

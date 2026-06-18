@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useI18n } from '../../shared/i18n.js';
+import InjectUiAutomationPanel from './InjectUiAutomationPanel.vue';
 import { useAutoOperationAgentRuntimeState } from '../../shared/useAutoOperationAgentSwitch.js';
 
 defineOptions({ name: 'InjectControllerPanel' });
@@ -9,6 +10,10 @@ const DEFAULT_COMMAND_ARGS_TEXT = '{}';
 const MAX_RESPONSE_LOG_ENTRIES = 10;
 
 const props = defineProps({
+  isActive: {
+    type: Boolean,
+    default: false,
+  },
   commandLoading: {
     type: String,
     default: '',
@@ -300,6 +305,14 @@ async function submitControllerCommand() {
         <strong>{{ transportStatusText }}</strong>
       </div>
     </div>
+
+    <InjectUiAutomationPanel
+      :is-active="isActive"
+      :command-loading="effectiveCommandLoading"
+      :transport-ready="controllerTransportReady"
+      :transport-hint="controllerInlineHint"
+      @command-loading-change="emit('command-loading-change', $event)"
+    />
 
     <section class="listing-advice-panel controller-command-panel">
       <div class="controller-quick-command-panel">

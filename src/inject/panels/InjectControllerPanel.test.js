@@ -9,8 +9,14 @@ import {
   AGENT_CONNECTED_STORAGE_KEY,
 } from '../../shared/useAutoOperationAgentSwitch.js';
 
-async function mountPanel() {
-  const wrapper = mount(InjectControllerPanel, { attachTo: document.body });
+async function mountPanel(props = {}) {
+  const wrapper = mount(InjectControllerPanel, {
+    attachTo: document.body,
+    props: {
+      isActive: false,
+      ...props,
+    },
+  });
   await flushPromises();
   await nextTick();
   return wrapper;
@@ -38,7 +44,7 @@ describe('InjectControllerPanel', () => {
       runAutoOperationCommand: vi.fn(),
     };
 
-    const wrapper = await mountPanel();
+    const wrapper = await mountPanel({ isActive: false });
 
     expect(wrapper.text()).toContain('控制器');
     expect(wrapper.get('[data-testid="controller-status-desktop"]').text()).toContain('可用');
@@ -58,9 +64,77 @@ describe('InjectControllerPanel', () => {
     expect(wrapper.get('[data-testid="controller-domain-movement-interaction"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="controller-domain-inventory-warehouse"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="controller-domain-trading-market"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="controller-ui-operations"]').text()).toContain('UI 操作');
 
     await wrapper.get('[data-testid="controller-command-input"]').setValue('GetCurrentUI');
     expect(wrapper.get('[data-testid="controller-send-button"]').element.disabled).toBe(false);
+  });
+
+  it('renders the structured UI operations area without auto-refreshing while inactive', async () => {
+    window.sessionStorage.setItem(AGENT_CONNECTED_STORAGE_KEY, 'true');
+    const runAutoOperationCommand = vi.fn();
+    window.bidkingDesktop = {
+      isDesktop: true,
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand,
+    };
+
+    const wrapper = await mountPanel({ isActive: false });
+
+    expect(wrapper.get('[data-testid="controller-ui-operations"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="controller-ui-list-placeholder"]').text()).toContain('尚未刷新');
+    expect(wrapper.get('[data-testid="controller-ui-detail-placeholder"]').text()).toContain('尚未刷新');
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+  });
+
+  it('auto-refreshes the structured UI operations area once the panel becomes active', async () => {
+    window.sessionStorage.setItem(AGENT_CONNECTED_STORAGE_KEY, 'true');
+    const runAutoOperationCommand = vi.fn(async (command, args) => {
+      if (command === 'GetCurrentUI') {
+        return { ok: true, result: { panel: 'UIMain' } };
+      }
+      if (command === 'GetVisiblePanels') {
+        return { ok: true, result: { panels: ['UIMain'] } };
+      }
+      if (command === 'DumpPanelTree') {
+        expect(args).toEqual({
+          panel: 'UIMain',
+          rootPath: '',
+          interactiveOnly: true,
+          maxDepth: 4,
+          nodeLimit: 200,
+        });
+        return {
+          ok: true,
+          result: {
+            panel: 'UIMain',
+            rootPath: '',
+            truncated: false,
+            nodes: [],
+          },
+        };
+      }
+      throw new Error(`unexpected command: ${command}`);
+    });
+    window.bidkingDesktop = {
+      isDesktop: true,
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand,
+    };
+
+    const wrapper = await mountPanel({ isActive: false });
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+
+    await wrapper.setProps({ isActive: true });
+    await flushPromises();
+    await nextTick();
+
+    expect(runAutoOperationCommand.mock.calls.map(([command]) => command)).toEqual([
+      'GetCurrentUI',
+      'GetVisiblePanels',
+      'DumpPanelTree',
+    ]);
+    expect(wrapper.get('[data-testid="controller-ui-current-main"]').text()).toContain('UIMain');
   });
 
   it('reads the shared agent state passively, sends a generic controller command, and clears the response log', async () => {
@@ -75,15 +149,15 @@ describe('InjectControllerPanel', () => {
       runAutoOperationCommand,
     };
 
-    const wrapper = await mountPanel();
+    const wrapper = await mountPanel({ isActive: false });
 
-    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+    const initialCommandCount = runAutoOperationCommand.mock.calls.length;
 
     await wrapper.get('[data-testid="controller-command-input"]').setValue('GetCurrentUI');
     await wrapper.get('[data-testid="controller-send-button"]').trigger('click');
 
-    expect(runAutoOperationCommand).toHaveBeenCalledTimes(1);
-    expect(runAutoOperationCommand).toHaveBeenCalledWith('GetCurrentUI', {});
+    expect(runAutoOperationCommand).toHaveBeenCalledTimes(initialCommandCount + 1);
+    expect(runAutoOperationCommand).toHaveBeenLastCalledWith('GetCurrentUI', {});
 
     await flushPromises();
     await nextTick();
@@ -96,6 +170,43 @@ describe('InjectControllerPanel', () => {
     expect(wrapper.get('[data-testid="controller-clear-log-button"]').element.disabled).toBe(true);
   });
 
+  it('keeps the generic controller command console working with the new prop contract', async () => {
+    window.sessionStorage.setItem(AGENT_CONNECTED_STORAGE_KEY, 'true');
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'GetCurrentUI') {
+        return {
+          ok: true,
+          result: { panel: 'TradingExchange_Main' },
+        };
+      }
+      throw new Error(`unexpected command: ${command}`);
+    });
+    window.bidkingDesktop = {
+      isDesktop: true,
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand,
+    };
+
+    const wrapper = await mountPanel({
+      isActive: false,
+      commandLoading: 'Shared command lock',
+    });
+
+    expect(wrapper.get('[data-testid="controller-send-button"]').element.disabled).toBe(true);
+    expect(wrapper.get('[data-testid="controller-inline-hint"]').text()).toContain('等待当前命令完成');
+
+    await wrapper.setProps({ commandLoading: '' });
+    await nextTick();
+    await wrapper.get('[data-testid="controller-command-input"]').setValue('GetCurrentUI');
+    await wrapper.get('[data-testid="controller-send-button"]').trigger('click');
+
+    expect(runAutoOperationCommand).toHaveBeenLastCalledWith('GetCurrentUI', {});
+    expect(wrapper.emitted('command-loading-change').slice(-2)).toEqual([
+      ['GetCurrentUI'],
+      [''],
+    ]);
+  });
+
   it('fills the command form from a quick preset', async () => {
     window.sessionStorage.setItem(AGENT_CONNECTED_STORAGE_KEY, 'true');
     window.bidkingDesktop = {
@@ -104,7 +215,7 @@ describe('InjectControllerPanel', () => {
       runAutoOperationCommand: vi.fn(),
     };
 
-    const wrapper = await mountPanel();
+    const wrapper = await mountPanel({ isActive: false });
 
     await wrapper.get('[data-testid="controller-preset-DumpPanelTree"]').trigger('click');
 
@@ -129,7 +240,8 @@ describe('InjectControllerPanel', () => {
 
     expect(wrapper.get('[data-testid="controller-send-button"]').element.disabled).toBe(true);
     expect(wrapper.get('[data-testid="controller-command-error"]').text()).toContain('JSON 参数格式无效');
-    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+    const initialCommandCount = runAutoOperationCommand.mock.calls.length;
+    expect(runAutoOperationCommand).toHaveBeenCalledTimes(initialCommandCount);
   });
 
   it('renders English fallback copy when the desktop bridge is missing', async () => {
