@@ -70,6 +70,47 @@ const selectedNodeTypesText = computed(() => {
   return selectedNode.value.componentTypes.join(', ');
 });
 
+const listPlaceholderText = computed(() => {
+  if (!props.transportReady) {
+    return t('inject.controllerUiTransportNotReady');
+  }
+  if (!hasLoadedUiAutomationOnce.value && !uiAutomationRefreshing.value) {
+    return t('inject.controllerNodeListNotRefreshed');
+  }
+  if (uiAutomationRefreshing.value) {
+    return t('inject.controllerNodeListRefreshing');
+  }
+  if (visiblePanels.value.length === 0) {
+    return t('inject.controllerNodeListNoVisiblePanels');
+  }
+  if (interactiveNodes.value.length === 0) {
+    return t('inject.controllerNodeListEmpty');
+  }
+  return '';
+});
+
+const detailPlaceholderText = computed(() => {
+  if (!props.transportReady) {
+    return t('inject.controllerUiTransportNotReady');
+  }
+  if (!hasLoadedUiAutomationOnce.value && !uiAutomationRefreshing.value) {
+    return t('inject.controllerNodeListNotRefreshed');
+  }
+  if (uiAutomationRefreshing.value) {
+    return t('inject.controllerNodeListRefreshing');
+  }
+  if (visiblePanels.value.length === 0) {
+    return t('inject.controllerNodeListNoVisiblePanels');
+  }
+  if (interactiveNodes.value.length === 0) {
+    return t('inject.controllerNodeListEmpty');
+  }
+  if (!selectedNode.value) {
+    return t('inject.controllerNoSelectedNode');
+  }
+  return '';
+});
+
 const actionResultText = computed(() => JSON.stringify({
   action: lastUiActionResult.value?.action,
   panel: lastUiActionResult.value?.panel,
@@ -147,39 +188,11 @@ function handleSelectedPanelChange(event) {
       <section class="controller-ui-column">
         <h3>{{ t('inject.controllerInteractiveNodes') }}</h3>
         <div
-          v-if="!transportReady"
+          v-if="listPlaceholderText"
           class="controller-ui-placeholder"
           data-testid="controller-ui-list-placeholder"
         >
-          {{ t('inject.controllerUiTransportNotReady') }}
-        </div>
-        <div
-          v-else-if="!hasLoadedUiAutomationOnce && !uiAutomationRefreshing"
-          class="controller-ui-placeholder"
-          data-testid="controller-ui-list-placeholder"
-        >
-          {{ t('inject.controllerNodeListNotRefreshed') }}
-        </div>
-        <div
-          v-else-if="uiAutomationRefreshing"
-          class="controller-ui-placeholder"
-          data-testid="controller-ui-list-placeholder"
-        >
-          {{ t('inject.controllerNodeListRefreshing') }}
-        </div>
-        <div
-          v-else-if="visiblePanels.length === 0"
-          class="controller-ui-placeholder"
-          data-testid="controller-ui-list-placeholder"
-        >
-          {{ t('inject.controllerNodeListNoVisiblePanels') }}
-        </div>
-        <div
-          v-else-if="interactiveNodes.length === 0"
-          class="controller-ui-placeholder"
-          data-testid="controller-ui-list-placeholder"
-        >
-          {{ t('inject.controllerNodeListEmpty') }}
+          {{ listPlaceholderText }}
         </div>
         <div v-else class="controller-ui-node-list">
           <button
@@ -201,11 +214,11 @@ function handleSelectedPanelChange(event) {
       <section class="controller-ui-column">
         <h3>{{ t('inject.controllerNodeDetails') }}</h3>
         <div
-          v-if="!transportReady || !selectedNode"
+          v-if="detailPlaceholderText"
           class="controller-ui-placeholder"
           data-testid="controller-ui-detail-placeholder"
         >
-          {{ transportReady ? t('inject.controllerNoSelectedNode') : t('inject.controllerUiTransportNotReady') }}
+          {{ detailPlaceholderText }}
         </div>
         <template v-else>
           <div class="controller-ui-detail-grid">
@@ -283,11 +296,18 @@ function handleSelectedPanelChange(event) {
             </template>
           </div>
 
-          <pre
-            v-if="lastUiActionResult"
-            class="command-result"
-            data-testid="controller-ui-action-result"
-          >{{ actionResultText }}</pre>
+          <template v-if="lastUiActionResult">
+            <strong
+              class="controller-ui-result-label"
+              data-testid="controller-ui-action-result-label"
+            >
+              {{ t('inject.controllerUiActionResult') }}
+            </strong>
+            <pre
+              class="command-result"
+              data-testid="controller-ui-action-result"
+            >{{ actionResultText }}</pre>
+          </template>
         </template>
       </section>
     </div>

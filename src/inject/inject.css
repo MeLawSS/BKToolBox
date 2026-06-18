@@ -771,6 +771,12 @@ a { color: inherit; text-decoration: none; }
   gap: 8px;
 }
 
+.controller-ui-result-label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 @media (max-width: 760px) {
   .page {
     width: min(100vw - 20px, 1440px);

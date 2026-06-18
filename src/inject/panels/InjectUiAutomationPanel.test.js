@@ -119,6 +119,107 @@ describe('InjectUiAutomationPanel', () => {
     expect(wrapper.text()).not.toContain('尚未刷新');
   });
 
+  it('renders the not-refreshed placeholders on both sides before the first activation refresh', async () => {
+    const { wrapper, runAutoOperationCommand } = await mountPanel({ isActive: false, transportReady: true });
+
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+    expect(wrapper.get('[data-testid="controller-ui-list-placeholder"]').text()).toContain('尚未刷新');
+    expect(wrapper.get('[data-testid="controller-ui-detail-placeholder"]').text()).toContain('尚未刷新');
+  });
+
+  it('renders the refreshing placeholders on both sides while the activation refresh is still running', async () => {
+    let resolveDump;
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'GetCurrentUI') {
+        return { ok: true, result: { panel: 'UIMain' } };
+      }
+      if (command === 'GetVisiblePanels') {
+        return { ok: true, result: { panels: ['UIMain'] } };
+      }
+      if (command === 'DumpPanelTree') {
+        return new Promise((resolve) => {
+          resolveDump = resolve;
+        });
+      }
+      throw new Error(`unexpected command: ${command}`);
+    });
+    const { wrapper } = await mountPanel({
+      isActive: false,
+      transportReady: true,
+      runAutoOperationCommand,
+    });
+
+    await wrapper.setProps({ isActive: true });
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.get('[data-testid="controller-ui-list-placeholder"]').text()).toContain('正在刷新');
+    expect(wrapper.get('[data-testid="controller-ui-detail-placeholder"]').text()).toContain('正在刷新');
+
+    resolveDump({
+      ok: true,
+      result: {
+        panel: 'UIMain',
+        rootPath: '',
+        truncated: false,
+        nodes: [],
+      },
+    });
+    await flushPromises();
+    await nextTick();
+  });
+
+  it('renders the no-visible-panels placeholders on both sides after a refresh with no visible panels', async () => {
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'GetCurrentUI') {
+        return { ok: true, result: { panel: '' } };
+      }
+      if (command === 'GetVisiblePanels') {
+        return { ok: true, result: { panels: [] } };
+      }
+      throw new Error(`unexpected command: ${command}`);
+    });
+    const { wrapper } = await mountPanel({
+      isActive: true,
+      transportReady: true,
+      runAutoOperationCommand,
+    });
+
+    expect(wrapper.get('[data-testid="controller-ui-list-placeholder"]').text()).toContain('没有可见 Panel');
+    expect(wrapper.get('[data-testid="controller-ui-detail-placeholder"]').text()).toContain('没有可见 Panel');
+  });
+
+  it('renders the empty-selected-panel placeholders on both sides when the selected panel has no interactive nodes', async () => {
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'GetCurrentUI') {
+        return { ok: true, result: { panel: 'UIMain' } };
+      }
+      if (command === 'GetVisiblePanels') {
+        return { ok: true, result: { panels: ['UIMain'] } };
+      }
+      if (command === 'DumpPanelTree') {
+        return {
+          ok: true,
+          result: {
+            panel: 'UIMain',
+            rootPath: '',
+            truncated: false,
+            nodes: [],
+          },
+        };
+      }
+      throw new Error(`unexpected command: ${command}`);
+    });
+    const { wrapper } = await mountPanel({
+      isActive: true,
+      transportReady: true,
+      runAutoOperationCommand,
+    });
+
+    expect(wrapper.get('[data-testid="controller-ui-list-placeholder"]').text()).toContain('没有可交互节点');
+    expect(wrapper.get('[data-testid="controller-ui-detail-placeholder"]').text()).toContain('没有可交互节点');
+  });
+
   it('auto-refreshes only after activation and renders interactive nodes with a truncated hint', async () => {
     const { wrapper, runAutoOperationCommand } = await mountPanel({ isActive: false });
 
@@ -138,6 +239,7 @@ describe('InjectUiAutomationPanel', () => {
     expect(wrapper.get('[data-testid="controller-ui-truncated"]').text()).toContain('结果已截断');
     expect(wrapper.get('[data-testid="controller-ui-node-row-0"]').text()).toContain('BtnTrade');
     expect(wrapper.get('[data-testid="controller-ui-node-row-1"]').text()).toContain('PriceInput');
+    expect(wrapper.get('[data-testid="controller-ui-detail-placeholder"]').text()).toContain('请选择一个节点');
   });
 
   it('updates the detail area when the selected row changes', async () => {
@@ -164,6 +266,7 @@ describe('InjectUiAutomationPanel', () => {
       pathMode: 'exact',
       component: 'auto',
     });
+    expect(wrapper.get('[data-testid="controller-ui-action-result-label"]').text()).toContain('UI 操作结果');
     expect(wrapper.get('[data-testid="controller-ui-action-result"]').text()).toContain('ClickNode');
     expect(wrapper.get('[data-testid="controller-ui-action-result"]').text()).toContain('BtnTrade');
   });
@@ -200,5 +303,30 @@ describe('InjectUiAutomationPanel', () => {
     await wrapper.get('[data-testid="controller-ui-node-row-1"]').trigger('click');
 
     expect(wrapper.get('[data-testid="controller-ui-input-draft"]').element.value).toBe('');
+  });
+
+  it('disables refresh, panel switching, and node actions when shared commandLoading is active', async () => {
+    const { wrapper } = await mountPanel({
+      isActive: false,
+      commandLoading: 'Controller:UI Refresh',
+    });
+
+    expect(wrapper.get('[data-testid="controller-ui-refresh-button"]').element.disabled).toBe(true);
+    expect(wrapper.get('[data-testid="controller-ui-panel-select"]').element.disabled).toBe(true);
+
+    await wrapper.setProps({ commandLoading: '' });
+    await wrapper.setProps({ isActive: true });
+    await flushPromises();
+    await nextTick();
+
+    await wrapper.get('[data-testid="controller-ui-node-row-0"]').trigger('click');
+    await wrapper.setProps({ commandLoading: 'Controller:UI ClickNode' });
+    await nextTick();
+    expect(wrapper.get('[data-testid="controller-ui-click-button"]').element.disabled).toBe(true);
+
+    await wrapper.get('[data-testid="controller-ui-node-row-1"]').trigger('click');
+    await wrapper.setProps({ commandLoading: 'Controller:UI SetInputText' });
+    await nextTick();
+    expect(wrapper.get('[data-testid="controller-ui-set-text-button"]').element.disabled).toBe(true);
   });
 });
