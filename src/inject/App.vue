@@ -157,7 +157,7 @@ onUnmounted(() => {
           class="inject-panel workspace-shell__panel"
           data-testid="inject-panel-controller"
           :aria-label="t('inject.controllerTitle')"
-        > 
+        >
           <InjectControllerPanel
             :is-active="activePanelId === 'controller'"
             :command-loading="autoOperationCommandLoading"
