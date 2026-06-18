@@ -267,3 +267,78 @@ describe('bkcli.js command dispatch', () => {
     assert.equal(captured.args.rootPath, '');
   });
 });
+
+// ── shellcode.js ──────────────────────────────────────────────────────────────
+describe('shellcode.js', () => {
+  let shell;
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  before(() => { shell = require('./shellcode.js'); });
+
+  it('parseShellcodeFile: reads .bin file as hex', () => {
+    const tmp = path.join(os.tmpdir(), 'test.bin');
+    fs.writeFileSync(tmp, Buffer.from([0x90, 0xC3])); // NOP, RET
+    const hex = shell.parseShellcodeFile(tmp);
+    assert.equal(hex, '90c3');
+    fs.unlinkSync(tmp);
+  });
+
+  it('parseShellcodeFile: reads .hex file stripping whitespace', () => {
+    const tmp = path.join(os.tmpdir(), 'test.hex');
+    fs.writeFileSync(tmp, '90 C3\n48 89 C8', 'utf8');
+    const hex = shell.parseShellcodeFile(tmp);
+    assert.equal(hex, '90c348 89c8'.replace(/ /g, ''));
+    fs.unlinkSync(tmp);
+  });
+
+  it('execShellcode: calls pwsh with ShellcodeHex, ResultSize, TimeoutMs', () => {
+    const tmp = path.join(os.tmpdir(), 'sc.bin');
+    fs.writeFileSync(tmp, Buffer.from([0x90, 0xC3]));
+    const calls = [];
+    const mockSpawn = (cmd, args) => {
+      calls.push({ cmd, args });
+      return { status: 0, stdout: '{"test":1}', stderr: '' };
+    };
+    const result = shell.execShellcode(tmp, {
+      resultSize: 8192,
+      timeoutMs: 3000,
+      spawnSyncImpl: mockSpawn,
+    });
+    assert.equal(result, '{"test":1}');
+    assert.equal(calls[0].cmd, 'pwsh');
+    assert.ok(calls[0].args.includes('-ShellcodeHex'));
+    assert.ok(calls[0].args.includes('90c3'));
+    assert.ok(calls[0].args.includes('-ResultSize'));
+    assert.ok(calls[0].args.includes('8192'));
+    fs.unlinkSync(tmp);
+  });
+
+  it('execShellcode: passes -NoWait when noWait:true', () => {
+    const tmp = path.join(os.tmpdir(), 'sc2.bin');
+    fs.writeFileSync(tmp, Buffer.from([0x90]));
+    const calls = [];
+    const mockSpawn = (cmd, args) => { calls.push(args); return { status: 0, stdout: '', stderr: '' }; };
+    shell.execShellcode(tmp, { noWait: true, spawnSyncImpl: mockSpawn });
+    assert.ok(calls[0].includes('-NoWait'));
+    fs.unlinkSync(tmp);
+  });
+
+  it('execShellcode: throws when pwsh exits non-zero', () => {
+    const tmp = path.join(os.tmpdir(), 'sc3.bin');
+    fs.writeFileSync(tmp, Buffer.from([0x90]));
+    const mockSpawn = () => ({ status: 1, stdout: '', stderr: 'Process not found' });
+    assert.throws(
+      () => shell.execShellcode(tmp, { spawnSyncImpl: mockSpawn }),
+      /Process not found/
+    );
+    fs.unlinkSync(tmp);
+  });
+
+  it('parseShellcodeFile: throws for missing file', () => {
+    assert.throws(
+      () => shell.parseShellcodeFile('/nonexistent/path/file.bin'),
+      /ENOENT|no such file/i
+    );
+  });
+});
