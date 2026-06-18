@@ -679,6 +679,98 @@ a { color: inherit; text-decoration: none; }
   color: var(--muted);
 }
 
+.controller-ui-panel {
+  gap: 14px;
+}
+
+.controller-ui-head {
+  margin-bottom: 0;
+}
+
+.controller-ui-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, auto));
+  align-items: end;
+  gap: 10px;
+}
+
+.controller-ui-summary,
+.controller-ui-select {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.controller-ui-select select,
+.controller-ui-input-field {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  padding: 8px 10px;
+}
+
+.controller-ui-body {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 12px;
+}
+
+.controller-ui-column,
+.controller-ui-node-list,
+.controller-ui-detail-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.controller-ui-placeholder {
+  min-height: 120px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+  padding: 14px;
+}
+
+.controller-ui-node-button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 12px;
+  text-align: left;
+}
+
+.controller-ui-node-button.is-selected {
+  border-color: rgba(57, 168, 149, 0.6);
+  background: rgba(47, 143, 131, 0.12);
+}
+
+.controller-ui-node-meta,
+.controller-ui-detail-grid span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.controller-ui-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.controller-ui-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 @media (max-width: 760px) {
   .page {
     width: min(100vw - 20px, 1440px);
@@ -700,7 +792,9 @@ a { color: inherit; text-decoration: none; }
   }
 
   .controller-command-fields,
-  .controller-domain-grid {
+  .controller-domain-grid,
+  .controller-ui-toolbar,
+  .controller-ui-body {
     grid-template-columns: 1fr;
   }
 
