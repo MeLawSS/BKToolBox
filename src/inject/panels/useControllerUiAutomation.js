@@ -330,12 +330,14 @@ export function useControllerUiAutomation({
     }
   }
 
-  let sawActive = false;
   watch(
     [() => Boolean(isActive.value), () => Boolean(transportReady.value)],
-    ([nextActive, nextReady], [previousActive]) => {
-      const shouldRefresh = nextActive && nextReady && (!sawActive || !previousActive);
-      sawActive = nextActive;
+    ([nextActive, nextReady], previousValues = [false, false]) => {
+      const [previousActive, previousReady] = previousValues;
+      const shouldRefresh = nextActive && nextReady && (
+        (!previousActive && nextActive) ||
+        (!previousReady && nextReady)
+      );
       if (shouldRefresh) {
         refreshUi({ preserveSelectedPanel: false });
       }

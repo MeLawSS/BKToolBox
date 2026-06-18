@@ -103,6 +103,12 @@ describe('useControllerUiAutomation', () => {
     expect(api.selectedPanel.value).toBe('');
     expect(api.interactiveNodes.value).toEqual([]);
     expect(api.hasLoadedUiAutomationOnce.value).toBe(false);
+    expect(harness.loadingEvents).toHaveLength(1);
+    expect(harness.loadingEvents[0]).not.toBe('');
+
+    const blockedRefresh = await api.refreshUi();
+    expect(blockedRefresh).toBe(false);
+    expect(harness.loadingEvents).toHaveLength(1);
 
     dumpDeferred.resolve({
       ok: true,
@@ -134,8 +140,48 @@ describe('useControllerUiAutomation', () => {
       }),
     ]);
     expect(api.hasLoadedUiAutomationOnce.value).toBe(true);
-    expect(harness.loadingEvents[0]).not.toBe('');
-    expect(harness.loadingEvents.at(-1)).toBe('');
+    expect(harness.loadingEvents).toHaveLength(2);
+    expect(harness.loadingEvents[1]).toBe('');
+  });
+
+  it('auto-refreshes when transport becomes ready while already active', async () => {
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'GetCurrentUI') {
+        return { ok: true, result: { panel: 'UIMain' } };
+      }
+      if (command === 'GetVisiblePanels') {
+        return { ok: true, result: { panels: ['UIMain'] } };
+      }
+      if (command === 'DumpPanelTree') {
+        return {
+          ok: true,
+          result: {
+            panel: 'UIMain',
+            rootPath: '',
+            truncated: false,
+            nodes: [{ path: 'BtnTrade', name: 'BtnTrade', active: true, interactive: true, componentTypes: ['Button'] }],
+          },
+        };
+      }
+      throw new Error(`unexpected command: ${command}`);
+    });
+    window.bidkingDesktop = { runAutoOperationCommand };
+
+    const harness = mountUiAutomation({ isActive: true, transportReady: false });
+    await flushPromises();
+    await nextTick();
+
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+
+    harness.transportReady.value = true;
+    await flushPromises();
+    await nextTick();
+
+    expect(runAutoOperationCommand.mock.calls.map(([command]) => command)).toEqual([
+      'GetCurrentUI',
+      'GetVisiblePanels',
+      'DumpPanelTree',
+    ]);
   });
 
   it('stores a structured action result on click success', async () => {
@@ -284,6 +330,61 @@ describe('useControllerUiAutomation', () => {
 
     expect(api.selectedPanel.value).toBe('BidPop_Main');
     expect(api.interactiveNodes.value[0].path).toBe('InputRoot/PriceInput');
+  });
+
+  it('clears stale selected-node state after a refresh removes that node path', async () => {
+    const runAutoOperationCommand = vi.fn()
+      .mockResolvedValueOnce({ ok: true, result: { panel: 'UIMain' } })
+      .mockResolvedValueOnce({ ok: true, result: { panels: ['UIMain'] } })
+      .mockResolvedValueOnce({
+        ok: true,
+        result: {
+          panel: 'UIMain',
+          rootPath: '',
+          truncated: false,
+          nodes: [{ path: 'InputRoot/PriceInput', name: 'PriceInput', active: true, interactive: true, componentTypes: ['TMP_InputField'] }],
+        },
+      })
+      .mockResolvedValueOnce({ ok: false, error: 'input rejected' })
+      .mockResolvedValueOnce({ ok: true, result: { panel: 'UIMain' } })
+      .mockResolvedValueOnce({ ok: true, result: { panels: ['UIMain'] } })
+      .mockResolvedValueOnce({
+        ok: true,
+        result: {
+          panel: 'UIMain',
+          rootPath: '',
+          truncated: false,
+          nodes: [{ path: 'BtnTrade', name: 'BtnTrade', active: true, interactive: true, componentTypes: ['Button'] }],
+        },
+      });
+    window.bidkingDesktop = { runAutoOperationCommand };
+
+    const harness = mountUiAutomation({ isActive: true, transportReady: true });
+    await flushPromises();
+    await nextTick();
+
+    const api = harness.getApi();
+    api.setSelectedNode('InputRoot/PriceInput');
+    api.nodeInputDraft.value = '7799';
+    api.nodeSubmitAfterInput.value = true;
+
+    await api.setSelectedNodeText();
+    await flushPromises();
+    await nextTick();
+
+    expect(api.selectedNodePath.value).toBe('InputRoot/PriceInput');
+    expect(api.nodeInputDraft.value).toBe('7799');
+    expect(api.nodeSubmitAfterInput.value).toBe(true);
+    expect(api.uiActionError.value).toContain('input rejected');
+
+    await api.refreshUi();
+    await flushPromises();
+    await nextTick();
+
+    expect(api.selectedNodePath.value).toBe('');
+    expect(api.nodeInputDraft.value).toBe('');
+    expect(api.nodeSubmitAfterInput.value).toBe(false);
+    expect(api.uiActionError.value).toBe('');
   });
 
   it('keeps the previous committed header and node list when a refresh dump fails', async () => {
