@@ -244,7 +244,7 @@
 其中：
 
 - `桌面环境` 可基于 `window.bidkingDesktop?.isDesktop` 判断
-- `Agent 桥接可用性` 可基于现有 `startAutoOperationAgent` / `runAutoOperationCommand` 能力是否存在判断
+- `Agent 桥接可用性` 必须直接读取共享 `useAutoOperationAgentSwitch()` runtime 的 `isAvailable`
 - `Agent 当前状态` 必须直接读取共享 `useAutoOperationAgentSwitch()` runtime 的 `isConnected` / `statusText`
   - 不能自己重新 `Ping`
   - 不能只根据 bridge 能力是否存在来推断
@@ -319,7 +319,8 @@
   - 不由 `App.vue` 代算或下发
 - `agentBridgeAvailable`
   - 当前是否存在已知 agent 相关桥接能力
-  - 同样由 `InjectControllerPanel.vue` 本地判断是否存在 `startAutoOperationAgent` / `runAutoOperationCommand`
+  - 直接消费共享 `useAutoOperationAgentSwitch()` runtime 的 `isAvailable`
+  - 与 `agentConnected` 一样，不在 `InjectControllerPanel.vue` 内重复计算
 - `agentConnected`
   - 不作为本地自管状态保存
   - 直接消费共享 `useAutoOperationAgentSwitch()` runtime 的 `isConnected`
