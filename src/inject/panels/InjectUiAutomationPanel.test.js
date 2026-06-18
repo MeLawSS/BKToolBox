@@ -37,6 +37,10 @@ function createRefreshPayload() {
 
 async function mountPanel(options = {}) {
   const payload = createRefreshPayload();
+  const fetchMock = options.fetch || vi.fn(async () => ({
+    ok: true,
+    json: async () => options.nodeLabelMap || {},
+  }));
   const runAutoOperationCommand = options.runAutoOperationCommand || vi.fn(async (command, args) => {
     if (command === 'GetCurrentUI') {
       return payload.currentUi;
@@ -76,6 +80,7 @@ async function mountPanel(options = {}) {
     throw new Error(`unexpected command: ${command}`);
   });
 
+  vi.stubGlobal('fetch', fetchMock);
   window.bidkingDesktop = { runAutoOperationCommand };
 
   const wrapper = mount(InjectUiAutomationPanel, {
@@ -91,7 +96,7 @@ async function mountPanel(options = {}) {
   await flushPromises();
   await nextTick();
 
-  return { wrapper, runAutoOperationCommand };
+  return { wrapper, runAutoOperationCommand, fetchMock };
 }
 
 describe('InjectUiAutomationPanel', () => {
@@ -102,6 +107,7 @@ describe('InjectUiAutomationPanel', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     delete window.bidkingDesktop;
   });
 
@@ -240,6 +246,19 @@ describe('InjectUiAutomationPanel', () => {
     expect(wrapper.get('[data-testid="controller-ui-node-row-0"]').text()).toContain('BtnTrade');
     expect(wrapper.get('[data-testid="controller-ui-node-row-1"]').text()).toContain('PriceInput');
     expect(wrapper.get('[data-testid="controller-ui-detail-placeholder"]').text()).toContain('请选择一个节点');
+  });
+
+  it('prefers configured display labels when a node path mapping exists', async () => {
+    const { wrapper, fetchMock } = await mountPanel({
+      isActive: true,
+      nodeLabelMap: {
+        BtnTrade: '主界面.竞拍',
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith('/data/controller-ui-node-labels.json', { cache: 'no-store' });
+    expect(wrapper.get('[data-testid="controller-ui-node-row-0"]').text()).toContain('主界面.竞拍');
+    expect(wrapper.get('[data-testid="controller-ui-node-row-0"]').text()).toContain('BtnTrade');
   });
 
   it('updates the detail area when the selected row changes', async () => {

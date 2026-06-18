@@ -1,5 +1,5 @@
 <script setup>
-import { computed, toRef } from 'vue';
+import { computed, onMounted, ref, toRef } from 'vue';
 import { useI18n } from '../../shared/i18n.js';
 import { useControllerUiAutomation } from './useControllerUiAutomation.js';
 
@@ -27,6 +27,7 @@ const props = defineProps({
 const emit = defineEmits(['command-loading-change']);
 
 const { t } = useI18n();
+const nodeDisplayLabelMap = ref({});
 
 const {
   uiAutomationRefreshing,
@@ -62,6 +63,13 @@ const {
     emit('command-loading-change', value);
   },
 });
+
+const displayedInteractiveNodes = computed(() => (
+  interactiveNodes.value.map((node) => ({
+    ...node,
+    displayName: resolveNodeDisplayName(node),
+  }))
+));
 
 const selectedNodeTypesText = computed(() => {
   if (!selectedNode.value?.componentTypes?.length) {
@@ -125,6 +133,48 @@ function formatBoolean(value) {
 function handleSelectedPanelChange(event) {
   switchPanel(event?.target?.value || '');
 }
+
+function resolveNodeDisplayName(node) {
+  const path = String(node?.path || '');
+  const mappedLabel = nodeDisplayLabelMap.value[path];
+  if (typeof mappedLabel === 'string' && mappedLabel.trim()) {
+    return mappedLabel.trim();
+  }
+  return String(node?.name || path);
+}
+
+async function loadNodeDisplayLabelMap() {
+  if (typeof fetch !== 'function') {
+    return;
+  }
+
+  try {
+    const response = await fetch('/data/controller-ui-node-labels.json', { cache: 'no-store' });
+    if (!response.ok) {
+      return;
+    }
+
+    const payload = await response.json();
+    if (!payload || Array.isArray(payload) || typeof payload !== 'object') {
+      return;
+    }
+
+    nodeDisplayLabelMap.value = Object.fromEntries(
+      Object.entries(payload).filter(([path, label]) => (
+        typeof path === 'string' &&
+        path &&
+        typeof label === 'string' &&
+        label.trim()
+      )),
+    );
+  } catch (_error) {
+    nodeDisplayLabelMap.value = {};
+  }
+}
+
+onMounted(() => {
+  loadNodeDisplayLabelMap();
+});
 </script>
 
 <template>
@@ -196,7 +246,7 @@ function handleSelectedPanelChange(event) {
         </div>
         <div v-else class="controller-ui-node-list">
           <button
-            v-for="(node, index) in interactiveNodes"
+            v-for="(node, index) in displayedInteractiveNodes"
             :key="node.path"
             class="controller-ui-node-button"
             :class="{ 'is-selected': node.path === selectedNodePath }"
@@ -204,7 +254,7 @@ function handleSelectedPanelChange(event) {
             :data-testid="`controller-ui-node-row-${index}`"
             @click="setSelectedNode(node.path)"
           >
-            <strong>{{ node.name }}</strong>
+            <strong>{{ node.displayName }}</strong>
             <code>{{ node.path }}</code>
             <span class="controller-ui-node-meta">{{ node.componentTypes.join(', ') }}</span>
           </button>

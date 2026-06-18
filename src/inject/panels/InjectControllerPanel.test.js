@@ -27,6 +27,10 @@ describe('InjectControllerPanel', () => {
     document.body.innerHTML = '';
     window.localStorage.clear();
     window.sessionStorage.clear();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    }));
   });
 
   afterEach(() => {
@@ -34,6 +38,7 @@ describe('InjectControllerPanel', () => {
     window.sessionStorage.clear();
     delete window.bidkingDesktop;
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('renders localized readiness cards and the full controller console surface when the shared runtime is connected', async () => {
