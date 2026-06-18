@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, toRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, toRef } from 'vue';
 import { useI18n } from '../../shared/i18n.js';
 import { useControllerUiAutomation } from './useControllerUiAutomation.js';
 
@@ -28,6 +28,9 @@ const emit = defineEmits(['command-loading-change']);
 
 const { t } = useI18n();
 const nodeDisplayLabelMap = ref({});
+const searchQuery = ref('');
+const lastRowFeedback = ref(null);
+let rowFeedbackTimer = 0;
 
 const {
   uiAutomationRefreshing,
@@ -46,6 +49,7 @@ const {
   lastUiActionResult,
   hasLoadedUiAutomationOnce,
   nodeListTruncated,
+  effectiveCommandLoading,
   canRefreshUi,
   canSwitchPanels,
   canRunClickAction,
@@ -64,12 +68,25 @@ const {
   },
 });
 
-const displayedInteractiveNodes = computed(() => (
-  interactiveNodes.value.map((node) => ({
-    ...node,
-    displayName: resolveNodeDisplayName(node),
-  }))
-));
+const displayedInteractiveNodes = computed(() => {
+  const normalizedQuery = searchQuery.value.trim().toLowerCase();
+
+  return interactiveNodes.value
+    .map((node) => ({
+      ...node,
+      displayName: resolveNodeDisplayName(node),
+    }))
+    .filter((node) => {
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return (
+        node.displayName.toLowerCase().includes(normalizedQuery) ||
+        node.path.toLowerCase().includes(normalizedQuery)
+      );
+    });
+});
 
 const selectedNodeTypesText = computed(() => {
   if (!selectedNode.value?.componentTypes?.length) {
@@ -97,26 +114,46 @@ const listPlaceholderText = computed(() => {
   return '';
 });
 
-const detailPlaceholderText = computed(() => {
-  if (!props.transportReady) {
-    return t('inject.controllerUiTransportNotReady');
+const compactStatus = computed(() => {
+  if (uiAutomationError.value) {
+    return {
+      tone: 'error',
+      text: uiAutomationError.value,
+    };
   }
-  if (!hasLoadedUiAutomationOnce.value && !uiAutomationRefreshing.value) {
-    return t('inject.controllerNodeListNotRefreshed');
+
+  if (uiActionError.value) {
+    return {
+      tone: 'error',
+      text: uiActionError.value,
+    };
   }
-  if (uiAutomationRefreshing.value) {
-    return t('inject.controllerNodeListRefreshing');
+
+  if (effectiveCommandLoading.value) {
+    return {
+      tone: 'info',
+      text: effectiveCommandLoading.value,
+    };
   }
-  if (visiblePanels.value.length === 0) {
-    return t('inject.controllerNodeListNoVisiblePanels');
+
+  if (nodeListTruncated.value) {
+    return {
+      tone: 'warning',
+      text: t('inject.controllerNodeListTruncated'),
+    };
   }
-  if (interactiveNodes.value.length === 0) {
-    return t('inject.controllerNodeListEmpty');
+
+  if (lastUiActionResult.value) {
+    return {
+      tone: 'success',
+      text: t('inject.controllerUiActionSucceeded', {
+        action: lastUiActionResult.value.action,
+        path: lastUiActionResult.value.path,
+      }),
+    };
   }
-  if (!selectedNode.value) {
-    return t('inject.controllerNoSelectedNode');
-  }
-  return '';
+
+  return null;
 });
 
 const actionResultText = computed(() => JSON.stringify({
@@ -140,7 +177,58 @@ function resolveNodeDisplayName(node) {
   if (typeof mappedLabel === 'string' && mappedLabel.trim()) {
     return mappedLabel.trim();
   }
-  return String(node?.name || path);
+  return path;
+}
+
+function clearRowFeedback() {
+  if (rowFeedbackTimer) {
+    window.clearTimeout(rowFeedbackTimer);
+    rowFeedbackTimer = 0;
+  }
+  lastRowFeedback.value = null;
+}
+
+function setRowFeedback(path, tone) {
+  clearRowFeedback();
+  lastRowFeedback.value = {
+    path,
+    tone,
+  };
+  rowFeedbackTimer = window.setTimeout(() => {
+    lastRowFeedback.value = null;
+    rowFeedbackTimer = 0;
+  }, 1500);
+}
+
+function rowFeedbackClass(path) {
+  if (lastRowFeedback.value?.path !== path) {
+    return '';
+  }
+  return `is-${lastRowFeedback.value.tone}`;
+}
+
+function nodeSupportsCompactClick(node) {
+  return Boolean(
+    node &&
+    (node.componentTypes.includes('Button') || node.componentTypes.includes('Toggle'))
+  );
+}
+
+async function handleNodeDoubleClick(node) {
+  setSelectedNode(node.path);
+
+  if (effectiveCommandLoading.value) {
+    return;
+  }
+
+  if (!nodeSupportsCompactClick(node)) {
+    uiActionError.value = t('inject.controllerNodeNotClickable');
+    setRowFeedback(node.path, 'blocked');
+    return;
+  }
+
+  const didClick = await clickSelectedNode();
+  setRowFeedback(node.path, didClick ? 'success' : 'error');
 }
 
 async function loadNodeDisplayLabelMap() {
@@ -174,6 +262,10 @@ async function loadNodeDisplayLabelMap() {
 
 onMounted(() => {
   loadNodeDisplayLabelMap();
+});
+
+onBeforeUnmount(() => {
+  clearRowFeedback();
 });
 </script>
 
@@ -220,23 +312,29 @@ onMounted(() => {
     </header>
 
     <p
-      v-if="uiAutomationError"
-      class="status-text is-error"
-      data-testid="controller-ui-error"
+      v-if="compactStatus"
+      class="controller-ui-status"
+      :class="`is-${compactStatus.tone}`"
+      :data-testid="compactStatus.tone === 'error' ? 'controller-ui-action-error' : 'controller-ui-status'"
     >
-      {{ uiAutomationError }}
-    </p>
-    <p
-      v-if="nodeListTruncated"
-      class="status-text"
-      data-testid="controller-ui-truncated"
-    >
-      {{ t('inject.controllerNodeListTruncated') }}
+      {{ compactStatus.text }}
     </p>
 
     <div class="controller-ui-body">
-      <section class="controller-ui-column">
-        <h3>{{ t('inject.controllerInteractiveNodes') }}</h3>
+      <section class="controller-ui-list-section">
+        <div class="controller-ui-list-head">
+          <h3>{{ t('inject.controllerInteractiveNodes') }}</h3>
+          <label class="controller-ui-select controller-ui-search">
+            <span>{{ t('inject.controllerNodeSearch') }}</span>
+            <input
+              v-model="searchQuery"
+              class="controller-ui-input-field"
+              type="search"
+              data-testid="controller-ui-search-input"
+              :placeholder="t('inject.controllerNodeSearchPlaceholder')"
+            />
+          </label>
+        </div>
         <div
           v-if="listPlaceholderText"
           class="controller-ui-placeholder"
@@ -244,121 +342,118 @@ onMounted(() => {
         >
           {{ listPlaceholderText }}
         </div>
-        <div v-else class="controller-ui-node-list">
+        <div v-else-if="displayedInteractiveNodes.length" class="controller-ui-node-list">
           <button
             v-for="(node, index) in displayedInteractiveNodes"
             :key="node.path"
             class="controller-ui-node-button"
-            :class="{ 'is-selected': node.path === selectedNodePath }"
+            :class="[
+              { 'is-selected': node.path === selectedNodePath },
+              rowFeedbackClass(node.path),
+            ]"
             type="button"
             :data-testid="`controller-ui-node-row-${index}`"
             @click="setSelectedNode(node.path)"
+            @dblclick="handleNodeDoubleClick(node)"
           >
             <strong>{{ node.displayName }}</strong>
             <code>{{ node.path }}</code>
             <span class="controller-ui-node-meta">{{ node.componentTypes.join(', ') }}</span>
           </button>
         </div>
+        <div
+          v-else
+          class="controller-ui-placeholder"
+          data-testid="controller-ui-list-placeholder"
+        >
+          {{ t('inject.controllerNodeSearchEmpty') }}
+        </div>
       </section>
 
-      <section class="controller-ui-column">
+      <section
+        v-if="selectedNode"
+        class="controller-ui-detail-section"
+      >
         <h3>{{ t('inject.controllerNodeDetails') }}</h3>
-        <div
-          v-if="detailPlaceholderText"
-          class="controller-ui-placeholder"
-          data-testid="controller-ui-detail-placeholder"
-        >
-          {{ detailPlaceholderText }}
+        <div class="controller-ui-detail-grid">
+          <div>
+            <span>{{ t('inject.controllerSelectedPanel') }}</span>
+            <strong>{{ selectedPanel }}</strong>
+          </div>
+          <div data-testid="controller-ui-detail-path">
+            <span>{{ t('inject.controllerNodePath') }}</span>
+            <strong>{{ selectedNode.path }}</strong>
+          </div>
+          <div data-testid="controller-ui-detail-types">
+            <span>{{ t('inject.controllerNodeTypes') }}</span>
+            <strong>{{ selectedNodeTypesText }}</strong>
+          </div>
+          <div>
+            <span>{{ t('inject.controllerNodeActive') }}</span>
+            <strong>{{ formatBoolean(selectedNode.active) }}</strong>
+          </div>
+          <div>
+            <span>{{ t('inject.controllerNodeInteractive') }}</span>
+            <strong>{{ formatBoolean(selectedNode.interactive) }}</strong>
+          </div>
         </div>
-        <template v-else>
-          <div class="controller-ui-detail-grid">
-            <div>
-              <span>{{ t('inject.controllerSelectedPanel') }}</span>
-              <strong>{{ selectedPanel }}</strong>
-            </div>
-            <div data-testid="controller-ui-detail-path">
-              <span>{{ t('inject.controllerNodePath') }}</span>
-              <strong>{{ selectedNode.path }}</strong>
-            </div>
-            <div data-testid="controller-ui-detail-types">
-              <span>{{ t('inject.controllerNodeTypes') }}</span>
-              <strong>{{ selectedNodeTypesText }}</strong>
-            </div>
-            <div>
-              <span>{{ t('inject.controllerNodeActive') }}</span>
-              <strong>{{ formatBoolean(selectedNode.active) }}</strong>
-            </div>
-            <div>
-              <span>{{ t('inject.controllerNodeInteractive') }}</span>
-              <strong>{{ formatBoolean(selectedNode.interactive) }}</strong>
-            </div>
-          </div>
 
-          <p
-            v-if="uiActionError"
-            class="status-text is-error"
-            data-testid="controller-ui-action-error"
-          >
-            {{ uiActionError }}
-          </p>
-
-          <div class="controller-ui-actions">
-            <div class="controller-ui-detail-actions">
-              <button
-                v-if="selectedNodeSupportsClick"
-                class="command-button"
-                type="button"
-                :disabled="!canRunClickAction"
-                data-testid="controller-ui-click-button"
-                @click="clickSelectedNode"
-              >
-                {{ t('inject.controllerClickAction') }}
-              </button>
-            </div>
-
-            <template v-if="selectedNodeSupportsTextInput">
-              <label class="controller-ui-select">
-                <span>{{ t('inject.controllerSetTextAction') }}</span>
-                <input
-                  v-model="nodeInputDraft"
-                  class="controller-ui-input-field"
-                  type="text"
-                  data-testid="controller-ui-input-draft"
-                />
-              </label>
-              <label class="controller-ui-select">
-                <span>{{ t('inject.controllerSubmitAfterSetText') }}</span>
-                <input
-                  v-model="nodeSubmitAfterInput"
-                  type="checkbox"
-                  data-testid="controller-ui-submit-toggle"
-                />
-              </label>
-              <button
-                class="command-button"
-                type="button"
-                :disabled="!canRunSetTextAction"
-                data-testid="controller-ui-set-text-button"
-                @click="setSelectedNodeText"
-              >
-                {{ t('inject.controllerSetTextAction') }}
-              </button>
-            </template>
-          </div>
-
-          <template v-if="lastUiActionResult">
-            <strong
-              class="controller-ui-result-label"
-              data-testid="controller-ui-action-result-label"
+        <div class="controller-ui-actions">
+          <div class="controller-ui-detail-actions">
+            <button
+              v-if="selectedNodeSupportsClick"
+              class="command-button"
+              type="button"
+              :disabled="!canRunClickAction"
+              data-testid="controller-ui-click-button"
+              @click="clickSelectedNode"
             >
-              {{ t('inject.controllerUiActionResult') }}
-            </strong>
-            <pre
-              class="command-result"
-              data-testid="controller-ui-action-result"
-            >{{ actionResultText }}</pre>
+              {{ t('inject.controllerClickAction') }}
+            </button>
+          </div>
+
+          <template v-if="selectedNodeSupportsTextInput">
+            <label class="controller-ui-select">
+              <span>{{ t('inject.controllerSetTextAction') }}</span>
+              <input
+                v-model="nodeInputDraft"
+                class="controller-ui-input-field"
+                type="text"
+                data-testid="controller-ui-input-draft"
+              />
+            </label>
+            <label class="controller-ui-checkbox">
+              <input
+                v-model="nodeSubmitAfterInput"
+                type="checkbox"
+                data-testid="controller-ui-submit-toggle"
+              />
+              <span>{{ t('inject.controllerSubmitAfterSetText') }}</span>
+            </label>
+            <button
+              class="command-button"
+              type="button"
+              :disabled="!canRunSetTextAction"
+              data-testid="controller-ui-set-text-button"
+              @click="setSelectedNodeText"
+            >
+              {{ t('inject.controllerSetTextAction') }}
+            </button>
           </template>
-        </template>
+        </div>
+
+        <details
+          v-if="lastUiActionResult"
+          class="controller-ui-diagnostics"
+        >
+          <summary class="controller-ui-result-label">
+            {{ t('inject.controllerUiActionResult') }}
+          </summary>
+          <pre
+            class="command-result"
+            data-testid="controller-ui-action-result"
+          >{{ actionResultText }}</pre>
+        </details>
       </section>
     </div>
   </section>
