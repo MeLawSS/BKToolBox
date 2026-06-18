@@ -30,7 +30,8 @@ describe('InjectControllerPanel', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders localized readiness cards and a disabled controller command skeleton', async () => {
+  it('renders localized readiness cards and the full controller console surface when the shared runtime is connected', async () => {
+    window.sessionStorage.setItem(AGENT_CONNECTED_STORAGE_KEY, 'true');
     window.bidkingDesktop = {
       isDesktop: true,
       startAutoOperationAgent: vi.fn(),
@@ -40,22 +41,79 @@ describe('InjectControllerPanel', () => {
     const wrapper = await mountPanel();
 
     expect(wrapper.text()).toContain('控制器');
-    expect(wrapper.get('[data-testid="controller-status-desktop"]').text()).toContain('桌面环境');
+    expect(wrapper.get('[data-testid="controller-status-desktop"]').text()).toContain('可用');
     expect(wrapper.get('[data-testid="controller-status-agentBridge"]').text()).toContain('可用');
-    expect(wrapper.get('[data-testid="controller-status-agentConnection"]').text()).toContain('等待获取');
-    expect(wrapper.get('[data-testid="controller-status-transport"]').text()).toContain('未接入');
+    expect(wrapper.get('[data-testid="controller-status-agentConnection"]').text()).toContain('已连接');
+    expect(wrapper.get('[data-testid="controller-status-transport"]').text()).toContain('可用');
     expect(wrapper.get('[data-testid="controller-command-input"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="controller-args-input"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="controller-quick-commands"]').text()).toContain('DumpPanelTree');
+    expect(wrapper.get('[data-testid="controller-quick-commands"]').text()).toContain('SetInputText');
     expect(wrapper.get('[data-testid="controller-send-button"]').element.disabled).toBe(true);
-    expect(wrapper.get('[data-testid="controller-transport-not-ready"]').text()).toContain('Controller 通道尚未接入');
-    expect(wrapper.get('[data-testid="controller-response-log"]').text()).toContain('Controller 通道接入后将在这里显示响应');
+    expect(wrapper.get('[data-testid="controller-clear-log-button"]').element.disabled).toBe(true);
+    expect(wrapper.get('[data-testid="controller-inline-hint"]').text()).toContain('已就绪');
+    expect(wrapper.get('[data-testid="controller-command-examples"]').text()).toContain('DumpPanelTree');
+    expect(wrapper.get('[data-testid="controller-response-log"]').text()).toContain('尚无响应');
     expect(wrapper.get('[data-testid="controller-domain-character-scene"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="controller-domain-movement-interaction"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="controller-domain-inventory-warehouse"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="controller-domain-trading-market"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="controller-command-input"]').setValue('GetCurrentUI');
+    expect(wrapper.get('[data-testid="controller-send-button"]').element.disabled).toBe(false);
   });
 
-  it('reads shared agent state passively without issuing Ping on mount', async () => {
+  it('reads the shared agent state passively, sends a generic controller command, and clears the response log', async () => {
+    window.sessionStorage.setItem(AGENT_CONNECTED_STORAGE_KEY, 'true');
+    const runAutoOperationCommand = vi.fn().mockResolvedValue({
+      ok: true,
+      result: { panel: 'TradingExchange_Main' },
+    });
+    window.bidkingDesktop = {
+      isDesktop: true,
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand,
+    };
+
+    const wrapper = await mountPanel();
+
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+
+    await wrapper.get('[data-testid="controller-command-input"]').setValue('GetCurrentUI');
+    await wrapper.get('[data-testid="controller-send-button"]').trigger('click');
+
+    expect(runAutoOperationCommand).toHaveBeenCalledTimes(1);
+    expect(runAutoOperationCommand).toHaveBeenCalledWith('GetCurrentUI', {});
+
+    await flushPromises();
+    await nextTick();
+    expect(wrapper.get('[data-testid="controller-response-log"]').text()).toContain('GetCurrentUI');
+    expect(wrapper.get('[data-testid="controller-response-log"]').text()).toContain('TradingExchange_Main');
+    expect(wrapper.get('[data-testid="controller-clear-log-button"]').element.disabled).toBe(false);
+
+    await wrapper.get('[data-testid="controller-clear-log-button"]').trigger('click');
+    expect(wrapper.get('[data-testid="controller-response-log"]').text()).toContain('尚无响应');
+    expect(wrapper.get('[data-testid="controller-clear-log-button"]').element.disabled).toBe(true);
+  });
+
+  it('fills the command form from a quick preset', async () => {
+    window.sessionStorage.setItem(AGENT_CONNECTED_STORAGE_KEY, 'true');
+    window.bidkingDesktop = {
+      isDesktop: true,
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand: vi.fn(),
+    };
+
+    const wrapper = await mountPanel();
+
+    await wrapper.get('[data-testid="controller-preset-DumpPanelTree"]').trigger('click');
+
+    expect(wrapper.get('[data-testid="controller-command-input"]').element.value).toBe('DumpPanelTree');
+    expect(wrapper.get('[data-testid="controller-args-input"]').element.value).toContain('"panel": "UIMain"');
+    expect(wrapper.get('[data-testid="controller-send-button"]').element.disabled).toBe(false);
+  });
+
+  it('shows inline JSON validation and blocks submission when the payload is invalid', async () => {
     window.sessionStorage.setItem(AGENT_CONNECTED_STORAGE_KEY, 'true');
     const runAutoOperationCommand = vi.fn();
     window.bidkingDesktop = {
@@ -66,11 +124,15 @@ describe('InjectControllerPanel', () => {
 
     const wrapper = await mountPanel();
 
+    await wrapper.get('[data-testid="controller-command-input"]').setValue('DumpPanelTree');
+    await wrapper.get('[data-testid="controller-args-input"]').setValue('{');
+
+    expect(wrapper.get('[data-testid="controller-send-button"]').element.disabled).toBe(true);
+    expect(wrapper.get('[data-testid="controller-command-error"]').text()).toContain('JSON 参数格式无效');
     expect(runAutoOperationCommand).not.toHaveBeenCalled();
-    expect(wrapper.get('[data-testid="controller-status-agentConnection"]').text()).toContain('已连接');
   });
 
-  it('renders the controller panel fallback copy in English when the desktop bridge is missing', async () => {
+  it('renders English fallback copy when the desktop bridge is missing', async () => {
     window.localStorage.setItem(LOCALE_STORAGE_KEY, 'en-US');
 
     const wrapper = await mountPanel();
@@ -80,7 +142,10 @@ describe('InjectControllerPanel', () => {
     expect(wrapper.get('[data-testid="controller-status-desktop"]').text()).toContain('Unavailable');
     expect(wrapper.get('[data-testid="controller-status-agentBridge"]').text()).toContain('Unavailable');
     expect(wrapper.get('[data-testid="controller-status-agentConnection"]').text()).toContain('Waiting');
-    expect(wrapper.get('[data-testid="controller-status-transport"]').text()).toContain('Not connected');
-    expect(wrapper.get('[data-testid="controller-transport-not-ready"]').text()).toContain('Controller transport');
+    expect(wrapper.get('[data-testid="controller-status-transport"]').text()).toContain('Not ready');
+    expect(wrapper.get('[data-testid="controller-inline-hint"]').text()).toContain('desktop app');
+    expect(wrapper.get('[data-testid="controller-response-log"]').text()).toContain('not ready');
+    expect(wrapper.get('[data-testid="controller-quick-commands"]').text()).toContain('DumpPanelTree');
+    expect(wrapper.get('[data-testid="controller-command-examples"]').text()).toContain('DumpPanelTree');
   });
 });

@@ -27,6 +27,7 @@ typedef void Il2CppClass;
 typedef void Il2CppMethod;
 typedef void Il2CppFieldInfo;
 typedef void Il2CppObject;
+typedef void Il2CppType;
 
 #define FIELDINFO_OBJECT_OFFSET(f) (*(int32_t*)((char*)(f) + 24))
 #define UNBOX_INT32(obj)  (*(int32_t*)((char*)(obj) + 16))
@@ -44,6 +45,15 @@ typedef void                  (*fn_field_static_get_value)(Il2CppFieldInfo*, voi
 typedef Il2CppClass*          (*fn_object_get_class)(Il2CppObject*);
 typedef void*                 (*fn_thread_attach)(Il2CppDomain*);
 typedef Il2CppObject*         (*fn_string_new)(const char*);
+typedef Il2CppClass*          (*fn_class_get_parent)(Il2CppClass*);
+typedef const Il2CppMethod*   (*fn_class_get_methods)(Il2CppClass*, void**);
+typedef const char*           (*fn_method_get_name)(const Il2CppMethod*);
+typedef uint32_t              (*fn_method_get_param_count)(const Il2CppMethod*);
+typedef const Il2CppType*     (*fn_method_get_param)(const Il2CppMethod*, uint32_t);
+typedef char*                 (*fn_type_get_name)(const Il2CppType*);
+typedef const Il2CppType*     (*fn_class_get_type)(Il2CppClass*);
+typedef Il2CppObject*         (*fn_type_get_object)(const Il2CppType*);
+typedef void                  (*fn_free)(void*);
 
 static fn_domain_get                 g_domain_get;
 static fn_domain_get_assemblies      g_domain_get_assemblies;
@@ -57,6 +67,15 @@ static fn_field_static_get_value     g_field_static_get_value;
 static fn_object_get_class           g_object_get_class;
 static fn_thread_attach              g_thread_attach;
 static fn_string_new                 g_string_new;
+static fn_class_get_parent           g_class_get_parent;
+static fn_class_get_methods          g_class_get_methods;
+static fn_method_get_name            g_method_get_name;
+static fn_method_get_param_count     g_method_get_param_count;
+static fn_method_get_param           g_method_get_param;
+static fn_type_get_name              g_type_get_name;
+static fn_class_get_type             g_class_get_type;
+static fn_type_get_object            g_type_get_object;
+static fn_free                       g_il2cpp_free;
 
 static Il2CppDomain* g_domain    = nullptr;
 static bool          g_il2cppReady = false;
@@ -1006,6 +1025,961 @@ static bool InvokeIntGetter(Il2CppObject* obj, const char* name, int* out) {
     return true;
 }
 
+struct UiComponentRefs {
+    Il2CppObject* button = nullptr;
+    Il2CppObject* toggle = nullptr;
+    Il2CppObject* tmpInput = nullptr;
+    Il2CppObject* numericInput = nullptr;
+    Il2CppObject* tmpText = nullptr;
+    Il2CppObject* legacyText = nullptr;
+};
+
+struct UiNodeSnapshot {
+    Il2CppObject* transform = nullptr;
+    std::string path;
+    std::string name;
+    int depth = 0;
+    bool active = false;
+    bool interactive = false;
+    UiComponentRefs components;
+};
+
+enum UiPanelLookupResult {
+    UI_PANEL_FOUND = 0,
+    UI_PANEL_NOT_VISIBLE,
+    UI_PANEL_INSTANCE_NOT_FOUND,
+    UI_PANEL_LOOKUP_ERROR
+};
+
+enum UiPathMode {
+    UI_PATH_EXACT = 0,
+    UI_PATH_GLOB
+};
+
+enum UiWaitState {
+    UI_WAIT_EXISTS = 0,
+    UI_WAIT_ACTIVE,
+    UI_WAIT_INTERACTIVE
+};
+
+enum UiClickComponent {
+    UI_CLICK_AUTO = 0,
+    UI_CLICK_BUTTON,
+    UI_CLICK_TOGGLE
+};
+
+struct UiTypeCache {
+    bool initialized = false;
+    Il2CppClass* buttonClass = nullptr;
+    Il2CppClass* toggleClass = nullptr;
+    Il2CppClass* tmpInputClass = nullptr;
+    Il2CppClass* numericInputClass = nullptr;
+    Il2CppClass* tmpTextClass = nullptr;
+    Il2CppClass* legacyTextClass = nullptr;
+    Il2CppObject* buttonType = nullptr;
+    Il2CppObject* toggleType = nullptr;
+    Il2CppObject* tmpInputType = nullptr;
+    Il2CppObject* numericInputType = nullptr;
+    Il2CppObject* tmpTextType = nullptr;
+    Il2CppObject* legacyTextType = nullptr;
+};
+
+static UiTypeCache g_uiTypeCache = {};
+
+static bool JsonFieldExists(const char* json, const char* field) {
+    if (!json || !field) return false;
+    char needle[64];
+    snprintf(needle, sizeof(needle), "\"%s\":", field);
+    return strstr(json, needle) != nullptr;
+}
+
+static bool JsonGetStringBounded(const char* json, const char* field, char* out, int outSize, bool* present = nullptr) {
+    if (present) *present = false;
+    if (!json || !field || !out || outSize <= 0) return false;
+    out[0] = '\0';
+    char needle[64];
+    snprintf(needle, sizeof(needle), "\"%s\":\"", field);
+    const char* p = strstr(json, needle);
+    if (!p) return false;
+    if (present) *present = true;
+    p += (int)strlen(needle);
+    const char* e = strchr(p, '"');
+    if (!e) return false;
+    int len = (int)(e - p);
+    if (len >= outSize) return false;
+    memcpy(out, p, len);
+    out[len] = '\0';
+    return true;
+}
+
+static Il2CppClass* FindClassInNamespaces(const char* name, const char* const* namespaces) {
+    if (!g_domain || !name || !namespaces) return nullptr;
+    size_t count = 0;
+    const Il2CppAssembly** asms = g_domain_get_assemblies(g_domain, &count);
+    for (size_t ai = 0; ai < count; ai++) {
+        Il2CppImage* img = g_assembly_get_image(asms[ai]);
+        if (!img) continue;
+        for (int ni = 0; namespaces[ni]; ni++) {
+            Il2CppClass* klass = g_class_from_name(img, namespaces[ni], name);
+            if (klass) return klass;
+        }
+    }
+    return nullptr;
+}
+
+static Il2CppObject* GetTypeObjectForClass(Il2CppClass* klass) {
+    if (!klass || !g_class_get_type || !g_type_get_object) return nullptr;
+    const Il2CppType* type = g_class_get_type(klass);
+    if (!type) return nullptr;
+    return g_type_get_object(type);
+}
+
+static void EnsureUiTypeCache() {
+    if (g_uiTypeCache.initialized) return;
+
+    const char* const buttonNamespaces[] = { "UnityEngine.UI", nullptr };
+    const char* const toggleNamespaces[] = { "UnityEngine.UI", nullptr };
+    const char* const tmpInputNamespaces[] = { "TMPro", nullptr };
+    const char* const numericInputNamespaces[] = { "", "UI.Common", "Game", "Main", nullptr };
+    const char* const tmpTextNamespaces[] = { "TMPro", nullptr };
+    const char* const legacyTextNamespaces[] = { "UnityEngine.UI", nullptr };
+
+    g_uiTypeCache.buttonClass = FindClassInNamespaces("Button", buttonNamespaces);
+    g_uiTypeCache.toggleClass = FindClassInNamespaces("Toggle", toggleNamespaces);
+    g_uiTypeCache.tmpInputClass = FindClassInNamespaces("TMP_InputField", tmpInputNamespaces);
+    g_uiTypeCache.numericInputClass = FindClassInNamespaces("NumericInputField", numericInputNamespaces);
+    g_uiTypeCache.tmpTextClass = FindClassInNamespaces("TMP_Text", tmpTextNamespaces);
+    g_uiTypeCache.legacyTextClass = FindClassInNamespaces("Text", legacyTextNamespaces);
+
+    g_uiTypeCache.buttonType = GetTypeObjectForClass(g_uiTypeCache.buttonClass);
+    g_uiTypeCache.toggleType = GetTypeObjectForClass(g_uiTypeCache.toggleClass);
+    g_uiTypeCache.tmpInputType = GetTypeObjectForClass(g_uiTypeCache.tmpInputClass);
+    g_uiTypeCache.numericInputType = GetTypeObjectForClass(g_uiTypeCache.numericInputClass);
+    g_uiTypeCache.tmpTextType = GetTypeObjectForClass(g_uiTypeCache.tmpTextClass);
+    g_uiTypeCache.legacyTextType = GetTypeObjectForClass(g_uiTypeCache.legacyTextClass);
+    g_uiTypeCache.initialized = true;
+}
+
+static const Il2CppMethod* FindMethodBySignature(Il2CppClass* klass, const char* const* names, const char* const* paramTypes, int paramCount) {
+    if (!klass || !names) return nullptr;
+    if (!g_class_get_methods || !g_method_get_name || !g_method_get_param_count || !g_method_get_param || !g_type_get_name) {
+        return FindMethodByNames(klass, names, paramCount);
+    }
+
+    for (Il2CppClass* current = klass; current; current = g_class_get_parent ? g_class_get_parent(current) : nullptr) {
+        void* iter = nullptr;
+        const Il2CppMethod* method = nullptr;
+        while ((method = g_class_get_methods(current, &iter)) != nullptr) {
+            const char* methodName = g_method_get_name(method);
+            if (!methodName) continue;
+
+            bool nameMatched = false;
+            for (int i = 0; names[i]; i++) {
+                if (strcmp(names[i], methodName) == 0) {
+                    nameMatched = true;
+                    break;
+                }
+            }
+            if (!nameMatched) continue;
+            if ((int)g_method_get_param_count(method) != paramCount) continue;
+
+            bool signatureMatched = true;
+            for (int pi = 0; pi < paramCount; pi++) {
+                const Il2CppType* paramType = g_method_get_param(method, (uint32_t)pi);
+                char* paramTypeName = paramType ? g_type_get_name(paramType) : nullptr;
+                bool same = paramTypeName && paramTypes && paramTypes[pi] && strcmp(paramTypeName, paramTypes[pi]) == 0;
+                if (g_il2cpp_free && paramTypeName) g_il2cpp_free(paramTypeName);
+                if (!same) {
+                    signatureMatched = false;
+                    break;
+                }
+            }
+            if (signatureMatched) return method;
+        }
+        if (!g_class_get_parent) break;
+    }
+
+    return nullptr;
+}
+
+static bool Il2CppStringToUtf8(Il2CppObject* obj, std::string* out) {
+    if (!out) return false;
+    out->clear();
+    if (!obj) return false;
+    int32_t length = *(int32_t*)((char*)obj + 16);
+    if (length < 0) return false;
+    const wchar_t* wide = (const wchar_t*)((char*)obj + 20);
+    if (length == 0) return true;
+    int utf8Bytes = WideCharToMultiByte(CP_UTF8, 0, wide, length, nullptr, 0, nullptr, nullptr);
+    if (utf8Bytes <= 0) return false;
+    out->resize((size_t)utf8Bytes);
+    int written = WideCharToMultiByte(CP_UTF8, 0, wide, length, &(*out)[0], utf8Bytes, nullptr, nullptr);
+    if (written != utf8Bytes) return false;
+    return true;
+}
+
+static std::string EscapeJsonString(const std::string& value) {
+    std::string out;
+    out.reserve(value.size() + 16);
+    for (size_t i = 0; i < value.size(); i++) {
+        unsigned char ch = (unsigned char)value[i];
+        switch (ch) {
+            case '\\': out += "\\\\"; break;
+            case '"': out += "\\\""; break;
+            case '\b': out += "\\b"; break;
+            case '\f': out += "\\f"; break;
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            case '\t': out += "\\t"; break;
+            default:
+                if (ch < 0x20) {
+                    char escaped[8];
+                    snprintf(escaped, sizeof(escaped), "\\u%04x", (unsigned int)ch);
+                    out += escaped;
+                } else {
+                    out.push_back((char)ch);
+                }
+                break;
+        }
+    }
+    return out;
+}
+
+static std::string JoinUiPath(const std::string& parent, const std::string& child) {
+    if (parent.empty()) return child;
+    if (child.empty()) return parent;
+    return parent + "/" + child;
+}
+
+static void SplitUiPath(const char* path, std::vector<std::string>* segments) {
+    if (!segments) return;
+    segments->clear();
+    if (!path || !path[0]) return;
+    const char* start = path;
+    const char* cursor = path;
+    while (true) {
+        if (*cursor == '/' || *cursor == '\0') {
+            segments->push_back(std::string(start, (size_t)(cursor - start)));
+            if (*cursor == '\0') break;
+            start = cursor + 1;
+        }
+        cursor++;
+    }
+}
+
+static bool GlobMatchRecursive(const char* pattern, const char* text) {
+    if (!pattern || !text) return false;
+    while (*pattern) {
+        if (*pattern == '*') {
+            pattern++;
+            if (!*pattern) return true;
+            while (*text) {
+                if (GlobMatchRecursive(pattern, text)) return true;
+                text++;
+            }
+            return GlobMatchRecursive(pattern, text);
+        }
+        if (*text == '\0' || *pattern != *text) return false;
+        pattern++;
+        text++;
+    }
+    return *text == '\0';
+}
+
+static bool InvokeBoolGetterByNames(Il2CppObject* obj, const char* const* names, bool* out) {
+    if (!obj || !names || !out) return false;
+    Il2CppClass* klass = g_object_get_class(obj);
+    if (!klass) return false;
+    const Il2CppMethod* method = FindMethodByNames(klass, names, 0);
+    if (!method) return false;
+    Il2CppObject* value = SafeInvoke(method, obj, nullptr);
+    if (!value) return false;
+    *out = UNBOX_BOOL(value);
+    return true;
+}
+
+static bool InvokeIntGetterByNames(Il2CppObject* obj, const char* const* names, int* out) {
+    if (!obj || !names || !out) return false;
+    Il2CppClass* klass = g_object_get_class(obj);
+    if (!klass) return false;
+    const Il2CppMethod* method = FindMethodByNames(klass, names, 0);
+    if (!method) return false;
+    Il2CppObject* value = SafeInvoke(method, obj, nullptr);
+    if (!value) return false;
+    *out = UNBOX_INT32(value);
+    return true;
+}
+
+static Il2CppObject* InvokeObjectGetterByNames(Il2CppObject* obj, const char* const* names) {
+    if (!obj || !names) return nullptr;
+    Il2CppClass* klass = g_object_get_class(obj);
+    if (!klass) return nullptr;
+    const Il2CppMethod* method = FindMethodByNames(klass, names, 0);
+    if (!method) return nullptr;
+    return SafeInvoke(method, obj, nullptr);
+}
+
+static bool InvokeNoArgMethodByNames(Il2CppObject* obj, const char* const* names) {
+    if (!obj || !names) return false;
+    Il2CppClass* klass = g_object_get_class(obj);
+    if (!klass) return false;
+    const Il2CppMethod* method = FindMethodByNames(klass, names, 0);
+    if (!method) return false;
+    SafeInvoke(method, obj, nullptr);
+    return true;
+}
+
+static bool InvokeStringGetterByNames(Il2CppObject* obj, const char* const* names, std::string* out) {
+    if (!obj || !names || !out) return false;
+    Il2CppObject* value = InvokeObjectGetterByNames(obj, names);
+    return Il2CppStringToUtf8(value, out);
+}
+
+static bool InvokeStringSetterByNames(Il2CppObject* obj, const char* const* names, const char* value) {
+    if (!obj || !names || !value || !g_string_new) return false;
+    Il2CppClass* klass = g_object_get_class(obj);
+    if (!klass) return false;
+    const char* const paramTypes[] = { "System.String", nullptr };
+    const Il2CppMethod* method = FindMethodBySignature(klass, names, paramTypes, 1);
+    if (!method) return false;
+    Il2CppObject* valueStr = g_string_new(value);
+    void* args[] = { valueStr };
+    SafeInvoke(method, obj, args);
+    return true;
+}
+
+static bool InvokeBoolSetterByNames(Il2CppObject* obj, const char* const* names, bool value) {
+    if (!obj || !names) return false;
+    Il2CppClass* klass = g_object_get_class(obj);
+    if (!klass) return false;
+    const char* const paramTypes[] = { "System.Boolean", nullptr };
+    const Il2CppMethod* method = FindMethodBySignature(klass, names, paramTypes, 1);
+    if (!method) return false;
+    bool argValue = value;
+    void* args[] = { &argValue };
+    SafeInvoke(method, obj, args);
+    return true;
+}
+
+static Il2CppObject* InvokeTypeArgObjectMethodByNames(Il2CppObject* obj, const char* const* names, Il2CppObject* typeObj) {
+    if (!obj || !names || !typeObj) return nullptr;
+    Il2CppClass* klass = g_object_get_class(obj);
+    if (!klass) return nullptr;
+    const char* const paramTypes[] = { "System.Type", nullptr };
+    const Il2CppMethod* method = FindMethodBySignature(klass, names, paramTypes, 1);
+    if (!method) return nullptr;
+    void* args[] = { typeObj };
+    return SafeInvoke(method, obj, args);
+}
+
+static Il2CppObject* InvokeStringArgObjectMethodByNames(Il2CppObject* obj, const char* const* names, const char* value) {
+    if (!obj || !names || !value || !g_string_new) return nullptr;
+    Il2CppClass* klass = g_object_get_class(obj);
+    if (!klass) return nullptr;
+    const char* const paramTypes[] = { "System.String", nullptr };
+    const Il2CppMethod* method = FindMethodBySignature(klass, names, paramTypes, 1);
+    if (!method) return nullptr;
+    Il2CppObject* valueStr = g_string_new(value);
+    void* args[] = { valueStr };
+    return SafeInvoke(method, obj, args);
+}
+
+static bool InvokeStringEventByGetterNames(Il2CppObject* obj, const char* const* getterNames, const char* value) {
+    if (!obj || !getterNames || !value || !g_string_new) return false;
+    Il2CppObject* eventObj = InvokeObjectGetterByNames(obj, getterNames);
+    if (!eventObj) return false;
+    Il2CppClass* eventClass = g_object_get_class(eventObj);
+    if (!eventClass) return false;
+    const char* const paramTypes[] = { "System.String", nullptr };
+    const char* const invokeNames[] = { "Invoke", nullptr };
+    const Il2CppMethod* invoke = FindMethodBySignature(eventClass, invokeNames, paramTypes, 1);
+    if (!invoke) return false;
+    Il2CppObject* valueStr = g_string_new(value);
+    void* args[] = { valueStr };
+    SafeInvoke(invoke, eventObj, args);
+    return true;
+}
+
+static Il2CppObject* GetTransformObject(Il2CppObject* obj) {
+    const char* const names[] = { "get_transform", nullptr };
+    return InvokeObjectGetterByNames(obj, names);
+}
+
+static Il2CppObject* GetGameObjectObject(Il2CppObject* obj) {
+    const char* const names[] = { "get_gameObject", nullptr };
+    return InvokeObjectGetterByNames(obj, names);
+}
+
+static bool GetObjectNameUtf8(Il2CppObject* obj, std::string* out) {
+    const char* const names[] = { "get_name", nullptr };
+    return InvokeStringGetterByNames(obj, names, out);
+}
+
+static int GetTransformChildCount(Il2CppObject* transform) {
+    const char* const names[] = { "get_childCount", "get_ChildCount", nullptr };
+    int value = 0;
+    return InvokeIntGetterByNames(transform, names, &value) ? value : 0;
+}
+
+static Il2CppObject* GetTransformChild(Il2CppObject* transform, int index) {
+    if (!transform) return nullptr;
+    Il2CppClass* klass = g_object_get_class(transform);
+    if (!klass) return nullptr;
+    const char* const methodNames[] = { "GetChild", nullptr };
+    const char* const paramTypes[] = { "System.Int32", nullptr };
+    const Il2CppMethod* method = FindMethodBySignature(klass, methodNames, paramTypes, 1);
+    if (!method) return nullptr;
+    int argIndex = index;
+    void* args[] = { &argIndex };
+    return SafeInvoke(method, transform, args);
+}
+
+static bool GetNodeActiveInHierarchy(Il2CppObject* transform) {
+    Il2CppObject* gameObject = GetGameObjectObject(transform);
+    if (!gameObject) return false;
+    const char* const activeInHierarchyNames[] = { "get_activeInHierarchy", nullptr };
+    bool active = false;
+    if (InvokeBoolGetterByNames(gameObject, activeInHierarchyNames, &active)) return active;
+    const char* const activeSelfNames[] = { "get_activeSelf", nullptr };
+    if (InvokeBoolGetterByNames(gameObject, activeSelfNames, &active)) return active;
+    return false;
+}
+
+static Il2CppObject* GetComponentByTypeOrName(Il2CppObject* target, Il2CppObject* typeObj, const char* className) {
+    if (!target) return nullptr;
+    const char* const getComponentNames[] = { "GetComponent", nullptr };
+    if (typeObj) {
+        Il2CppObject* component = InvokeTypeArgObjectMethodByNames(target, getComponentNames, typeObj);
+        if (component) return component;
+    }
+    if (className) {
+        Il2CppObject* component = InvokeStringArgObjectMethodByNames(target, getComponentNames, className);
+        if (component) return component;
+    }
+    return nullptr;
+}
+
+static void InspectUiNodeComponents(Il2CppObject* transform, UiComponentRefs* refs) {
+    if (!transform || !refs) return;
+    EnsureUiTypeCache();
+    Il2CppObject* gameObject = GetGameObjectObject(transform);
+
+    refs->button = GetComponentByTypeOrName(transform, g_uiTypeCache.buttonType, "Button");
+    if (!refs->button && gameObject) refs->button = GetComponentByTypeOrName(gameObject, g_uiTypeCache.buttonType, "Button");
+
+    refs->toggle = GetComponentByTypeOrName(transform, g_uiTypeCache.toggleType, "Toggle");
+    if (!refs->toggle && gameObject) refs->toggle = GetComponentByTypeOrName(gameObject, g_uiTypeCache.toggleType, "Toggle");
+
+    refs->tmpInput = GetComponentByTypeOrName(transform, g_uiTypeCache.tmpInputType, "TMP_InputField");
+    if (!refs->tmpInput && gameObject) refs->tmpInput = GetComponentByTypeOrName(gameObject, g_uiTypeCache.tmpInputType, "TMP_InputField");
+
+    refs->numericInput = GetComponentByTypeOrName(transform, g_uiTypeCache.numericInputType, "NumericInputField");
+    if (!refs->numericInput && gameObject) refs->numericInput = GetComponentByTypeOrName(gameObject, g_uiTypeCache.numericInputType, "NumericInputField");
+
+    refs->tmpText = GetComponentByTypeOrName(transform, g_uiTypeCache.tmpTextType, "TMP_Text");
+    if (!refs->tmpText && gameObject) refs->tmpText = GetComponentByTypeOrName(gameObject, g_uiTypeCache.tmpTextType, "TMP_Text");
+
+    refs->legacyText = GetComponentByTypeOrName(transform, g_uiTypeCache.legacyTextType, "Text");
+    if (!refs->legacyText && gameObject) refs->legacyText = GetComponentByTypeOrName(gameObject, g_uiTypeCache.legacyTextType, "Text");
+}
+
+static bool ReadComponentInteractable(Il2CppObject* component, bool* out) {
+    if (!component || !out) return false;
+    const char* const isInteractableNames[] = { "IsInteractable", "get_interactable", nullptr };
+    return InvokeBoolGetterByNames(component, isInteractableNames, out);
+}
+
+static bool DetermineUiNodeInteractive(const UiComponentRefs& refs, bool active) {
+    if (!active) return false;
+    bool interactive = false;
+    bool value = false;
+    if (refs.button) interactive |= ReadComponentInteractable(refs.button, &value) ? value : true;
+    if (refs.toggle) interactive |= ReadComponentInteractable(refs.toggle, &value) ? value : true;
+    if (refs.tmpInput) interactive |= ReadComponentInteractable(refs.tmpInput, &value) ? value : true;
+    if (refs.numericInput && !refs.tmpInput) interactive |= ReadComponentInteractable(refs.numericInput, &value) ? value : true;
+    return interactive;
+}
+
+static bool ReadNodeTextValue(const UiComponentRefs& refs, std::string* out) {
+    if (!out) return false;
+    out->clear();
+    const char* const textGetterNames[] = { "get_text", nullptr };
+    if (refs.tmpInput && InvokeStringGetterByNames(refs.tmpInput, textGetterNames, out)) return true;
+    if (refs.numericInput && InvokeStringGetterByNames(refs.numericInput, textGetterNames, out)) return true;
+    if (refs.tmpText && InvokeStringGetterByNames(refs.tmpText, textGetterNames, out)) return true;
+    if (refs.legacyText && InvokeStringGetterByNames(refs.legacyText, textGetterNames, out)) return true;
+    return false;
+}
+
+static bool ReadToggleValue(const UiComponentRefs& refs, bool* out) {
+    if (!refs.toggle || !out) return false;
+    const char* const names[] = { "get_isOn", nullptr };
+    return InvokeBoolGetterByNames(refs.toggle, names, out);
+}
+
+static void InspectUiNode(Il2CppObject* transform, const std::string& relativePath, int depth, UiNodeSnapshot* out) {
+    if (!transform || !out) return;
+    out->transform = transform;
+    out->path = relativePath;
+    out->depth = depth;
+    out->active = GetNodeActiveInHierarchy(transform);
+    out->name.clear();
+    if (!GetObjectNameUtf8(transform, &out->name)) {
+        size_t slash = relativePath.find_last_of('/');
+        out->name = slash == std::string::npos ? relativePath : relativePath.substr(slash + 1);
+    }
+    out->components = UiComponentRefs();
+    InspectUiNodeComponents(transform, &out->components);
+    out->interactive = DetermineUiNodeInteractive(out->components, out->active);
+}
+
+static void CollectNormalizedComponentTypes(const UiComponentRefs& refs, std::vector<std::string>* out) {
+    if (!out) return;
+    out->clear();
+    if (refs.button) out->push_back("Button");
+    if (refs.toggle) out->push_back("Toggle");
+    if (refs.tmpInput) out->push_back("TMP_InputField");
+    if (refs.numericInput) out->push_back("NumericInputField");
+}
+
+static std::string BuildComponentTypesJson(const UiComponentRefs& refs) {
+    std::vector<std::string> types;
+    CollectNormalizedComponentTypes(refs, &types);
+    std::string json = "[";
+    for (size_t i = 0; i < types.size(); i++) {
+        if (i) json += ",";
+        json += "\"";
+        json += EscapeJsonString(types[i]);
+        json += "\"";
+    }
+    json += "]";
+    return json;
+}
+
+static Il2CppObject* FindChildTransformByName(Il2CppObject* parent, const std::string& name) {
+    if (!parent || name.empty()) return nullptr;
+    int childCount = GetTransformChildCount(parent);
+    for (int i = 0; i < childCount; i++) {
+        Il2CppObject* child = GetTransformChild(parent, i);
+        if (!child) continue;
+        std::string childName;
+        if (!GetObjectNameUtf8(child, &childName)) continue;
+        if (childName == name) return child;
+    }
+    return nullptr;
+}
+
+static bool ResolveExactRelativePath(Il2CppObject* anchor, const char* path, Il2CppObject** outTransform, std::string* outPath) {
+    if (outTransform) *outTransform = nullptr;
+    if (outPath) outPath->clear();
+    if (!anchor || !path || !path[0]) return false;
+    std::vector<std::string> segments;
+    SplitUiPath(path, &segments);
+    if (segments.empty()) return false;
+
+    Il2CppObject* current = anchor;
+    std::string resolvedPath;
+    for (size_t i = 0; i < segments.size(); i++) {
+        if (segments[i].empty()) return false;
+        current = FindChildTransformByName(current, segments[i]);
+        if (!current) return false;
+        resolvedPath = JoinUiPath(resolvedPath, segments[i]);
+    }
+
+    if (outTransform) *outTransform = current;
+    if (outPath) *outPath = resolvedPath;
+    return true;
+}
+
+static UiPanelLookupResult FindVisiblePanelTransform(const char* panelName, Il2CppObject** panelObj, Il2CppObject** panelTransform, char* error, int errorSize) {
+    if (panelObj) *panelObj = nullptr;
+    if (panelTransform) *panelTransform = nullptr;
+    if (error && errorSize > 0) error[0] = '\0';
+    if (!panelName || !panelName[0]) {
+        if (error && errorSize > 0) snprintf(error, errorSize, "missing panel");
+        return UI_PANEL_LOOKUP_ERROR;
+    }
+    if (!g_il2cppReady) {
+        if (error && errorSize > 0) snprintf(error, errorSize, "il2cpp not ready");
+        return UI_PANEL_LOOKUP_ERROR;
+    }
+
+    Il2CppClass* uiBehaviorClass = FindClass("UIBehavior");
+    if (!uiBehaviorClass) {
+        if (error && errorSize > 0) snprintf(error, errorSize, "UIBehavior class not found");
+        return UI_PANEL_LOOKUP_ERROR;
+    }
+    const Il2CppMethod* getAllShowed = g_class_get_method_from_name(uiBehaviorClass, "GetAllShowedBhvr", 0);
+    if (!getAllShowed) {
+        if (error && errorSize > 0) snprintf(error, errorSize, "UIBehavior.GetAllShowedBhvr not found");
+        return UI_PANEL_LOOKUP_ERROR;
+    }
+    Il2CppObject* panelList = (Il2CppObject*)SafeInvoke(getAllShowed, nullptr, nullptr);
+    if (!panelList) {
+        if (error && errorSize > 0) snprintf(error, errorSize, "GetAllShowedBhvr returned null");
+        return UI_PANEL_LOOKUP_ERROR;
+    }
+
+    int count = ReadListCount(panelList);
+    for (int i = 0; i < count; i++) {
+        Il2CppObject* candidate = ReadListItem(panelList, i);
+        if (!candidate) continue;
+        const char* className = ObjClassName(candidate);
+        if (!className || strcmp(className, panelName) != 0) continue;
+        Il2CppObject* transform = GetTransformObject(candidate);
+        if (!transform) {
+            if (panelObj) *panelObj = candidate;
+            return UI_PANEL_INSTANCE_NOT_FOUND;
+        }
+        if (panelObj) *panelObj = candidate;
+        if (panelTransform) *panelTransform = transform;
+        return UI_PANEL_FOUND;
+    }
+
+    return UI_PANEL_NOT_VISIBLE;
+}
+
+static void CollectDumpNodesRecursive(
+    Il2CppObject* parent,
+    const std::string& parentPath,
+    int depth,
+    int maxDepth,
+    bool interactiveOnly,
+    bool includeInactive,
+    int nodeLimit,
+    std::vector<UiNodeSnapshot>* nodes,
+    bool* truncated
+) {
+    if (!parent || !nodes || !truncated) return;
+    if (*truncated || depth > maxDepth) return;
+
+    int childCount = GetTransformChildCount(parent);
+    for (int i = 0; i < childCount; i++) {
+        if (*truncated) return;
+        Il2CppObject* child = GetTransformChild(parent, i);
+        if (!child) continue;
+
+        std::string childName;
+        if (!GetObjectNameUtf8(child, &childName) || childName.empty()) continue;
+        std::string childPath = JoinUiPath(parentPath, childName);
+
+        UiNodeSnapshot snapshot;
+        InspectUiNode(child, childPath, depth, &snapshot);
+
+        if (!includeInactive && !snapshot.active) continue;
+
+        if (!interactiveOnly || snapshot.interactive) {
+            if ((int)nodes->size() >= nodeLimit) {
+                *truncated = true;
+                return;
+            }
+            nodes->push_back(snapshot);
+        }
+
+        if (depth < maxDepth) {
+            CollectDumpNodesRecursive(
+                child,
+                childPath,
+                depth + 1,
+                maxDepth,
+                interactiveOnly,
+                includeInactive,
+                nodeLimit,
+                nodes,
+                truncated
+            );
+        }
+    }
+}
+
+static void CollectGlobMatchesRecursive(
+    Il2CppObject* parent,
+    const std::string& parentPath,
+    const char* pattern,
+    int maxMatches,
+    std::vector<UiNodeSnapshot>* matches
+) {
+    if (!parent || !pattern || !matches) return;
+    if (maxMatches > 0 && (int)matches->size() >= maxMatches) return;
+
+    int childCount = GetTransformChildCount(parent);
+    for (int i = 0; i < childCount; i++) {
+        if (maxMatches > 0 && (int)matches->size() >= maxMatches) return;
+        Il2CppObject* child = GetTransformChild(parent, i);
+        if (!child) continue;
+
+        std::string childName;
+        if (!GetObjectNameUtf8(child, &childName) || childName.empty()) continue;
+        std::string childPath = JoinUiPath(parentPath, childName);
+        if (GlobMatchRecursive(pattern, childPath.c_str())) {
+            UiNodeSnapshot snapshot;
+            int depth = 1;
+            for (size_t pi = 0; pi < childPath.size(); pi++) {
+                if (childPath[pi] == '/') depth++;
+            }
+            InspectUiNode(child, childPath, depth, &snapshot);
+            matches->push_back(snapshot);
+            if (maxMatches > 0 && (int)matches->size() >= maxMatches) return;
+        }
+
+        CollectGlobMatchesRecursive(child, childPath, pattern, maxMatches, matches);
+    }
+}
+
+static bool ResolveUiNodeMatches(Il2CppObject* anchor, const char* path, UiPathMode pathMode, int maxMatches, std::vector<UiNodeSnapshot>* matches) {
+    if (!matches) return false;
+    matches->clear();
+    if (!anchor || !path || !path[0]) return false;
+
+    if (pathMode == UI_PATH_EXACT) {
+        Il2CppObject* target = nullptr;
+        std::string resolvedPath;
+        if (!ResolveExactRelativePath(anchor, path, &target, &resolvedPath) || !target) return true;
+        UiNodeSnapshot snapshot;
+        int depth = 1;
+        for (size_t i = 0; i < resolvedPath.size(); i++) {
+            if (resolvedPath[i] == '/') depth++;
+        }
+        InspectUiNode(target, resolvedPath, depth, &snapshot);
+        matches->push_back(snapshot);
+        return true;
+    }
+
+    CollectGlobMatchesRecursive(anchor, "", path, maxMatches, matches);
+    return true;
+}
+
+static bool ParseUiPathMode(const char* raw, UiPathMode* out) {
+    if (!out || !raw || !raw[0]) return false;
+    if (strcmp(raw, "exact") == 0) {
+        *out = UI_PATH_EXACT;
+        return true;
+    }
+    if (strcmp(raw, "glob") == 0) {
+        *out = UI_PATH_GLOB;
+        return true;
+    }
+    return false;
+}
+
+static bool ParseUiWaitState(const char* raw, UiWaitState* out) {
+    if (!out || !raw || !raw[0]) return false;
+    if (strcmp(raw, "exists") == 0) {
+        *out = UI_WAIT_EXISTS;
+        return true;
+    }
+    if (strcmp(raw, "active") == 0) {
+        *out = UI_WAIT_ACTIVE;
+        return true;
+    }
+    if (strcmp(raw, "interactive") == 0) {
+        *out = UI_WAIT_INTERACTIVE;
+        return true;
+    }
+    return false;
+}
+
+static bool ParseUiClickComponent(const char* raw, UiClickComponent* out) {
+    if (!out || !raw || !raw[0]) return false;
+    if (strcmp(raw, "auto") == 0) {
+        *out = UI_CLICK_AUTO;
+        return true;
+    }
+    if (strcmp(raw, "button") == 0) {
+        *out = UI_CLICK_BUTTON;
+        return true;
+    }
+    if (strcmp(raw, "toggle") == 0) {
+        *out = UI_CLICK_TOGGLE;
+        return true;
+    }
+    return false;
+}
+
+static bool IsNodeStateSatisfied(const UiNodeSnapshot& node, UiWaitState state) {
+    switch (state) {
+        case UI_WAIT_EXISTS:
+            return true;
+        case UI_WAIT_ACTIVE:
+            return node.active;
+        case UI_WAIT_INTERACTIVE:
+            return node.interactive;
+        default:
+            return false;
+    }
+}
+
+static bool PerformButtonClick(Il2CppObject* buttonComponent) {
+    if (!buttonComponent) return false;
+    const char* const onClickGetterNames[] = { "get_onClick", nullptr };
+    Il2CppObject* eventObj = InvokeObjectGetterByNames(buttonComponent, onClickGetterNames);
+    if (eventObj) {
+        const char* const invokeNames[] = { "Invoke", nullptr };
+        if (InvokeNoArgMethodByNames(eventObj, invokeNames)) return true;
+    }
+    const char* const pressNames[] = { "Press", "OnSubmit", nullptr };
+    return InvokeNoArgMethodByNames(buttonComponent, pressNames);
+}
+
+static bool PerformToggleClick(Il2CppObject* toggleComponent) {
+    if (!toggleComponent) return false;
+    const char* const internalToggleNames[] = { "InternalToggle", nullptr };
+    if (InvokeNoArgMethodByNames(toggleComponent, internalToggleNames)) return true;
+
+    const char* const getNames[] = { "get_isOn", nullptr };
+    const char* const setNames[] = { "set_isOn", nullptr };
+    bool isOn = false;
+    if (!InvokeBoolGetterByNames(toggleComponent, getNames, &isOn)) return false;
+    return InvokeBoolSetterByNames(toggleComponent, setNames, !isOn);
+}
+
+static bool PerformSetInputText(const UiNodeSnapshot& node, const char* text, bool submit, std::string* componentName) {
+    if (!text || !componentName) return false;
+    componentName->clear();
+
+    const char* const setTextNames[] = { "set_text", "SetTextWithoutNotify", nullptr };
+    const char* const submitGetterNames[] = { "get_onSubmit", nullptr };
+    const char* const endEditGetterNames[] = { "get_onEndEdit", nullptr };
+    const char* const submitNoArgNames[] = { "SendOnSubmit", "SendOnEndEdit", nullptr };
+
+    Il2CppObject* target = nullptr;
+    if (node.components.tmpInput) target = node.components.tmpInput;
+    if (!target && node.components.numericInput) target = node.components.numericInput;
+    if (!target) return false;
+
+    bool wrote = InvokeStringSetterByNames(target, setTextNames, text);
+    if (!wrote && node.components.numericInput && node.components.numericInput != target) {
+        wrote = InvokeStringSetterByNames(node.components.numericInput, setTextNames, text);
+        if (wrote) target = node.components.numericInput;
+    }
+    if (!wrote) return false;
+
+    if (submit) {
+        if (!InvokeStringEventByGetterNames(target, submitGetterNames, text) &&
+            !InvokeStringEventByGetterNames(target, endEditGetterNames, text)) {
+            InvokeNoArgMethodByNames(target, submitNoArgNames);
+        }
+    }
+
+    if (node.components.numericInput) {
+        *componentName = "numeric-input";
+    } else {
+        *componentName = "tmp-input";
+    }
+    return true;
+}
+
+static bool BuildDumpPanelTreeResultJson(
+    const char* panel,
+    const char* rootPath,
+    bool truncated,
+    const std::vector<UiNodeSnapshot>& nodes,
+    std::string* out
+) {
+    if (!panel || !rootPath || !out) return false;
+    out->clear();
+    out->reserve(256 + nodes.size() * 128);
+    *out += "{\"panel\":\"";
+    *out += EscapeJsonString(panel);
+    *out += "\",\"rootPath\":\"";
+    *out += EscapeJsonString(rootPath);
+    *out += "\",\"truncated\":";
+    *out += truncated ? "true" : "false";
+    *out += ",\"nodes\":[";
+    for (size_t i = 0; i < nodes.size(); i++) {
+        if (i) *out += ",";
+        *out += "{\"path\":\"";
+        *out += EscapeJsonString(nodes[i].path);
+        *out += "\",\"name\":\"";
+        *out += EscapeJsonString(nodes[i].name);
+        *out += "\",\"depth\":";
+        char depthBuf[16];
+        snprintf(depthBuf, sizeof(depthBuf), "%d", nodes[i].depth);
+        *out += depthBuf;
+        *out += ",\"active\":";
+        *out += nodes[i].active ? "true" : "false";
+        *out += ",\"interactive\":";
+        *out += nodes[i].interactive ? "true" : "false";
+        *out += ",\"componentTypes\":";
+        *out += BuildComponentTypesJson(nodes[i].components);
+        *out += "}";
+    }
+    *out += "]}";
+    return out->size() < BK_BUF_SIZE;
+}
+
+static bool ReadRequiredStringArg(
+    const char* json,
+    const char* field,
+    char* out,
+    int outSize,
+    const char* missingError,
+    const char* overflowError,
+    char* error,
+    int errorSize
+) {
+    bool present = false;
+    if (JsonGetStringBounded(json, field, out, outSize, &present)) {
+        if (out[0]) return true;
+    }
+    if (error && errorSize > 0) {
+        snprintf(error, errorSize, "%s", present ? overflowError : missingError);
+    }
+    return false;
+}
+
+static bool ReadOptionalStringArg(const char* json, const char* field, char* out, int outSize, const char* defaultValue, char* error, int errorSize) {
+    bool present = false;
+    if (JsonGetStringBounded(json, field, out, outSize, &present)) return true;
+    if (present) {
+        if (error && errorSize > 0) snprintf(error, errorSize, "invalid %s", field);
+        return false;
+    }
+    if (defaultValue) {
+        snprintf(out, outSize, "%s", defaultValue);
+    } else if (outSize > 0) {
+        out[0] = '\0';
+    }
+    return true;
+}
+
+static bool ReadBoundedIntArg(
+    const char* json,
+    const char* field,
+    int defaultValue,
+    int minValue,
+    int maxValue,
+    int* out,
+    const char* invalidError
+) {
+    if (!out) return false;
+    if (!JsonFieldExists(json, field)) {
+        *out = defaultValue;
+        return true;
+    }
+    int value = JsonGetInt(json, field);
+    if (value == INT_MIN || value < minValue || value > maxValue) return false;
+    *out = value;
+    return true;
+}
+
+static bool ReadWaitTimingArgs(const char* json, int* timeoutMs, int* pollIntervalMs, const char** errorOut) {
+    if (!timeoutMs || !pollIntervalMs) return false;
+    if (!ReadBoundedIntArg(json, "timeoutMs", 3000, 100, 30000, timeoutMs, "invalid timeoutMs")) {
+        if (errorOut) *errorOut = "invalid timeoutMs";
+        return false;
+    }
+    if (!ReadBoundedIntArg(json, "pollIntervalMs", 50, 16, 1000, pollIntervalMs, "invalid pollIntervalMs")) {
+        if (errorOut) *errorOut = "invalid pollIntervalMs";
+        return false;
+    }
+    if (*pollIntervalMs > *timeoutMs) {
+        if (errorOut) *errorOut = "invalid pollIntervalMs";
+        return false;
+    }
+    return true;
+}
+
 static void LogTaskState(const char* phase, Il2CppObject* task) {
     if (!task) {
         Logf("%s task=null", phase);
@@ -1191,6 +2165,15 @@ static bool InitIl2cpp() {
     GETFN(hGame, il2cpp_object_get_class,          g_object_get_class)
     GETFN(hGame, il2cpp_thread_attach,             g_thread_attach)
     GETFN(hGame, il2cpp_string_new,                g_string_new)
+    g_class_get_parent = (fn_class_get_parent)GetProcAddress(hGame, "il2cpp_class_get_parent");
+    g_class_get_methods = (fn_class_get_methods)GetProcAddress(hGame, "il2cpp_class_get_methods");
+    g_method_get_name = (fn_method_get_name)GetProcAddress(hGame, "il2cpp_method_get_name");
+    g_method_get_param_count = (fn_method_get_param_count)GetProcAddress(hGame, "il2cpp_method_get_param_count");
+    g_method_get_param = (fn_method_get_param)GetProcAddress(hGame, "il2cpp_method_get_param");
+    g_type_get_name = (fn_type_get_name)GetProcAddress(hGame, "il2cpp_type_get_name");
+    g_class_get_type = (fn_class_get_type)GetProcAddress(hGame, "il2cpp_class_get_type");
+    g_type_get_object = (fn_type_get_object)GetProcAddress(hGame, "il2cpp_type_get_object");
+    g_il2cpp_free = (fn_free)GetProcAddress(hGame, "il2cpp_free");
     g_domain = g_domain_get();
     g_il2cppReady = (g_domain != nullptr);
     return g_il2cppReady;
@@ -1484,6 +2467,454 @@ static void CmdClosePanel(AgentConn* c, const char* id, const char*) {
     if (!m) { SendResponse(c, id, false, "AsyncClosePanel not found"); return; }
     SafeInvoke(m, mgr, nullptr);
     SendResponse(c, id, true, "{}");
+}
+
+static void CmdDumpPanelTree(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char panel[96] = {};
+    char rootPath[512] = {};
+    char error[128] = {};
+    if (!ReadRequiredStringArg(json, "panel", panel, sizeof(panel), "missing panel", "invalid panel", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+    if (!ReadOptionalStringArg(json, "rootPath", rootPath, sizeof(rootPath), "", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+
+    int maxDepth = 4;
+    int nodeLimit = 200;
+    if (!ReadBoundedIntArg(json, "maxDepth", 4, 0, 8, &maxDepth, "invalid maxDepth")) {
+        SendResponse(c, id, false, "invalid maxDepth");
+        return;
+    }
+    if (!ReadBoundedIntArg(json, "nodeLimit", 200, 1, 1000, &nodeLimit, "invalid nodeLimit")) {
+        SendResponse(c, id, false, "invalid nodeLimit");
+        return;
+    }
+
+    bool interactiveOnly = true;
+    bool includeInactive = false;
+    JsonGetBool(json, "interactiveOnly", &interactiveOnly);
+    JsonGetBool(json, "includeInactive", &includeInactive);
+
+    Il2CppObject* panelObj = nullptr;
+    Il2CppObject* panelTransform = nullptr;
+    UiPanelLookupResult panelResult = FindVisiblePanelTransform(panel, &panelObj, &panelTransform, error, sizeof(error));
+    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (panelResult == UI_PANEL_NOT_VISIBLE) { SendResponse(c, id, false, "panel not visible"); return; }
+    if (panelResult == UI_PANEL_INSTANCE_NOT_FOUND) { SendResponse(c, id, false, "panel instance not found"); return; }
+
+    Il2CppObject* anchorTransform = panelTransform;
+    if (rootPath[0]) {
+        std::string ignoredResolvedPath;
+        if (!ResolveExactRelativePath(panelTransform, rootPath, &anchorTransform, &ignoredResolvedPath) || !anchorTransform) {
+            SendResponse(c, id, false, "root path not found");
+            return;
+        }
+    }
+
+    std::vector<UiNodeSnapshot> nodes;
+    bool truncated = false;
+    CollectDumpNodesRecursive(
+        anchorTransform,
+        "",
+        1,
+        maxDepth,
+        interactiveOnly,
+        includeInactive,
+        nodeLimit,
+        &nodes,
+        &truncated
+    );
+
+    std::string result;
+    if (!BuildDumpPanelTreeResultJson(panel, rootPath, truncated, nodes, &result)) {
+        SendResponse(c, id, false, "dump result too large");
+        return;
+    }
+    SendResponse(c, id, true, result.c_str());
+}
+
+static void CmdClickNode(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char panel[96] = {};
+    char rootPath[512] = {};
+    char path[512] = {};
+    char pathModeRaw[16] = "exact";
+    char componentRaw[16] = "auto";
+    char error[128] = {};
+
+    if (!ReadRequiredStringArg(json, "panel", panel, sizeof(panel), "missing panel", "invalid panel", error, sizeof(error)) ||
+        !ReadOptionalStringArg(json, "rootPath", rootPath, sizeof(rootPath), "", error, sizeof(error)) ||
+        !ReadRequiredStringArg(json, "path", path, sizeof(path), "missing path", "invalid path", error, sizeof(error)) ||
+        !ReadOptionalStringArg(json, "pathMode", pathModeRaw, sizeof(pathModeRaw), "exact", error, sizeof(error)) ||
+        !ReadOptionalStringArg(json, "component", componentRaw, sizeof(componentRaw), "auto", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+
+    UiPathMode pathMode = UI_PATH_EXACT;
+    if (!ParseUiPathMode(pathModeRaw, &pathMode)) {
+        SendResponse(c, id, false, "invalid pathMode");
+        return;
+    }
+    UiClickComponent requestedComponent = UI_CLICK_AUTO;
+    if (!ParseUiClickComponent(componentRaw, &requestedComponent)) {
+        SendResponse(c, id, false, "invalid component");
+        return;
+    }
+
+    Il2CppObject* panelTransform = nullptr;
+    UiPanelLookupResult panelResult = FindVisiblePanelTransform(panel, nullptr, &panelTransform, error, sizeof(error));
+    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (panelResult != UI_PANEL_FOUND) { SendResponse(c, id, false, "panel not visible"); return; }
+
+    Il2CppObject* anchorTransform = panelTransform;
+    if (rootPath[0]) {
+        std::string ignoredResolvedPath;
+        if (!ResolveExactRelativePath(panelTransform, rootPath, &anchorTransform, &ignoredResolvedPath) || !anchorTransform) {
+            SendResponse(c, id, false, "root path not found");
+            return;
+        }
+    }
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(anchorTransform, path, pathMode, 2, &matches);
+    if (matches.empty()) { SendResponse(c, id, false, "node not found"); return; }
+    if (matches.size() > 1) { SendResponse(c, id, false, "multiple nodes matched"); return; }
+
+    UiNodeSnapshot& node = matches[0];
+    if (!node.active) { SendResponse(c, id, false, "node inactive"); return; }
+
+    Il2CppObject* clickComponent = nullptr;
+    const char* normalizedComponent = nullptr;
+    if (requestedComponent == UI_CLICK_BUTTON) {
+        if (!node.components.button) { SendResponse(c, id, false, "component mismatch"); return; }
+        clickComponent = node.components.button;
+        normalizedComponent = "button";
+    } else if (requestedComponent == UI_CLICK_TOGGLE) {
+        if (!node.components.toggle) { SendResponse(c, id, false, "component mismatch"); return; }
+        clickComponent = node.components.toggle;
+        normalizedComponent = "toggle";
+    } else if (node.components.button) {
+        clickComponent = node.components.button;
+        normalizedComponent = "button";
+    } else if (node.components.toggle) {
+        clickComponent = node.components.toggle;
+        normalizedComponent = "toggle";
+    }
+
+    if (!clickComponent || !normalizedComponent) {
+        SendResponse(c, id, false, "node not clickable");
+        return;
+    }
+
+    bool interactable = false;
+    if (ReadComponentInteractable(clickComponent, &interactable) && !interactable) {
+        SendResponse(c, id, false, "node not clickable");
+        return;
+    }
+
+    bool clicked = false;
+    if (strcmp(normalizedComponent, "button") == 0) {
+        clicked = PerformButtonClick(clickComponent);
+    } else if (strcmp(normalizedComponent, "toggle") == 0) {
+        clicked = PerformToggleClick(clickComponent);
+    }
+    if (!clicked) {
+        SendResponse(c, id, false, "node not clickable");
+        return;
+    }
+
+    std::string result = "{\"clicked\":true,\"resolvedPath\":\"";
+    result += EscapeJsonString(node.path);
+    result += "\",\"component\":\"";
+    result += normalizedComponent;
+    result += "\"}";
+    SendResponse(c, id, true, result.c_str());
+}
+
+static void CmdSetInputText(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char panel[96] = {};
+    char rootPath[512] = {};
+    char path[512] = {};
+    char pathModeRaw[16] = "exact";
+    char text[512] = {};
+    char error[128] = {};
+
+    if (!ReadRequiredStringArg(json, "panel", panel, sizeof(panel), "missing panel", "invalid panel", error, sizeof(error)) ||
+        !ReadOptionalStringArg(json, "rootPath", rootPath, sizeof(rootPath), "", error, sizeof(error)) ||
+        !ReadRequiredStringArg(json, "path", path, sizeof(path), "missing path", "invalid path", error, sizeof(error)) ||
+        !ReadOptionalStringArg(json, "pathMode", pathModeRaw, sizeof(pathModeRaw), "exact", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+
+    bool textPresent = false;
+    if (!JsonGetStringBounded(json, "text", text, sizeof(text), &textPresent)) {
+        SendResponse(c, id, false, textPresent ? "text too long" : "missing text");
+        return;
+    }
+    for (int i = 0; text[i]; i++) {
+        if (text[i] == '\r' || text[i] == '\n' || text[i] == '"') {
+            SendResponse(c, id, false, "text too long");
+            return;
+        }
+    }
+
+    UiPathMode pathMode = UI_PATH_EXACT;
+    if (!ParseUiPathMode(pathModeRaw, &pathMode)) {
+        SendResponse(c, id, false, "invalid pathMode");
+        return;
+    }
+
+    bool submit = false;
+    JsonGetBool(json, "submit", &submit);
+
+    Il2CppObject* panelTransform = nullptr;
+    UiPanelLookupResult panelResult = FindVisiblePanelTransform(panel, nullptr, &panelTransform, error, sizeof(error));
+    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (panelResult != UI_PANEL_FOUND) { SendResponse(c, id, false, "panel not visible"); return; }
+
+    Il2CppObject* anchorTransform = panelTransform;
+    if (rootPath[0]) {
+        std::string ignoredResolvedPath;
+        if (!ResolveExactRelativePath(panelTransform, rootPath, &anchorTransform, &ignoredResolvedPath) || !anchorTransform) {
+            SendResponse(c, id, false, "root path not found");
+            return;
+        }
+    }
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(anchorTransform, path, pathMode, 2, &matches);
+    if (matches.empty()) { SendResponse(c, id, false, "node not found"); return; }
+    if (matches.size() > 1) { SendResponse(c, id, false, "multiple nodes matched"); return; }
+
+    UiNodeSnapshot& node = matches[0];
+    if (!node.active) { SendResponse(c, id, false, "node inactive"); return; }
+    if (!node.components.tmpInput && !node.components.numericInput) {
+        SendResponse(c, id, false, "node not input");
+        return;
+    }
+
+    std::string componentName;
+    if (!PerformSetInputText(node, text, submit, &componentName)) {
+        SendResponse(c, id, false, "node not input");
+        return;
+    }
+
+    std::string result = "{\"updated\":true,\"resolvedPath\":\"";
+    result += EscapeJsonString(node.path);
+    result += "\",\"component\":\"";
+    result += componentName;
+    result += "\",\"text\":\"";
+    result += EscapeJsonString(text);
+    result += "\"}";
+    SendResponse(c, id, true, result.c_str());
+}
+
+static void CmdGetNodeState(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char panel[96] = {};
+    char rootPath[512] = {};
+    char path[512] = {};
+    char pathModeRaw[16] = "exact";
+    char error[128] = {};
+
+    if (!ReadRequiredStringArg(json, "panel", panel, sizeof(panel), "missing panel", "invalid panel", error, sizeof(error)) ||
+        !ReadOptionalStringArg(json, "rootPath", rootPath, sizeof(rootPath), "", error, sizeof(error)) ||
+        !ReadRequiredStringArg(json, "path", path, sizeof(path), "missing path", "invalid path", error, sizeof(error)) ||
+        !ReadOptionalStringArg(json, "pathMode", pathModeRaw, sizeof(pathModeRaw), "exact", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+
+    UiPathMode pathMode = UI_PATH_EXACT;
+    if (!ParseUiPathMode(pathModeRaw, &pathMode)) {
+        SendResponse(c, id, false, "invalid pathMode");
+        return;
+    }
+
+    Il2CppObject* panelTransform = nullptr;
+    UiPanelLookupResult panelResult = FindVisiblePanelTransform(panel, nullptr, &panelTransform, error, sizeof(error));
+    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (panelResult != UI_PANEL_FOUND) { SendResponse(c, id, false, "panel not visible"); return; }
+
+    Il2CppObject* anchorTransform = panelTransform;
+    if (rootPath[0]) {
+        std::string ignoredResolvedPath;
+        if (!ResolveExactRelativePath(panelTransform, rootPath, &anchorTransform, &ignoredResolvedPath) || !anchorTransform) {
+            SendResponse(c, id, false, "root path not found");
+            return;
+        }
+    }
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(anchorTransform, path, pathMode, 2, &matches);
+    if (matches.empty()) { SendResponse(c, id, false, "node not found"); return; }
+    if (matches.size() > 1) { SendResponse(c, id, false, "multiple nodes matched"); return; }
+
+    UiNodeSnapshot& node = matches[0];
+    std::string text;
+    ReadNodeTextValue(node.components, &text);
+    bool toggleOn = false;
+    ReadToggleValue(node.components, &toggleOn);
+
+    std::string result = "{\"resolvedPath\":\"";
+    result += EscapeJsonString(node.path);
+    result += "\",\"active\":";
+    result += node.active ? "true" : "false";
+    result += ",\"interactive\":";
+    result += node.interactive ? "true" : "false";
+    result += ",\"text\":\"";
+    result += EscapeJsonString(text);
+    result += "\",\"toggleOn\":";
+    result += toggleOn ? "true" : "false";
+    result += "}";
+    SendResponse(c, id, true, result.c_str());
+}
+
+static void CmdWaitForVisiblePanel(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char panel[96] = {};
+    char error[128] = {};
+    if (!ReadRequiredStringArg(json, "panel", panel, sizeof(panel), "missing panel", "invalid panel", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+
+    bool visible = true;
+    JsonGetBool(json, "visible", &visible);
+
+    int timeoutMs = 3000;
+    int pollIntervalMs = 50;
+    const char* timingError = nullptr;
+    if (!ReadWaitTimingArgs(json, &timeoutMs, &pollIntervalMs, &timingError)) {
+        SendResponse(c, id, false, timingError ? timingError : "invalid timeoutMs");
+        return;
+    }
+
+    DWORD startedAt = GetTickCount();
+    for (;;) {
+        UiPanelLookupResult panelResult = FindVisiblePanelTransform(panel, nullptr, nullptr, error, sizeof(error));
+        if (panelResult == UI_PANEL_LOOKUP_ERROR) {
+            SendResponse(c, id, false, error);
+            return;
+        }
+
+        bool isVisible = panelResult == UI_PANEL_FOUND || panelResult == UI_PANEL_INSTANCE_NOT_FOUND;
+        if (isVisible == visible) {
+            DWORD waitMs = GetTickCount() - startedAt;
+            char result[160];
+            snprintf(result, sizeof(result), "{\"panel\":\"%s\",\"visible\":%s,\"waitMs\":%lu}",
+                panel,
+                visible ? "true" : "false",
+                (unsigned long)waitMs);
+            SendResponse(c, id, true, result);
+            return;
+        }
+
+        DWORD elapsed = GetTickCount() - startedAt;
+        if ((int)elapsed >= timeoutMs) break;
+        Sleep((DWORD)pollIntervalMs);
+    }
+
+    SendResponse(c, id, false, "wait panel timeout");
+}
+
+static void CmdWaitForNode(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char panel[96] = {};
+    char rootPath[512] = {};
+    char path[512] = {};
+    char pathModeRaw[16] = "exact";
+    char stateRaw[16] = {};
+    char error[128] = {};
+
+    if (!ReadRequiredStringArg(json, "panel", panel, sizeof(panel), "missing panel", "invalid panel", error, sizeof(error)) ||
+        !ReadOptionalStringArg(json, "rootPath", rootPath, sizeof(rootPath), "", error, sizeof(error)) ||
+        !ReadRequiredStringArg(json, "path", path, sizeof(path), "missing path", "invalid path", error, sizeof(error)) ||
+        !ReadOptionalStringArg(json, "pathMode", pathModeRaw, sizeof(pathModeRaw), "exact", error, sizeof(error)) ||
+        !ReadRequiredStringArg(json, "state", stateRaw, sizeof(stateRaw), "missing state", "invalid state", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+
+    UiPathMode pathMode = UI_PATH_EXACT;
+    if (!ParseUiPathMode(pathModeRaw, &pathMode)) {
+        SendResponse(c, id, false, "invalid pathMode");
+        return;
+    }
+    UiWaitState waitState = UI_WAIT_EXISTS;
+    if (!ParseUiWaitState(stateRaw, &waitState)) {
+        SendResponse(c, id, false, "invalid state");
+        return;
+    }
+
+    int timeoutMs = 3000;
+    int pollIntervalMs = 50;
+    const char* timingError = nullptr;
+    if (!ReadWaitTimingArgs(json, &timeoutMs, &pollIntervalMs, &timingError)) {
+        SendResponse(c, id, false, timingError ? timingError : "invalid timeoutMs");
+        return;
+    }
+
+    DWORD startedAt = GetTickCount();
+    for (;;) {
+        Il2CppObject* panelTransform = nullptr;
+        UiPanelLookupResult panelResult = FindVisiblePanelTransform(panel, nullptr, &panelTransform, error, sizeof(error));
+        if (panelResult == UI_PANEL_LOOKUP_ERROR) {
+            SendResponse(c, id, false, error);
+            return;
+        }
+
+        if (panelResult == UI_PANEL_FOUND && panelTransform) {
+            Il2CppObject* anchorTransform = panelTransform;
+            bool rootReady = true;
+            if (rootPath[0]) {
+                std::string ignoredResolvedPath;
+                rootReady = ResolveExactRelativePath(panelTransform, rootPath, &anchorTransform, &ignoredResolvedPath) && anchorTransform;
+            }
+
+            if (rootReady) {
+                std::vector<UiNodeSnapshot> matches;
+                ResolveUiNodeMatches(anchorTransform, path, pathMode, 2, &matches);
+                if (matches.size() > 1) {
+                    SendResponse(c, id, false, "multiple nodes matched");
+                    return;
+                }
+                if (matches.size() == 1 && IsNodeStateSatisfied(matches[0], waitState)) {
+                    DWORD waitMs = GetTickCount() - startedAt;
+                    std::string result = "{\"resolvedPath\":\"";
+                    result += EscapeJsonString(matches[0].path);
+                    result += "\",\"state\":\"";
+                    result += stateRaw;
+                    result += "\",\"waitMs\":";
+                    char waitBuf[32];
+                    snprintf(waitBuf, sizeof(waitBuf), "%lu", (unsigned long)waitMs);
+                    result += waitBuf;
+                    result += "}";
+                    SendResponse(c, id, true, result.c_str());
+                    return;
+                }
+            }
+        }
+
+        DWORD elapsed = GetTickCount() - startedAt;
+        if ((int)elapsed >= timeoutMs) break;
+        Sleep((DWORD)pollIntervalMs);
+    }
+
+    SendResponse(c, id, false, "wait node timeout");
 }
 
 static void CmdCollectionPrices(AgentConn* c, const char* id, const char*) {
@@ -2278,6 +3709,12 @@ static const CmdEntry kCommands[] = {
     { "GetVisiblePanels", CmdGetVisiblePanels },
     { "OpenPanel",        CmdOpenPanel        },
     { "ClosePanel",       CmdClosePanel       },
+    { "DumpPanelTree",    CmdDumpPanelTree    },
+    { "ClickNode",        CmdClickNode        },
+    { "SetInputText",     CmdSetInputText     },
+    { "GetNodeState",     CmdGetNodeState     },
+    { "WaitForVisiblePanel", CmdWaitForVisiblePanel },
+    { "WaitForNode",      CmdWaitForNode      },
     { "CollectionPrices", CmdCollectionPrices },
     { "GetCollectionItemCids", CmdGetCollectionItemCids },
     { "GetWarehouseItemList", CmdGetWarehouseItemList },

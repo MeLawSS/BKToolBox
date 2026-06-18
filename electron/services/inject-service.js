@@ -11,6 +11,10 @@ const AUTO_OPERATION_PIPE = '\\\\.\\pipe\\BKAutoOp';
 const MAX_AUTO_OPERATION_FRAME_BYTES = 262144;
 const DEFAULT_AUTO_OPERATION_TIMEOUT_MS = 5000;
 const LONG_AUTO_OPERATION_TIMEOUT_MS = 45000;
+const DEFAULT_WAIT_AUTO_OPERATION_TIMEOUT_MS = 3000;
+const WAIT_AUTO_OPERATION_TIMEOUT_BUFFER_MS = 1000;
+const WAIT_AUTO_OPERATION_MIN_TIMEOUT_MS = 100;
+const WAIT_AUTO_OPERATION_MAX_TIMEOUT_MS = 30000;
 const EXCHANGE_ITEM_DEFAULT_NATIVE_TIMEOUT_MS = 15000;
 const EXCHANGE_ITEM_MIN_NATIVE_TIMEOUT_MS = 1000;
 const EXCHANGE_ITEM_MAX_NATIVE_TIMEOUT_MS = 60000;
@@ -94,6 +98,31 @@ function clampSafeInteger(value, min, max, fallback) {
     const number = Number(value);
     if (!Number.isSafeInteger(number)) return fallback;
     return Math.min(max, Math.max(min, number));
+}
+
+function isWaitAutoOperationCommand(command) {
+    return command === 'WaitForVisiblePanel' || command === 'WaitForNode';
+}
+
+function getWaitAutoOperationCommandTimeoutMs(args = {}) {
+    if (args?.timeoutMs === undefined) {
+        return DEFAULT_WAIT_AUTO_OPERATION_TIMEOUT_MS + WAIT_AUTO_OPERATION_TIMEOUT_BUFFER_MS;
+    }
+
+    const requestedTimeoutMs = Number(args?.timeoutMs);
+    if (
+        Number.isSafeInteger(requestedTimeoutMs) &&
+        requestedTimeoutMs >= WAIT_AUTO_OPERATION_MIN_TIMEOUT_MS &&
+        requestedTimeoutMs <= WAIT_AUTO_OPERATION_MAX_TIMEOUT_MS
+    ) {
+        return requestedTimeoutMs + WAIT_AUTO_OPERATION_TIMEOUT_BUFFER_MS;
+    }
+
+    if (Number.isSafeInteger(requestedTimeoutMs) && requestedTimeoutMs > 0) {
+        return requestedTimeoutMs + WAIT_AUTO_OPERATION_TIMEOUT_BUFFER_MS;
+    }
+
+    return DEFAULT_AUTO_OPERATION_TIMEOUT_MS;
 }
 
 function normalizeSavedStockMoveItemCids(itemCids) {
@@ -339,6 +368,9 @@ async function sendAutoOperationCommand(command, args = {}, deps = {}) {
 
 function getAutoOperationCommandTimeoutMs(command, args = {}, deps = {}) {
     if (deps.timeoutMs !== undefined) return deps.timeoutMs;
+    if (isWaitAutoOperationCommand(command)) {
+        return getWaitAutoOperationCommandTimeoutMs(args);
+    }
     if (command === 'GetCollectionItemCids' ||
         command === 'GetItemTradeInfo' ||
         command === 'GetWarehouseItemList' ||

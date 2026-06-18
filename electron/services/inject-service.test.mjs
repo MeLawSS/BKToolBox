@@ -486,6 +486,84 @@ describe('inject-service AutoOperation Agent', () => {
     );
   });
 
+  it('derives wait command pipe timeouts from protocol defaults and explicit timeoutMs', async () => {
+    const sendAutoOperationCommand = vi.fn().mockResolvedValue({
+      id: '8w',
+      ok: true,
+      result: {},
+    });
+
+    await service.runAutoOperationCommand('WaitForVisiblePanel', {
+      panel: 'UIMain',
+      visible: true,
+    }, { sendAutoOperationCommand });
+    await service.runAutoOperationCommand('WaitForNode', {
+      panel: 'UIMain',
+      rootPath: 'WareHousePanel/WareHouse',
+      path: 'Down/saleTog',
+      pathMode: 'exact',
+      state: 'interactive',
+      timeoutMs: 7000,
+      pollIntervalMs: 50,
+    }, { sendAutoOperationCommand });
+
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      1,
+      'WaitForVisiblePanel',
+      {
+        panel: 'UIMain',
+        visible: true,
+      },
+      expect.objectContaining({ timeoutMs: 4000 }),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      2,
+      'WaitForNode',
+      {
+        panel: 'UIMain',
+        rootPath: 'WareHousePanel/WareHouse',
+        path: 'Down/saleTog',
+        pathMode: 'exact',
+        state: 'interactive',
+        timeoutMs: 7000,
+        pollIntervalMs: 50,
+      },
+      expect.objectContaining({ timeoutMs: 8000 }),
+    );
+  });
+
+  it('does not clamp invalid wait command timeoutMs into the protocol range', async () => {
+    const sendAutoOperationCommand = vi.fn().mockResolvedValue({
+      id: '8x',
+      ok: true,
+      result: {},
+    });
+
+    await service.runAutoOperationCommand('WaitForNode', {
+      panel: 'Battle_Main',
+      rootPath: 'InputDevice/Panel1',
+      path: 'chujia',
+      pathMode: 'exact',
+      state: 'active',
+      timeoutMs: 60001,
+      pollIntervalMs: 50,
+    }, { sendAutoOperationCommand });
+
+    expect(sendAutoOperationCommand).toHaveBeenCalledWith(
+      'WaitForNode',
+      {
+        panel: 'Battle_Main',
+        rootPath: 'InputDevice/Panel1',
+        path: 'chujia',
+        pathMode: 'exact',
+        state: 'active',
+        timeoutMs: 60001,
+        pollIntervalMs: 50,
+      },
+      expect.objectContaining({ timeoutMs: 61001 }),
+    );
+  });
+
   it('unloads the AutoOperation Agent with a short timeout', async () => {
     const sendAutoOperationCommand = vi.fn()
       .mockResolvedValueOnce({

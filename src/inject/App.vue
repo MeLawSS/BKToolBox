@@ -158,7 +158,10 @@ onUnmounted(() => {
           data-testid="inject-panel-controller"
           :aria-label="t('inject.controllerTitle')"
         >
-          <InjectControllerPanel />
+          <InjectControllerPanel
+            :command-loading="autoOperationCommandLoading"
+            @command-loading-change="setAutoOperationCommandLoading"
+          />
         </section>
 
         <section

@@ -186,6 +186,7 @@ describe('Inject App', () => {
 
     expect(wrapper.find('[data-testid="inject-panel-controller"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="controller-send-button"]').element.disabled).toBe(true);
+    expect(wrapper.find('[data-testid="controller-command-examples"]').text()).toContain('DumpPanelTree');
   });
 
   it('renders the controller navigation label in English when locale is saved', async () => {
@@ -248,6 +249,46 @@ describe('Inject App', () => {
 
     expect(startAutoOperationAgent).toHaveBeenCalledTimes(1);
     expect(wrapper.find('[data-testid="controller-status-agentConnection"]').text()).toContain('已连接');
+    await wrapper.find('[data-testid="controller-command-input"]').setValue('GetCurrentUI');
+    expect(wrapper.find('[data-testid="controller-send-button"]').element.disabled).toBe(false);
+  });
+
+  it('runs a controller command through the shared inject command bridge', async () => {
+    const runAutoOperationCommand = vi.fn(async (command, args) => {
+      if (command === 'Ping') return { ok: true, value: { pong: true } };
+      if (command === 'DumpPanelTree') {
+        return {
+          ok: true,
+          result: {
+            panel: 'UIMain',
+            rootPath: '',
+            truncated: false,
+            nodes: [],
+          },
+        };
+      }
+      throw new Error(`unexpected command: ${command}`);
+    });
+    window.bidkingDesktop = {
+      isDesktop: true,
+      queryCabinetReward: vi.fn(),
+      claimCabinetReward: vi.fn(),
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand,
+    };
+
+    const wrapper = await mountApp();
+    await activatePanel(wrapper, 'controller');
+    await wrapper.find('[data-testid="controller-command-input"]').setValue('DumpPanelTree');
+    await wrapper.find('[data-testid="controller-args-input"]').setValue('{"panel":"UIMain"}');
+    await wrapper.find('[data-testid="controller-send-button"]').trigger('click');
+
+    expect(runAutoOperationCommand).toHaveBeenLastCalledWith('DumpPanelTree', { panel: 'UIMain' });
+
+    await flushPromises();
+    await nextTick();
+    expect(wrapper.find('[data-testid="controller-response-log"]').text()).toContain('DumpPanelTree');
+    expect(wrapper.find('[data-testid="controller-response-log"]').text()).toContain('UIMain');
   });
 
   it('preserves and then clears controller inputs with the existing inject lifecycle', async () => {
