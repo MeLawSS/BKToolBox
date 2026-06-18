@@ -3878,6 +3878,59 @@ static void CmdUnloadAgent(AgentConn* c, const char* id, const char* json) {
 }
 
 // ==========================================================================
+// LoadProbe: load a probe DLL and call its BKProbeEntry export
+// ==========================================================================
+typedef void (*ProbeEntryFn)(const char*, char*, int);
+
+static void CmdLoadProbe(AgentConn* c, const char* id, const char* json) {
+    char dllPath[MAX_PATH] = {};
+    char argsJson[BK_BUF_SIZE] = {};
+    strncpy(argsJson, "{}", sizeof(argsJson) - 1);
+
+    if (!JsonGetString(json, "dllPath", dllPath, sizeof(dllPath))) {
+        SendResponse(c, id, false, "dllPath is required");
+        return;
+    }
+    JsonGetString(json, "argsJson", argsJson, sizeof(argsJson));
+
+    HMODULE h = LoadLibraryA(dllPath);
+    if (!h) {
+        char err[128];
+        snprintf(err, sizeof(err), "LoadLibrary failed: 0x%08X", (unsigned)GetLastError());
+        SendResponse(c, id, false, err);
+        return;
+    }
+
+    ProbeEntryFn fn = (ProbeEntryFn)GetProcAddress(h, "BKProbeEntry");
+    if (!fn) {
+        FreeLibrary(h);
+        SendResponse(c, id, false, "BKProbeEntry not exported");
+        return;
+    }
+
+    static char resultBuf[65536];
+    memset(resultBuf, 0, sizeof(resultBuf));
+    fn(argsJson, resultBuf, (int)sizeof(resultBuf));
+    FreeLibrary(h);
+
+    // JSON-escape resultBuf into output field
+    char escaped[131072];
+    int ei = 0;
+    for (int i = 0; resultBuf[i] && ei < (int)sizeof(escaped) - 4; i++) {
+        unsigned char ch = (unsigned char)resultBuf[i];
+        if (ch == '"' || ch == '\\') { escaped[ei++] = '\\'; escaped[ei++] = ch; }
+        else if (ch == '\n')         { escaped[ei++] = '\\'; escaped[ei++] = 'n'; }
+        else if (ch == '\r')         { escaped[ei++] = '\\'; escaped[ei++] = 'r'; }
+        else                         { escaped[ei++] = (char)ch; }
+    }
+    escaped[ei] = '\0';
+
+    char result[BK_BUF_SIZE];
+    snprintf(result, sizeof(result), "{\"output\":\"%s\"}", escaped);
+    SendResponse(c, id, true, result);
+}
+
+// ==========================================================================
 // Dispatch table
 // ==========================================================================
 typedef void (*CmdFn)(AgentConn*, const char*, const char*);
@@ -3906,6 +3959,7 @@ static const CmdEntry kCommands[] = {
     { "CancelDelayedPriceQuery",    CmdCancelDelayedPriceQuery    },
     { "ExchangeItem",     CmdExchangeItem     },
     { "InvokeMethod",     CmdInvokeMethod     },
+    { "LoadProbe",        CmdLoadProbe        },
     { "UnloadAgent",      CmdUnloadAgent      },
     { nullptr,            nullptr             },
 };
