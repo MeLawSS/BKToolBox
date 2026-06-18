@@ -23,7 +23,7 @@
 - 更新 `Inject` 左侧导航，在 `基础` 分组下新增 `Controller`
 - 新增独立 `InjectControllerPanel` 组件
 - 为 `Controller` panel 增加首版本地状态模型
-- 增加中英文 i18n 文案
+- 增加中英文 i18n 文案，并明确中文标签使用 `控制器`
 - 补齐 panel 级和页级测试，覆盖导航接入和壳层行为
 
 ## 非目标
@@ -124,11 +124,16 @@
 
 - `柜子奖励`
 - `Agent 状态`
-- `Controller`
+- `控制器`
 
-其中 `Controller` 放在 `Agent 状态` 后面，表达“它依赖 agent 能力，但职责更偏上层操作编排”。
+其中 `控制器` 放在 `Agent 状态` 后面，表达“它依赖 agent 能力，但职责更偏上层操作编排”。
 
-本次设计建议在中英文文案里都直接使用 `Controller` 作为导航标签，避免在首版阶段引入含义不稳定的中文翻译。
+对应 i18n 约定：
+
+- 中文：`inject.nav.controller = 控制器`
+- 英文：`inject.nav.controller = Controller`
+
+这样能和当前 `inject.nav.*` 的本地化结构保持一致，也避免中文模式下出现 `柜子奖励 / Agent 状态 / Controller` 这种不完整混排。
 
 ## 组件设计
 
@@ -157,6 +162,31 @@
 - controller 业务区的内部交互
 
 这些状态全部应收口在 `InjectControllerPanel.vue` 内部。
+
+首版 `Controller` panel 不接收 `commandLoading` prop，也不发出 `command-loading-change` 事件，因为本轮没有任何真实命令会跨 panel 占用共享执行锁。
+
+### 测试定位约定
+
+为保持当前 `Inject` 测试风格一致，新增 panel 需要显式提供 `data-testid`。
+
+建议约定：
+
+- 左侧导航按钮：`inject-tab-controller`
+- panel 容器：`inject-panel-controller`
+- 状态卡片：
+  - `controller-status-desktop`
+  - `controller-status-agentApi`
+  - `controller-status-transport`
+- 命令名输入框：`controller-command-input`
+- JSON 参数输入区：`controller-args-input`
+- 发送按钮：`controller-send-button`
+- 未接入提示：`controller-transport-not-ready`
+- 响应区空态：`controller-response-log`
+- 业务分区：
+  - `controller-domain-character-scene`
+  - `controller-domain-movement-interaction`
+  - `controller-domain-inventory-warehouse`
+  - `controller-domain-trading-market`
 
 ## Controller Panel 页面结构
 
@@ -199,15 +229,19 @@
 - `命令名` 输入框
 - `JSON 参数` 文本域
 - `发送` 按钮
-- `清空日志` 按钮
-- `响应日志` 区域
+- `响应日志` 空态区
 
 本区块的关键约束：
 
 - 首版 `发送` 按钮必须处于 disabled 状态
-- 必须在区块内明确提示“controller 通道尚未接入，本区仅预留交互形态”
+- `发送` 按钮旁必须始终显示一条醒目的内联提示，不得藏在 tooltip 中
+  - 推荐文案：`Controller 通道尚未接入，本区仅预留交互形态`
+- `响应日志` 首版不展示可清空的动态日志列表，只展示固定空态说明
+  - 推荐文案：`Controller 通道接入后将在这里显示响应`
 - 不允许做本地 mock 成功返回
 - 不允许偷偷复用 `runAutoOperationCommand` 去伪造 controller 已经存在
+
+保留完整输入骨架的原因是：这轮已经明确选定“命令名 + JSON 参数 + 发送按钮 + 响应区”的未来交互形态，因此首版需要把结构先钉死；但通过 disabled 发送按钮和常驻提示，避免把它误读成“只差一步就能用”的假实现。
 
 ### 3. 业务操作骨架区
 
@@ -237,7 +271,6 @@
 
 - `commandName`
 - `commandArgsText`
-- `controllerLogLines`
 - `desktopReady`
 - `agentApiAvailable`
 - `controllerTransportReady`
@@ -246,14 +279,22 @@
 
 - `desktopReady`
   - 当前是否在桌面桥接环境下运行
+  - 由 `InjectControllerPanel.vue` 在自身 `setup/onMounted` 中直接基于 `window.bidkingDesktop?.isDesktop` 推导
+  - 不由 `App.vue` 代算或下发
 - `agentApiAvailable`
   - 当前是否存在已知 agent 相关桥接能力
+  - 同样由 `InjectControllerPanel.vue` 本地判断是否存在 `startAutoOperationAgent` / `runAutoOperationCommand`
 - `controllerTransportReady`
   - 当前 controller 通道是否可实际发送命令
   - 首版固定为 `false`
-- `controllerLogLines`
-  - 面板内临时日志
-  - 不持久化，不跨页面共享
+
+首版不需要维护 `controllerLogLines`，因为：
+
+- 没有真实 transport
+- `发送` 按钮不可触发
+- `响应日志` 区域只呈现固定空态说明
+
+等后续接入真实 controller bridge 时，再引入日志数组和清空行为。
 
 ## 职责边界
 
@@ -353,8 +394,9 @@ window.bidkingDesktop.runAutoOperationCommand(command, args)
 - readiness 状态渲染
 - `发送` 按钮在首版默认 disabled
 - “controller 通道尚未接入”类提示存在
-- `清空日志` 按钮行为
+- 响应区空态存在
 - 四个业务分区骨架存在
+- `data-testid` 命名与 spec 约定一致
 
 ### 本轮不需要新增的测试
 
