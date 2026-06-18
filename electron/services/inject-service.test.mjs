@@ -3,9 +3,11 @@ import { EventEmitter } from 'events';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const service = await import('./inject-service.js');
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const tempRoots = [];
 
@@ -104,6 +106,11 @@ describe('inject-service cabinet reward', () => {
 });
 
 describe('inject-service AutoOperation Agent', () => {
+  it('does not keep legacy SharpMonoInjector directories in tools/inject', () => {
+    expect(fs.existsSync(path.join(projectRoot, 'tools', 'inject', 'SharpMonoInjector.Console'))).toBe(false);
+    expect(fs.existsSync(path.join(projectRoot, 'tools', 'inject', 'SharpMonoInjector.Gui'))).toBe(false);
+  });
+
   it('accepts AutoOperation frames larger than 64KB', async () => {
     class MockSocket extends EventEmitter {
       constructor() {
