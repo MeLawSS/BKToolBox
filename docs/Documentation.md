@@ -50,7 +50,7 @@
   - 已改为 workspace shell：左侧按 `基础 / 交易` 分组切换 panel，右侧只显示一个激活 panel
   - 基础 panel 为 `展示柜收益 / Agent 状态 / 控制器`，交易 panel 为 `仓库统计 / 批量移仓 / 上架建议 / 延迟价格查询 / 收藏价格采集`
   - `src/inject/panels/*.vue` 现在承载除 `StockMovePanel` 外的各个 panel；`StockMovePanel` 继续作为一级 workspace panel 保留
-  - `src/inject/panels/InjectControllerPanel.vue` 现在同时承载 `UI 操作` 和泛型 command console：它先只读显示桌面环境、共享 agent runtime 的桥接可用性/连接状态；`UI 操作` 会通过 `GetCurrentUI -> GetVisiblePanels -> DumpPanelTree` 刷新当前 UI，并对 `Button / Toggle / TMP_InputField / NumericInputField` 提供结构化操作；command console 在 `desktop + bridge + connected` 时仍可直接发送任意 `runAutoOperationCommand(command, args)`；两者都复用页级 AutoOperation command lock，且 Controller 首次挂载时仍不会额外触发新的 `Ping`
+  - `src/inject/panels/InjectControllerPanel.vue` 现在同时承载 `UI 操作` 和泛型 command console：它先只读显示桌面环境、共享 agent runtime 的桥接可用性/连接状态；`UI 操作` 会通过 `GetCurrentUI -> GetVisiblePanels -> DumpPanelTree` 刷新当前 UI，并以“搜索 + 紧凑节点列表 + 双击按钮行直接点击 + 按需展开详情区”的 operator-first 形态提供结构化操作；command console 在 `desktop + bridge + connected` 时仍可直接发送任意 `runAutoOperationCommand(command, args)`；两者都复用页级 AutoOperation command lock，且 Controller 首次挂载时仍不会额外触发新的 `Ping`
   - 页内切换 panel 时保留各 panel 的局部输入和结果；收到 `bidking:leave-inject` 后会把 Inject 工作台恢复到冷启动状态
   - 批量移仓当前支持主仓库；来源列表按 `itemCid` 合并同类藏品，支持按 `名称 / CID / 品质 / 类型` 搜索，`全选` 仅作用于当前可见分组；在当前游戏构建里，主仓库可能以 `stockId: 0` 出现在 `GetStockContainers` / `MoveStockItem` 流程中
 
@@ -271,6 +271,9 @@
 - 2026-06-05：`npm run build:inject` 通过，说明本轮 Batch Stock Move Saved List modal 与主面板集成可以正常构建到 `public/inject/`。
 - 2026-06-05：`git diff --check` 无输出，说明本轮 full-collectibles Saved List editor 改动和 current-state 文档更新未引入空白或补丁格式问题。
 - 2026-06-12：`git diff --check` 无输出，说明本轮 Documentation.md 更新未引入空白或补丁格式问题。
+- 2026-06-19：`npx vitest run src/inject/panels/InjectUiAutomationPanel.test.js src/inject/panels/useControllerUiAutomation.test.js src/inject/panels/InjectControllerPanel.test.js src/inject/App.test.js` 通过；覆盖 `Controller -> UI 操作` 的紧凑搜索列表、mapped label/path fallback、single-click 只选中、double-click 触发 `ClickNode`、non-clickable 行反馈、shared command lock busy gating，以及既有 activation refresh / panel reopen / structured action 链路未回归。
+- 2026-06-19：`npm run build:inject` 通过；说明 compact redesign 后的 `UI 操作` 子面板、i18n 与样式改动可正常构建到 `public/inject/`。
+- 2026-06-19：`git diff --check` 无输出，说明本轮 `Controller UI 操作` 紧凑化改动与文档同步未引入空白或补丁格式问题。
 - 2026-06-12：`npx vitest run scripts/pack-win-dir.test.mjs` 通过，`22` 个测试全绿；`scripts/patch-win-icons.js` 的目标解析现在按宿主文件系统路径处理，Linux 下 `patch-win-icons target resolution` 的 4 个基线失败已修复，`rcedit` 入口仍保留 Windows / WSL 转换。
 - 2026-06-05：`npx vitest run scripts/pack-win-dir.test.mjs scripts/deploy-unpacked-app.test.mjs package-config.test.mjs` 通过，`12` 个测试全绿；覆盖 `npm run pack` 默认时间戳目录名、显式 `--app-dir-name` 覆盖、`deploy:game-pc` 显式固定 `win-unpacked` 构建路径，以及 `package.json` 仍通过自定义 `pack` wrapper 入口打包。
 - 2026-06-11：`npx vitest run scripts/pack-win-dir.test.mjs scripts/deploy-unpacked-app.test.mjs package-config.test.mjs` 通过；覆盖 WSL helper 合约、`.cmd` 包装、`build:pages` 原生/桥接分派、`electron-builder` Windows 桥接、`prepare:dumpcap` / `patch-win-icons` 原生分派，以及非 WSL Linux 的前置失败分支。

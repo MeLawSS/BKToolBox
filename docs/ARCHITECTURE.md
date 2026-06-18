@@ -389,7 +389,7 @@ BKToolBox/
 当前关键实现：
 
 - `src/inject/App.vue` 现在只是 workspace 壳层：维护左侧导航、当前激活 panel、已访问 panel 集合、共享 `collectibles` 加载和跨 panel 的 AutoOperation command lock。
-- `InjectControllerPanel.vue` 当前通过 `src/shared/useAutoOperationAgentSwitch.js` 的无副作用只读视图消费共享 agent runtime，并作为 readiness cards + 泛型 command console 的外层壳；`src/inject/App.vue` 会按 `activePanelId === 'controller'` 显式传入 `isActive`，`InjectControllerPanel.vue` 再把该信号转交给 `InjectUiAutomationPanel.vue` + `useControllerUiAutomation.js`。后者负责 activation refresh、visible panel 切换、node 选择，以及 `ClickNode / SetInputText` 结构化动作，并仅在 `isActive + transportReady` 变为可用时触发 UI refresh 链路，而不是只因首次挂载就刷新；同时继续复用 `App.vue` 提供的 shared AutoOperation command lock，因此整个 `Controller` panel 在首次挂载时仍不会自行触发新的 `Ping`。
+- `InjectControllerPanel.vue` 当前通过 `src/shared/useAutoOperationAgentSwitch.js` 的无副作用只读视图消费共享 agent runtime，并作为 readiness cards + 泛型 command console 的外层壳；`src/inject/App.vue` 会按 `activePanelId === 'controller'` 显式传入 `isActive`，`InjectControllerPanel.vue` 再把该信号转交给 `InjectUiAutomationPanel.vue` + `useControllerUiAutomation.js`。后者继续负责 activation refresh、visible panel 切换、node 选择，以及 `ClickNode / SetInputText` 结构化动作；而 `InjectUiAutomationPanel.vue` 现在额外保留 view-local 的 search/filter、双击行点击、compact status line 和 1.5s transient row feedback，因此 UI 体验可以重做，但 bridge / refresh / shared lock 语义仍集中在 composable 里。
 - `src/inject/panels/InjectCabinetRewardPanel.vue`
 - `src/inject/panels/InjectAgentPanel.vue`
 - `src/inject/panels/InjectControllerPanel.vue`
