@@ -253,6 +253,8 @@ When the user manually switches panel:
 - do not rerun `GetCurrentUI`
 - do not rerun `GetVisiblePanels`
 - only rerun `DumpPanelTree` for the newly selected panel
+- do not commit the new `selectedPanel` into visible UI state until that `DumpPanelTree` call succeeds
+- if that `DumpPanelTree` call fails, keep the previously committed `selectedPanel` and previously committed node list/detail state
 
 ### Refresh commit semantics
 
@@ -276,6 +278,13 @@ This avoids mixed states such as:
 - new selected panel + stale node list from another panel
 
 If any command in the refresh chain fails, the previous successfully committed visible state must remain on screen and only the refresh error state should update.
+
+The refresh chain must also hold the shared AutoOperation command lock continuously from the first refresh command through the final success/failure resolution. It must not acquire and release the lock separately around each individual RPC in the chain.
+
+Required effect:
+
+- no other Inject panel command may interleave between `GetCurrentUI`, `GetVisiblePanels`, and the matching `DumpPanelTree` for one refresh attempt
+- the staged refresh result therefore represents one lock-bounded refresh transaction rather than loosely related RPCs
 
 ### Interactive node list derivation
 
@@ -356,6 +365,8 @@ That means:
 - `UI 操作` actions cannot run concurrently with other active AutoOperation panel actions
 - when shared `commandLoading` is occupied, `UI 操作` controls render as unavailable/disabled
 - `InjectUiAutomationPanel.vue` must request and release that lock by emitting `command-loading-change`, with `InjectControllerPanel.vue` acting only as a relay layer to `App.vue`
+- a refresh transaction must acquire the shared lock before `GetCurrentUI` and release it only after the full `GetCurrentUI -> GetVisiblePanels -> DumpPanelTree` chain either commits or fails
+- a manual panel-switch transaction must acquire the shared lock before the replacement `DumpPanelTree` call and release it only after the selected-panel commit succeeds or the previous selection is preserved on failure
 
 Phase 1 commands used by the structured UI:
 
@@ -384,6 +395,10 @@ Do not collapse them into one generic empty message.
 
 Minimum empty-state mapping:
 
+- `!controllerTransportReady`
+  - show a transport-not-ready unavailable state in the node-list area
+  - show the same transport-not-ready unavailable state in the detail area
+  - do not fall back to the "not refreshed yet" state
 - `!hasLoadedUiAutomationOnce && !uiAutomationRefreshing`
   - show the "not refreshed yet" state
 - `uiAutomationRefreshing`
@@ -471,6 +486,7 @@ Behavior:
 - keep the status surface visible
 - disable refresh and node actions
 - show a specific reason rather than a generic failure message
+- render a dedicated unavailable placeholder in node-list and detail areas for transport-not-ready states rather than reusing the ordinary not-refreshed empty state
 
 ## Result Feedback
 
