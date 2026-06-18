@@ -215,11 +215,11 @@ function nodeSupportsCompactClick(node) {
 }
 
 async function handleNodeDoubleClick(node) {
-  setSelectedNode(node.path);
-
   if (effectiveCommandLoading.value) {
     return;
   }
+
+  setSelectedNode(node.path);
 
   if (!nodeSupportsCompactClick(node)) {
     uiActionError.value = t('inject.controllerNodeNotClickable');

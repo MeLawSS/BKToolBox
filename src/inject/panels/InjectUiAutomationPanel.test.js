@@ -261,12 +261,20 @@ describe('InjectUiAutomationPanel', () => {
     expect(row.classes()).not.toContain('is-error');
   });
 
-  it('busy state blocks row double click but still allows typing in search', async () => {
+  it('busy state blocks row double click without wiping prior diagnostics, and still allows typing in search', async () => {
     const { wrapper, runAutoOperationCommand } = await mountPanel();
 
-    const row = wrapper.get('[data-testid="controller-ui-node-row-0"]');
+    const tradeRow = wrapper.get('[data-testid="controller-ui-node-row-0"]');
+    const priceInputRow = wrapper.get('[data-testid="controller-ui-node-row-1"]');
 
     const searchInput = wrapper.get('[data-testid="controller-ui-search-input"]');
+
+    await tradeRow.trigger('dblclick');
+    await flushPromises();
+    await nextTick();
+
+    expect(getClickCalls(runAutoOperationCommand)).toHaveLength(1);
+    expect(wrapper.get('[data-testid="controller-ui-action-result"]').text()).toContain('"path": "BtnTrade"');
 
     await wrapper.setProps({ commandLoading: 'Controller:UI Refresh' });
     await nextTick();
@@ -275,10 +283,13 @@ describe('InjectUiAutomationPanel', () => {
     await nextTick();
     expect(searchInput.element.value).toBe('trade');
 
-    await row.trigger('dblclick');
+    await priceInputRow.trigger('dblclick');
     await flushPromises();
     await nextTick();
 
-    expect(getClickCalls(runAutoOperationCommand)).toHaveLength(0);
+    expect(getClickCalls(runAutoOperationCommand)).toHaveLength(1);
+    expect(wrapper.get('[data-testid="controller-ui-action-result"]').text()).toContain('"path": "BtnTrade"');
+    expect(wrapper.find('[data-testid="controller-ui-action-error"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="controller-ui-detail-path"]').text()).toContain('BtnTrade');
   });
 });
