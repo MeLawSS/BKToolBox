@@ -342,3 +342,79 @@ describe('shellcode.js', () => {
     );
   });
 });
+
+// ── probe.js ─────────────────────────────────────────────────────────────────
+describe('probe.js', () => {
+  let probe;
+  const path = require('path');
+  before(() => { probe = require('./probe.js'); });
+
+  it('toWslPath: converts C:\\foo\\bar to /mnt/c/foo/bar', () => {
+    assert.equal(probe.toWslPath('C:\\foo\\bar'), '/mnt/c/foo/bar');
+    assert.equal(probe.toWslPath('D:\\test\\file.cpp'), '/mnt/d/test/file.cpp');
+  });
+
+  it('compileProbeDll: calls wsl -e bash build_probe.sh with correct WSL paths', () => {
+    const calls = [];
+    const mockSpawn = (cmd, args) => {
+      calls.push({ cmd, args });
+      return { status: 0, stdout: '', stderr: 'Build complete' };
+    };
+    const result = probe.compileProbeDll('C:\\test\\probe.cpp', {
+      outPath: 'C:\\Temp\\bkprobe_test.dll',
+      spawnSyncImpl: mockSpawn,
+    });
+    assert.equal(result, 'C:\\Temp\\bkprobe_test.dll');
+    assert.equal(calls[0].cmd, 'wsl');
+    assert.ok(calls[0].args.includes('-e'));
+    assert.ok(calls[0].args.includes('bash'));
+    assert.ok(calls[0].args.some(a => a.includes('build_probe.sh')));
+    assert.ok(calls[0].args.some(a => a === '/mnt/c/test/probe.cpp'));
+    assert.ok(calls[0].args.some(a => a === '/mnt/c/temp/bkprobe_test.dll'));
+  });
+
+  it('compileProbeDll: throws with detail when wsl exits non-zero', () => {
+    const mockSpawn = () => ({ status: 1, stdout: 'error: undefined reference', stderr: '' });
+    let caught;
+    try { probe.compileProbeDll('C:\\test\\probe.cpp', { outPath: 'C:\\t.dll', spawnSyncImpl: mockSpawn }); }
+    catch (e) { caught = e; }
+    assert.ok(caught, 'should have thrown');
+    assert.match(caught.message, /compile failed/i);
+    assert.ok(caught.detail.includes('error: undefined reference'));
+  });
+
+  it('execProbe: sends LoadProbe command with compiled dllPath and argsJson', async () => {
+    // Mock compileProbeDll and sendCommand
+    let loadProbeArgs;
+    const { encodeFrame } = require('./pipe.js');
+    const fakeNet = {
+      createConnection(_p) {
+        const listeners = {};
+        const socket = {
+          once(ev, fn) { listeners[ev] = fn; return this; },
+          on(ev, fn) { listeners[ev] = fn; return this; },
+          setTimeout() { return this; }, destroy() {},
+          write(buf) {
+            const req = JSON.parse(buf.subarray(4).toString('utf8'));
+            loadProbeArgs = req.args;
+            const resp = encodeFrame(JSON.stringify({ id: req.id, ok: true, result: { output: 'probe result' } }));
+            setTimeout(() => listeners['data']?.(resp), 0);
+          },
+        };
+        setTimeout(() => listeners['connect']?.(), 0);
+        return socket;
+      }
+    };
+    const mockSpawn = () => ({ status: 0, stdout: '', stderr: '' });
+    const result = await probe.execProbe('C:\\test\\probe.cpp', {
+      argsJson: '{"x":1}',
+      keep: true,
+      outPath: 'C:\\Temp\\bkprobe_fixed.dll',
+      spawnSyncImpl: mockSpawn,
+      netImpl: fakeNet,
+    });
+    assert.equal(result.output, 'probe result');
+    assert.equal(loadProbeArgs.argsJson, '{"x":1}');
+    assert.equal(loadProbeArgs.dllPath, 'C:\\Temp\\bkprobe_fixed.dll');
+  });
+});
