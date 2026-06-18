@@ -88,7 +88,7 @@ describe('InjectControllerPanel', () => {
 
     expect(wrapper.get('[data-testid="controller-ui-operations"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="controller-ui-list-placeholder"]').text()).toContain('尚未刷新');
-    expect(wrapper.get('[data-testid="controller-ui-detail-placeholder"]').text()).toContain('尚未刷新');
+    expect(wrapper.find('[data-testid="controller-ui-detail-path"]').exists()).toBe(false);
     expect(runAutoOperationCommand).not.toHaveBeenCalled();
   });
 
