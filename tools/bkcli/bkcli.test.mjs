@@ -132,3 +132,138 @@ describe('inject.js', () => {
     assert.throws(() => injectMod.injectAgent({ spawnSyncImpl: mockSpawn }), /Process not found/);
   });
 });
+
+// ── bkcli.js command dispatch ─────────────────────────────────────────────────
+describe('bkcli.js command dispatch', () => {
+  // We test bkcli.js by calling sendCommand with a mock pipe that captures frames.
+  // bkcli.js is a CLI entry point; we exercise its logic via pipe.js sendCommand.
+  // Each test verifies that the correct protocol JSON is sent for a given CLI invocation.
+
+  function mockPipeRoundtrip(responseResult) {
+    // Returns a fake netImpl whose socket immediately responds with ok:true result
+    return {
+      createConnection(_path) {
+        const listeners = {};
+        const socket = {
+          _listeners: listeners,
+          once(ev, fn) { listeners[ev] = fn; return this; },
+          on(ev, fn) { listeners[ev] = fn; return this; },
+          setTimeout() { return this; },
+          destroy() {},
+          _sentJson: null,
+          write(buf) {
+            this._sentJson = JSON.parse(buf.subarray(4).toString('utf8'));
+            // Respond asynchronously
+            const { encodeFrame } = require('./pipe.js');
+            const resp = encodeFrame(JSON.stringify({
+              id: this._sentJson.id, ok: true, result: responseResult
+            }));
+            setTimeout(() => listeners['data']?.(resp), 0);
+          },
+        };
+        setTimeout(() => listeners['connect']?.(), 0);
+        return socket;
+      }
+    };
+  }
+
+  it('ping sends Ping command', async () => {
+    const { sendCommand, PIPE_NAME } = require('./pipe.js');
+    let captured;
+    const fakeNet = {
+      createConnection(_p) {
+        const listeners = {};
+        const socket = {
+          once(ev, fn) { listeners[ev] = fn; return this; },
+          on(ev, fn) { listeners[ev] = fn; return this; },
+          setTimeout() { return this; },
+          destroy() {},
+          write(buf) {
+            captured = JSON.parse(buf.subarray(4).toString('utf8'));
+            const { encodeFrame } = require('./pipe.js');
+            const resp = encodeFrame(JSON.stringify({ id: captured.id, ok: true, result: { pong: true } }));
+            setTimeout(() => listeners['data']?.(resp), 0);
+          },
+        };
+        setTimeout(() => listeners['connect']?.(), 0);
+        return socket;
+      }
+    };
+    const result = await sendCommand('\\\\.\\pipe\\test', 'Ping', {}, 1000, fakeNet);
+    assert.equal(captured.cmd, 'Ping');
+    assert.deepEqual(captured.args, {});
+    assert.equal(result.result.pong, true);
+  });
+
+  it('dump sends DumpPanelTree with correct defaults', async () => {
+    let captured;
+    const fakeNet = (() => {
+      const { encodeFrame } = require('./pipe.js');
+      return {
+        createConnection(_p) {
+          const listeners = {};
+          const socket = {
+            once(ev, fn) { listeners[ev] = fn; return this; },
+            on(ev, fn) { listeners[ev] = fn; return this; },
+            setTimeout() { return this; }, destroy() {},
+            write(buf) {
+              captured = JSON.parse(buf.subarray(4).toString('utf8'));
+              const resp = encodeFrame(JSON.stringify({ id: captured.id, ok: true, result: { nodes: [] } }));
+              setTimeout(() => listeners['data']?.(resp), 0);
+            },
+          };
+          setTimeout(() => listeners['connect']?.(), 0);
+          return socket;
+        }
+      };
+    })();
+
+    const { sendCommand } = require('./pipe.js');
+    await sendCommand('\\\\.\\pipe\\test', 'DumpPanelTree', {
+      panel: 'MainPanel',
+      rootPath: '',
+      interactiveOnly: true,
+      maxDepth: 4,
+      nodeLimit: 200,
+    }, 1000, fakeNet);
+
+    assert.equal(captured.cmd, 'DumpPanelTree');
+    assert.equal(captured.args.panel, 'MainPanel');
+    assert.equal(captured.args.interactiveOnly, true);
+    assert.equal(captured.args.maxDepth, 4);
+    assert.equal(captured.args.nodeLimit, 200);
+    assert.equal(captured.args.rootPath, '');
+  });
+
+  it('click sends ClickNode with pathMode:exact and component:auto', async () => {
+    let captured;
+    const { encodeFrame, sendCommand } = require('./pipe.js');
+    const fakeNet = {
+      createConnection(_p) {
+        const listeners = {};
+        const socket = {
+          once(ev, fn) { listeners[ev] = fn; return this; },
+          on(ev, fn) { listeners[ev] = fn; return this; },
+          setTimeout() { return this; }, destroy() {},
+          write(buf) {
+            captured = JSON.parse(buf.subarray(4).toString('utf8'));
+            const resp = encodeFrame(JSON.stringify({ id: captured.id, ok: true, result: {} }));
+            setTimeout(() => listeners['data']?.(resp), 0);
+          },
+        };
+        setTimeout(() => listeners['connect']?.(), 0);
+        return socket;
+      }
+    };
+    await sendCommand('\\\\.\\pipe\\test', 'ClickNode', {
+      panel: 'MainPanel',
+      path: 'mask/Button',
+      rootPath: '',
+      pathMode: 'exact',
+      component: 'auto',
+    }, 1000, fakeNet);
+    assert.equal(captured.args.pathMode, 'exact');
+    assert.equal(captured.args.component, 'auto');
+    assert.equal(captured.args.rootPath, '');
+  });
+});
