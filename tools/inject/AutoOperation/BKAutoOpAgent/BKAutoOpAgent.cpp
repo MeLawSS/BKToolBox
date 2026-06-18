@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <algorithm>
+#include <map>
 #include <string>
 #include <vector>
 #include "../protocol.h"
@@ -14,6 +15,7 @@
 #include "StockIdSemantics.h"
 #include "TradeListSummary.h"
 #include "UiMainThreadClickPlan.h"
+#include "UiNodePathAddressing.h"
 #include "WarehouseIdentity.h"
 #include "WarehouseLayoutMatch.h"
 #include "WarehouseLayoutSource.h"
@@ -1046,6 +1048,13 @@ struct UiNodeSnapshot {
     UiComponentRefs components;
 };
 
+struct UiNamedChild {
+    Il2CppObject* transform = nullptr;
+    std::string name;
+    int occurrenceIndex = 0;
+    int siblingCount = 1;
+};
+
 enum UiPanelLookupResult {
     UI_PANEL_FOUND = 0,
     UI_PANEL_NOT_VISIBLE,
@@ -1660,17 +1669,68 @@ static std::string BuildComponentTypesJson(const UiComponentRefs& refs) {
     return json;
 }
 
-static Il2CppObject* FindChildTransformByName(Il2CppObject* parent, const std::string& name) {
-    if (!parent || name.empty()) return nullptr;
+static void CollectNamedChildTransforms(Il2CppObject* parent, std::vector<UiNamedChild>* out) {
+    if (!out) return;
+    out->clear();
+    if (!parent) return;
+
+    std::vector<std::pair<Il2CppObject*, std::string> > rawChildren;
+    std::map<std::string, int> siblingCounts;
     int childCount = GetTransformChildCount(parent);
     for (int i = 0; i < childCount; i++) {
         Il2CppObject* child = GetTransformChild(parent, i);
         if (!child) continue;
         std::string childName;
         if (!GetObjectNameUtf8(child, &childName)) continue;
-        if (childName == name) return child;
+        if (childName.empty()) continue;
+        rawChildren.push_back(std::make_pair(child, childName));
+        siblingCounts[childName] += 1;
     }
-    return nullptr;
+
+    std::map<std::string, int> occurrenceCounts;
+    for (size_t i = 0; i < rawChildren.size(); i++) {
+        UiNamedChild child;
+        child.transform = rawChildren[i].first;
+        child.name = rawChildren[i].second;
+        child.occurrenceIndex = occurrenceCounts[child.name];
+        child.siblingCount = siblingCounts[child.name];
+        occurrenceCounts[child.name] += 1;
+        out->push_back(child);
+    }
+}
+
+static bool ResolveChildTransformBySegment(
+    Il2CppObject* parent,
+    const std::string& segment,
+    Il2CppObject** outChild,
+    std::string* outNormalizedSegment
+) {
+    if (outChild) *outChild = nullptr;
+    if (outNormalizedSegment) outNormalizedSegment->clear();
+    if (!parent || segment.empty()) return false;
+
+    std::vector<UiNamedChild> children;
+    CollectNamedChildTransforms(parent, &children);
+    if (children.empty()) return false;
+
+    std::vector<std::string> childNames;
+    childNames.reserve(children.size());
+    for (size_t i = 0; i < children.size(); i++) {
+        childNames.push_back(children[i].name);
+    }
+
+    int childIndex = -1;
+    std::string normalizedSegment;
+    if (!ResolveUiChildAddress(childNames, segment, &childIndex, &normalizedSegment)) {
+        return false;
+    }
+    if (childIndex < 0 || childIndex >= (int)children.size()) {
+        return false;
+    }
+
+    if (outChild) *outChild = children[(size_t)childIndex].transform;
+    if (outNormalizedSegment) *outNormalizedSegment = normalizedSegment;
+    return true;
 }
 
 static bool ResolveExactRelativePath(Il2CppObject* anchor, const char* path, Il2CppObject** outTransform, std::string* outPath) {
@@ -1685,9 +1745,11 @@ static bool ResolveExactRelativePath(Il2CppObject* anchor, const char* path, Il2
     std::string resolvedPath;
     for (size_t i = 0; i < segments.size(); i++) {
         if (segments[i].empty()) return false;
-        current = FindChildTransformByName(current, segments[i]);
-        if (!current) return false;
-        resolvedPath = JoinUiPath(resolvedPath, segments[i]);
+        std::string normalizedSegment;
+        if (!ResolveChildTransformBySegment(current, segments[i], &current, &normalizedSegment) || !current) {
+            return false;
+        }
+        resolvedPath = JoinUiPath(resolvedPath, normalizedSegment);
     }
 
     if (outTransform) *outTransform = current;
@@ -1757,15 +1819,16 @@ static void CollectDumpNodesRecursive(
     if (!parent || !nodes || !truncated) return;
     if (*truncated || depth > maxDepth) return;
 
-    int childCount = GetTransformChildCount(parent);
-    for (int i = 0; i < childCount; i++) {
+    std::vector<UiNamedChild> children;
+    CollectNamedChildTransforms(parent, &children);
+    for (size_t i = 0; i < children.size(); i++) {
         if (*truncated) return;
-        Il2CppObject* child = GetTransformChild(parent, i);
+        Il2CppObject* child = children[i].transform;
         if (!child) continue;
-
-        std::string childName;
-        if (!GetObjectNameUtf8(child, &childName) || childName.empty()) continue;
-        std::string childPath = JoinUiPath(parentPath, childName);
+        std::string childPath = JoinUiPath(
+            parentPath,
+            BuildUiAddressedSegment(children[i].name, children[i].occurrenceIndex, children[i].siblingCount)
+        );
 
         UiNodeSnapshot snapshot;
         InspectUiNode(child, childPath, depth, &snapshot);
@@ -1806,15 +1869,16 @@ static void CollectGlobMatchesRecursive(
     if (!parent || !pattern || !matches) return;
     if (maxMatches > 0 && (int)matches->size() >= maxMatches) return;
 
-    int childCount = GetTransformChildCount(parent);
-    for (int i = 0; i < childCount; i++) {
+    std::vector<UiNamedChild> children;
+    CollectNamedChildTransforms(parent, &children);
+    for (size_t i = 0; i < children.size(); i++) {
         if (maxMatches > 0 && (int)matches->size() >= maxMatches) return;
-        Il2CppObject* child = GetTransformChild(parent, i);
+        Il2CppObject* child = children[i].transform;
         if (!child) continue;
-
-        std::string childName;
-        if (!GetObjectNameUtf8(child, &childName) || childName.empty()) continue;
-        std::string childPath = JoinUiPath(parentPath, childName);
+        std::string childPath = JoinUiPath(
+            parentPath,
+            BuildUiAddressedSegment(children[i].name, children[i].occurrenceIndex, children[i].siblingCount)
+        );
         if (GlobMatchRecursive(pattern, childPath.c_str())) {
             UiNodeSnapshot snapshot;
             int depth = 1;

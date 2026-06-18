@@ -1,1 +1,24 @@
-{}
+{
+  "MainPanel/mask/Button": "竞拍",
+  "MainPanel/Btns1/friend": "好友",
+  "MainPanel/Btns1/setting": "设置",
+  "MainPanel/Player/HeadIcon": "头像",
+  "MainPanel/Player/m_BtnOLQA": "问题反馈",
+  "MainPanel/Btns2/Button_1": "仓库",
+  "MainPanel/Btns2/Button_2": "交易所",
+  "MainPanel/Btns2/Button_3": "商店",
+  "MainPanel/Btns2/Button_4": "竞买人",
+  "MainPanel/Btns2/Button_5": "拍卖行",
+  "MainPanel/Btns2/Button_6": "收藏协会",
+  "MainPanel/Btns3/Button_1": "背包",
+  "MainPanel/Btns3/Button_2": "通行证",
+  "MainPanel/Btns3/Button_3": "排行榜",
+  "MainPanel/Btns3/Button_4": "任务",
+  "MainPanel/Btns3/Button_5": "藏品百科",
+  "MainPanel/Btns3/Button_6": "充值",
+  "AssetItem_2/Button": "充值",
+  "WareHousePanel/leftDown/Button": "展柜奖励查看",
+  "WareHousePanel/Top/Close": "仓库关闭",
+  "MainPanel/Btns1/mail": "邮箱",
+  "MainPanel/Btns1/notice": "通知"
+}
