@@ -14,7 +14,7 @@
 - `Controller` panel 作为独立组件接入现有 workspace shell
 - panel 内包含：
   - 连接与可用性状态区
-  - 通用命令区的交互骨架
+  - `Controller` 命令区的交互骨架
   - 未来业务操作区的分区骨架
 - 明确区分 `Controller` 与现有 `Agent 状态` panel 的职责
 
@@ -25,6 +25,7 @@
 - 为 `Controller` panel 增加首版本地状态模型
 - 增加中英文 i18n 文案，并明确中文标签使用 `控制器`
 - 补齐 panel 级和页级测试，覆盖导航接入和壳层行为
+- 当实现实际改变 `Inject` panel 清单与信息架构时，同轮更新 `docs/Documentation.md` 与 `docs/ARCHITECTURE.md`
 
 ## 非目标
 
@@ -66,6 +67,18 @@
 - `runAutoOperationCommand(command, args)`
 
 本轮没有现成的 `runControllerCommand(...)` 能力，因此 `Controller` panel 首版只能落壳层，不能伪装成已接入真实 controller 通道。
+
+### 当前共享 Agent runtime
+
+项目已经有共享的 agent runtime：`src/shared/useAutoOperationAgentSwitch.js`。
+
+这套共享 runtime 当前负责：
+
+- 探测桌面桥与 agent 命令能力是否存在
+- 通过 `Ping` 刷新 agent 当前连接态
+- 让 TopBar、`Agent 状态` panel 等界面看到一致的连接状态与状态文案
+
+因此 `Controller` panel 的 readiness 不能只看“桥接能力是否存在”，还必须读取共享 runtime 暴露的 agent 当前连接态，否则会和顶栏、`Agent 状态` panel 形成冲突信息。
 
 ## 方案比较
 
@@ -132,6 +145,10 @@
 
 - 中文：`inject.nav.controller = 控制器`
 - 英文：`inject.nav.controller = Controller`
+- 中文：`inject.controllerTitle = 控制器`
+- 英文：`inject.controllerTitle = Controller`
+- 中文：`inject.controllerSubtitle = 通过 controller 与 injected agent 通信，并承载后续游戏内操作`
+- 英文：`inject.controllerSubtitle = Communicate with the injected agent through the controller and host future in-game operations`
 
 这样能和当前 `inject.nav.*` 的本地化结构保持一致，也避免中文模式下出现 `柜子奖励 / Agent 状态 / Controller` 这种不完整混排。
 
@@ -165,6 +182,12 @@
 
 首版 `Controller` panel 不接收 `commandLoading` prop，也不发出 `command-loading-change` 事件，因为本轮没有任何真实命令会跨 panel 占用共享执行锁。
 
+`Controller` panel 首版应作为共享 agent runtime 的只读消费者：
+
+- 可以读取 `useAutoOperationAgentSwitch()` 暴露的可用性、连接态和状态文案
+- 不负责 `loadAgent()` / `unloadAgent()` / `toggleAgent()`
+- 不自己再次执行 `Ping`，避免和共享 runtime 重复维护另一份状态
+
 ### 测试定位约定
 
 为保持当前 `Inject` 测试风格一致，新增 panel 需要显式提供 `data-testid`。
@@ -175,7 +198,8 @@
 - panel 容器：`inject-panel-controller`
 - 状态卡片：
   - `controller-status-desktop`
-  - `controller-status-agentApi`
+  - `controller-status-agentBridge`
+  - `controller-status-agentConnection`
   - `controller-status-transport`
 - 命令名输入框：`controller-command-input`
 - JSON 参数输入区：`controller-args-input`
@@ -196,33 +220,37 @@
 
 展示：
 
-- 标题：`Controller`
-- 副标题：明确这是“未来通过 controller 与 injected agent 通信、执行游戏内操作”的工作台
+- 标题：走 i18n 的 `inject.controllerTitle`
+- 副标题：走 i18n 的 `inject.controllerSubtitle`
 
 目的：
 
 - 与现有 `Agent 状态` panel 的“注入/诊断”语义拉开距离
 - 向用户明确这是一块未来能力入口，而不是当前已完整可用的业务台
 
-### 2. 连接与通用命令区
+### 2. 连接与 Controller 命令区
 
 这一段分成两部分。
 
 #### 只读状态卡片
 
-首版显示三项状态：
+首版显示四项状态：
 
 - `桌面环境`
-- `Agent API 可用性`
+- `Agent 桥接可用性`
+- `Agent 当前状态`
 - `Controller 通道状态`
 
 其中：
 
 - `桌面环境` 可基于 `window.bidkingDesktop?.isDesktop` 判断
-- `Agent API 可用性` 可基于现有 `startAutoOperationAgent` / `runAutoOperationCommand` 能力是否存在判断
+- `Agent 桥接可用性` 可基于现有 `startAutoOperationAgent` / `runAutoOperationCommand` 能力是否存在判断
+- `Agent 当前状态` 必须直接读取共享 `useAutoOperationAgentSwitch()` runtime 的 `isConnected` / `statusText`
+  - 不能自己重新 `Ping`
+  - 不能只根据 bridge 能力是否存在来推断
 - `Controller 通道状态` 首版固定表达为“未接入”或等价文案
 
-#### 通用命令骨架
+#### Controller 命令骨架
 
 包含：
 
@@ -241,7 +269,15 @@
 - 不允许做本地 mock 成功返回
 - 不允许偷偷复用 `runAutoOperationCommand` 去伪造 controller 已经存在
 
-保留完整输入骨架的原因是：这轮已经明确选定“命令名 + JSON 参数 + 发送按钮 + 响应区”的未来交互形态，因此首版需要把结构先钉死；但通过 disabled 发送按钮和常驻提示，避免把它误读成“只差一步就能用”的假实现。
+这一段虽然保留“命令名 + JSON 参数 + 发送按钮 + 响应区”的结构，但它的语义必须明确限定为：
+
+- 面向未来 `controller bridge` 的高层意图命令壳层
+- 不是 `AutoOperation` 原始命令台的第二份拷贝
+- 不是 `class/method/arg0` 风格的底层调试入口
+
+因此后续这里承接的应是 controller 级命令名与 payload，而不是把 `InjectAgentPanel` 里那组底层 `AutoOperation` 命令按钮再搬一遍。
+
+保留这套输入骨架的原因是：这轮已经明确选定了未来 controller 命令的基本交互形态，因此首版需要把结构先钉死；但通过 disabled 发送按钮和常驻提示，避免把它误读成“只差一步就能用”的假实现。
 
 ### 3. 业务操作骨架区
 
@@ -272,7 +308,7 @@
 - `commandName`
 - `commandArgsText`
 - `desktopReady`
-- `agentApiAvailable`
+- `agentBridgeAvailable`
 - `controllerTransportReady`
 
 状态语义如下：
@@ -281,9 +317,13 @@
   - 当前是否在桌面桥接环境下运行
   - 由 `InjectControllerPanel.vue` 在自身 `setup/onMounted` 中直接基于 `window.bidkingDesktop?.isDesktop` 推导
   - 不由 `App.vue` 代算或下发
-- `agentApiAvailable`
+- `agentBridgeAvailable`
   - 当前是否存在已知 agent 相关桥接能力
   - 同样由 `InjectControllerPanel.vue` 本地判断是否存在 `startAutoOperationAgent` / `runAutoOperationCommand`
+- `agentConnected`
+  - 不作为本地自管状态保存
+  - 直接消费共享 `useAutoOperationAgentSwitch()` runtime 的 `isConnected`
+  - 用于让 `Controller` 与 TopBar / `Agent 状态` panel 呈现一致的 agent 当前状态
 - `controllerTransportReady`
   - 当前 controller 通道是否可实际发送命令
   - 首版固定为 `false`
@@ -309,7 +349,7 @@
 
 - controller 工作台的独立入口
 - 状态占位与就绪状态呈现
-- 通用命令区的交互壳层
+- controller 级命令区的交互壳层
 - 未来业务操作区的信息架构骨架
 
 ### 明确不做的事
@@ -320,6 +360,7 @@
 - 替代现有 `Agent 状态` panel
 - 直接执行现有 `AutoOperation` 原始命令
 - 实现 controller 协议本身
+- 复制 `InjectAgentPanel` 的底层命令调试台
 
 ## 未来扩展约束
 
@@ -385,6 +426,7 @@ window.bidkingDesktop.runAutoOperationCommand(command, args)
 - 点击 `Controller` 后能切换到新 panel
 - 现有 panel 切换逻辑不回归
 - 新 panel 同样遵循首次访问挂载、后续保活的模式
+- `Controller` panel 显示的 agent 当前状态与共享 runtime 一致
 
 ### Panel 级测试
 
@@ -392,6 +434,7 @@ window.bidkingDesktop.runAutoOperationCommand(command, args)
 
 - 标题与说明文案渲染
 - readiness 状态渲染
+- `Agent 当前状态` 来源于共享 `useAutoOperationAgentSwitch()` runtime，而不是本地硬编码
 - `发送` 按钮在首版默认 disabled
 - “controller 通道尚未接入”类提示存在
 - 响应区空态存在
@@ -423,6 +466,7 @@ window.bidkingDesktop.runAutoOperationCommand(command, args)
 
 - 不在 `Controller` 中复制现有 `AutoOperation` 命令按钮
 - 不在 `Controller` 中承担 agent 注入和 ping 诊断
+- 将命令骨架明确限定为未来 controller 级命令，而不是第二套底层 RPC 调试台
 
 ### 风险 3: 首版骨架把未来交互做死
 
@@ -439,8 +483,10 @@ window.bidkingDesktop.runAutoOperationCommand(command, args)
 - `Controller` 作为独立 panel 接入现有 workspace shell
 - panel 内已包含：
   - 头部说明区
-  - 连接与通用命令区
+  - 连接与 `Controller` 命令区
   - 业务操作骨架区
+- `Controller` 面板展示的 agent 当前状态与共享 `useAutoOperationAgentSwitch()` runtime 一致，不与 TopBar / `Agent 状态` panel 冲突
 - 首版 `发送` 按钮默认 disabled，且明确提示 controller 通道未接入
 - `Controller` 与 `Agent 状态` 的职责边界在代码和文案层都清晰可见
 - 对应页级测试和 panel 级测试已补齐
+- `docs/Documentation.md` 与 `docs/ARCHITECTURE.md` 已在同轮同步更新当前 Inject panel 清单与信息架构
