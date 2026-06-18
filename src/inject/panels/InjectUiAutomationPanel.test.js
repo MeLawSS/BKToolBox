@@ -180,11 +180,18 @@ describe('InjectUiAutomationPanel', () => {
     expect(getRenderedRows(wrapper)).toHaveLength(1);
     expect(getRenderedRows(wrapper)[0].text()).toContain('主界面.竞拍');
 
+    await searchInput.setValue('InputRoot/PriceInput');
+    await nextTick();
+
+    const pathFilteredRows = getRenderedRows(wrapper);
+    expect(pathFilteredRows).toHaveLength(1);
+    expect(pathFilteredRows[0].text()).toContain('InputRoot/PriceInput');
+
     await wrapper.get('[data-testid="controller-ui-refresh-button"]').trigger('click');
     await flushPromises();
     await nextTick();
 
-    expect(searchInput.element.value).toBe('竞拍');
+    expect(searchInput.element.value).toBe('InputRoot/PriceInput');
   });
 
   it('single click only selects, while double click triggers exactly one ClickNode', async () => {
@@ -256,19 +263,27 @@ describe('InjectUiAutomationPanel', () => {
   });
 
   it('busy state blocks row double click but still allows typing in search', async () => {
-    const { wrapper, runAutoOperationCommand } = await mountPanel({
-      commandLoading: 'Controller:UI Refresh',
-    });
+    const { wrapper, runAutoOperationCommand } = await mountPanel();
 
     const row = wrapper.get('[data-testid="controller-ui-node-row-0"]');
-    expect(row.element.disabled).toBe(true);
+    expect(row.element.disabled).toBe(false);
 
     const searchInput = wrapper.get('[data-testid="controller-ui-search-input"]');
     expect(searchInput.element.disabled).toBe(false);
 
+    await wrapper.setProps({ commandLoading: 'Controller:UI Refresh' });
+    await nextTick();
+
+    expect(row.element.disabled).toBe(true);
+
     await searchInput.setValue('trade');
     await nextTick();
     expect(searchInput.element.value).toBe('trade');
+
+    await row.trigger('dblclick');
+    await flushPromises();
+    await nextTick();
+
     expect(getClickCalls(runAutoOperationCommand)).toHaveLength(0);
   });
 });
