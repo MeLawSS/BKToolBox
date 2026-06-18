@@ -105,3 +105,30 @@ describe('pipe.js', () => {
     );
   });
 });
+
+// ── inject.js ─────────────────────────────────────────────────────────────────
+describe('inject.js', () => {
+  let injectMod;
+  before(() => { injectMod = require('./inject.js'); });
+
+  it('injectAgent: calls pwsh with -File inject.ps1 -Command AutoOperationAgent', () => {
+    const calls = [];
+    const mockSpawn = (cmd, args, opts) => {
+      calls.push({ cmd, args });
+      return { status: 0, stdout: 'Injected', stderr: '' };
+    };
+    injectMod.injectAgent({ spawnSyncImpl: mockSpawn });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].cmd, 'pwsh');
+    assert.ok(calls[0].args.includes('-ExecutionPolicy'));
+    assert.ok(calls[0].args.includes('Bypass'));
+    assert.ok(calls[0].args.some(a => a.endsWith('inject.ps1')));
+    assert.ok(calls[0].args.includes('-Command'));
+    assert.ok(calls[0].args.includes('AutoOperationAgent'));
+  });
+
+  it('injectAgent: throws when pwsh exits non-zero', () => {
+    const mockSpawn = () => ({ status: 1, stdout: '', stderr: 'Process not found' });
+    assert.throws(() => injectMod.injectAgent({ spawnSyncImpl: mockSpawn }), /Process not found/);
+  });
+});
