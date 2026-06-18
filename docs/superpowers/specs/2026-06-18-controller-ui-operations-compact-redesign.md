@@ -32,7 +32,7 @@ What changes here is the user-facing workflow and layout.
 
 ## Current Problems
 
-Observed from the current Controller UI screenshots:
+Observed from the current running Controller UI screenshots:
 
 - the node list uses tall card rows, so the user sees too few actionable nodes per screen
 - the right-side detail area consumes a large amount of width but is mostly empty most of the time
@@ -133,10 +133,12 @@ Desktop default:
 
 - full-width interactive node list
 - no always-visible right detail column
+- node-list region uses an internal scroll container with a fixed maximum height of `60vh`
 
 Narrow/mobile default:
 
 - same stacked structure
+- node-list region uses an internal scroll container with a fixed maximum height of `50vh`
 
 ### Detail area
 
@@ -144,7 +146,7 @@ The detail area moves below the node list and becomes collapsed by default.
 
 Behavior:
 
-- no selected node: collapsed or visually minimal
+- no selected node: collapsed and hidden from the normal reading flow
 - selected node: expands beneath the list
 - only shows focused metadata and secondary actions
 
@@ -197,6 +199,16 @@ Rows must visually distinguish:
 
 The selected state must be obvious without increasing row height.
 
+Transient action-state rules:
+
+- `recent success` and `recent failure` apply only to the last row that received a double-click action attempt
+- the row-level transient state lasts `1.5s`
+- starting a new double-click action clears any previous transient row state before applying the next one
+- refresh success, manual panel switching, or panel re-open clears any transient row state
+- the compact status line and the row-level transient state may coexist
+  - the status line records the latest action outcome in text
+  - the row-level state provides immediate spatial feedback on the acted-on row
+
 ## Interaction Model
 
 ### Single click
@@ -216,12 +228,18 @@ It must not:
 
 ### Double click
 
+For this redesign, a `clickable node` means a node whose normalized `componentTypes` includes `Button` or `Toggle`.
+
 Double click on a clickable node is the primary fast-path action.
 
 It must:
 
 - execute `ClickNode`
-- use the selected row's real path exactly as returned by the Agent
+- use the toolbar's current selected panel as `panel`
+- always pass `rootPath: ""`
+- use the selected row's real path exactly as returned by the Agent as `path`
+- always pass `pathMode: "exact"`
+- always pass `component: "auto"`
 - reflect shared `commandLoading`
 - show immediate lightweight success/failure feedback
 
@@ -364,9 +382,14 @@ At minimum, tests must cover:
 - unmapped nodes show path as the primary visible label
 - single click selects only and does not call `ClickNode`
 - double click on a clickable node triggers exactly one `ClickNode`
-- double click uses the node's real current path
+- double click uses the full required `ClickNode` parameter set:
+  - current selected panel
+  - `rootPath: ""`
+  - node real current path
+  - `pathMode: "exact"`
+  - `component: "auto"`
 - double click on a non-clickable node does not send a click command and surfaces failure feedback
-- the detail area is collapsed or absent before selection
+- the detail area is collapsed before selection
 - selecting a node reveals detail content
 - search filters by mapped display name
 - search also filters by path
