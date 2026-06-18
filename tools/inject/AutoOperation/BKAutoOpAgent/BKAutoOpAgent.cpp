@@ -13,6 +13,7 @@
 #include "MoveStockItemResult.h"
 #include "StockIdSemantics.h"
 #include "TradeListSummary.h"
+#include "UiMainThreadClickPlan.h"
 #include "WarehouseIdentity.h"
 #include "WarehouseLayoutMatch.h"
 #include "WarehouseLayoutSource.h"
@@ -367,6 +368,7 @@ static bool ReadWarehouseDimensions(Il2CppObject* warehouse, int* width, int* he
 }
 
 static const Il2CppMethod* FindMethodByNames(Il2CppClass* klass, const char* const* names, int argCount);
+static const Il2CppMethod* FindMethodBySignature(Il2CppClass* klass, const char* const* names, const char* const* paramTypes, int paramCount);
 
 static bool ReadWarehouseStockData(Il2CppObject* warehouse, Il2CppObject** stockDataOut) {
     if (!warehouse || !stockDataOut) return false;
@@ -1086,6 +1088,19 @@ struct UiTypeCache {
 
 static UiTypeCache g_uiTypeCache = {};
 
+struct UiMainThreadDispatcherCache {
+    bool initialized = false;
+    Il2CppClass* actionClass = nullptr;
+    Il2CppClass* delegateClass = nullptr;
+    Il2CppClass* dispatcherClass = nullptr;
+    Il2CppObject* actionType = nullptr;
+    const Il2CppMethod* createDelegateMethod = nullptr;
+    const Il2CppMethod* initializeMethod = nullptr;
+    const Il2CppMethod* runOnMainThreadMethod = nullptr;
+};
+
+static UiMainThreadDispatcherCache g_uiMainThreadDispatcherCache = {};
+
 static bool JsonFieldExists(const char* json, const char* field) {
     if (!json || !field) return false;
     char needle[64];
@@ -1134,6 +1149,16 @@ static Il2CppObject* GetTypeObjectForClass(Il2CppClass* klass) {
     return g_type_get_object(type);
 }
 
+static bool TryInvoke(const Il2CppMethod* method, void* obj, void** args, Il2CppObject** outResult = nullptr) {
+    if (!method || !g_runtime_invoke) return false;
+    Il2CppObject* exc = nullptr;
+    Il2CppObject* result = g_runtime_invoke(method, obj, args, &exc);
+    if (outResult) {
+        *outResult = exc ? nullptr : result;
+    }
+    return exc == nullptr;
+}
+
 static void EnsureUiTypeCache() {
     if (g_uiTypeCache.initialized) return;
 
@@ -1158,6 +1183,41 @@ static void EnsureUiTypeCache() {
     g_uiTypeCache.tmpTextType = GetTypeObjectForClass(g_uiTypeCache.tmpTextClass);
     g_uiTypeCache.legacyTextType = GetTypeObjectForClass(g_uiTypeCache.legacyTextClass);
     g_uiTypeCache.initialized = true;
+}
+
+static void EnsureUiMainThreadDispatcherCache() {
+    if (g_uiMainThreadDispatcherCache.initialized) return;
+
+    const char* const systemNamespaces[] = { "System", nullptr };
+    const char* const dispatcherNamespaces[] = { "", nullptr };
+    const char* const createDelegateNames[] = { "CreateDelegate", nullptr };
+    const char* const createDelegateParamTypes[] = { "System.Type", "System.Object", "System.String", nullptr };
+    const char* const runOnMainThreadNames[] = { "RunOnMainThread", nullptr };
+    const char* const runOnMainThreadParamTypes[] = { "System.Action", nullptr };
+    const char* const initializeNames[] = { "Initialize", nullptr };
+
+    g_uiMainThreadDispatcherCache.actionClass = FindClassInNamespaces("Action", systemNamespaces);
+    g_uiMainThreadDispatcherCache.delegateClass = FindClassInNamespaces("Delegate", systemNamespaces);
+    g_uiMainThreadDispatcherCache.dispatcherClass = FindClassInNamespaces("UnityMainThreadDispatcher", dispatcherNamespaces);
+    g_uiMainThreadDispatcherCache.actionType = GetTypeObjectForClass(g_uiMainThreadDispatcherCache.actionClass);
+    g_uiMainThreadDispatcherCache.createDelegateMethod = FindMethodBySignature(
+        g_uiMainThreadDispatcherCache.delegateClass,
+        createDelegateNames,
+        createDelegateParamTypes,
+        3
+    );
+    g_uiMainThreadDispatcherCache.initializeMethod = FindMethodByNames(
+        g_uiMainThreadDispatcherCache.dispatcherClass,
+        initializeNames,
+        0
+    );
+    g_uiMainThreadDispatcherCache.runOnMainThreadMethod = FindMethodBySignature(
+        g_uiMainThreadDispatcherCache.dispatcherClass,
+        runOnMainThreadNames,
+        runOnMainThreadParamTypes,
+        1
+    );
+    g_uiMainThreadDispatcherCache.initialized = true;
 }
 
 static const Il2CppMethod* FindMethodBySignature(Il2CppClass* klass, const char* const* names, const char* const* paramTypes, int paramCount) {
@@ -1346,6 +1406,50 @@ static bool InvokeStringSetterByNames(Il2CppObject* obj, const char* const* name
     void* args[] = { valueStr };
     SafeInvoke(method, obj, args);
     return true;
+}
+
+static Il2CppObject* CreateManagedActionDelegate(Il2CppObject* targetObj, const char* methodName) {
+    if (!targetObj || !methodName || !g_string_new) return nullptr;
+    EnsureUiMainThreadDispatcherCache();
+    if (!g_uiMainThreadDispatcherCache.actionType || !g_uiMainThreadDispatcherCache.createDelegateMethod) {
+        return nullptr;
+    }
+
+    Il2CppObject* methodNameObj = g_string_new(methodName);
+    if (!methodNameObj) return nullptr;
+
+    void* args[] = {
+        g_uiMainThreadDispatcherCache.actionType,
+        targetObj,
+        methodNameObj,
+    };
+    Il2CppObject* delegateObj = nullptr;
+    if (!TryInvoke(g_uiMainThreadDispatcherCache.createDelegateMethod, nullptr, args, &delegateObj)) {
+        return nullptr;
+    }
+    return delegateObj;
+}
+
+static bool QueueManagedActionOnMainThread(Il2CppObject* actionObj) {
+    if (!actionObj) return false;
+    EnsureUiMainThreadDispatcherCache();
+    if (!g_uiMainThreadDispatcherCache.runOnMainThreadMethod) return false;
+
+    if (g_uiMainThreadDispatcherCache.initializeMethod) {
+        TryInvoke(g_uiMainThreadDispatcherCache.initializeMethod, nullptr, nullptr, nullptr);
+    }
+
+    void* args[] = { actionObj };
+    return TryInvoke(g_uiMainThreadDispatcherCache.runOnMainThreadMethod, nullptr, args, nullptr);
+}
+
+static bool QueueManagedNoArgActionOnMainThread(Il2CppObject* targetObj, const char* methodName, const char* fallbackMethodName = nullptr) {
+    Il2CppObject* actionObj = CreateManagedActionDelegate(targetObj, methodName);
+    if (!actionObj && fallbackMethodName) {
+        actionObj = CreateManagedActionDelegate(targetObj, fallbackMethodName);
+    }
+    if (!actionObj) return false;
+    return QueueManagedActionOnMainThread(actionObj);
 }
 
 static bool InvokeBoolSetterByNames(Il2CppObject* obj, const char* const* names, bool value) {
@@ -1814,15 +1918,26 @@ static bool PerformButtonClick(Il2CppObject* buttonComponent) {
     const char* const onClickGetterNames[] = { "get_onClick", nullptr };
     Il2CppObject* eventObj = InvokeObjectGetterByNames(buttonComponent, onClickGetterNames);
     if (eventObj) {
-        const char* const invokeNames[] = { "Invoke", nullptr };
-        if (InvokeNoArgMethodByNames(eventObj, invokeNames)) return true;
+        UiMainThreadClickPlan eventPlan = ResolveButtonMainThreadClickPlan(true);
+        if (QueueManagedNoArgActionOnMainThread(eventObj, eventPlan.methodName, eventPlan.fallbackMethodName)) {
+            return true;
+        }
     }
-    const char* const pressNames[] = { "Press", "OnSubmit", nullptr };
-    return InvokeNoArgMethodByNames(buttonComponent, pressNames);
+
+    UiMainThreadClickPlan componentPlan = ResolveButtonMainThreadClickPlan(false);
+    return QueueManagedNoArgActionOnMainThread(
+        buttonComponent,
+        componentPlan.methodName,
+        componentPlan.fallbackMethodName
+    );
 }
 
 static bool PerformToggleClick(Il2CppObject* toggleComponent) {
     if (!toggleComponent) return false;
+    UiMainThreadClickPlan plan = ResolveToggleMainThreadClickPlan();
+    if (QueueManagedNoArgActionOnMainThread(toggleComponent, plan.methodName, plan.fallbackMethodName)) {
+        return true;
+    }
     const char* const internalToggleNames[] = { "InternalToggle", nullptr };
     if (InvokeNoArgMethodByNames(toggleComponent, internalToggleNames)) return true;
 
