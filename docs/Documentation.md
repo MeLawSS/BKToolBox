@@ -254,7 +254,7 @@
 
 - 2026-06-18：`npx vitest run src/inject/panels/useControllerUiAutomation.test.js src/inject/panels/InjectUiAutomationPanel.test.js src/inject/panels/InjectControllerPanel.test.js src/inject/App.test.js` 通过，`4` 个测试文件、`54` 个用例全绿；覆盖 `Controller` 新增 `UI 操作` 子面板的 activation refresh、visible panel 切换、node 选择，以及已实际落测的 `Button` `ClickNode` 与 `TMP_InputField` `SetInputText` 路径，并确认它继续接入页面级 shared AutoOperation command lock。
 - 2026-06-18：`npx vitest run src/shared/useAutoOperationAgentSwitch.test.js` 通过，`1` 个测试文件、`12` 个用例全绿；结合上面的 `InjectControllerPanel` / `App` 测试链路，shared AutoOperation runtime 仍是唯一 `Ping` owner，因此 `Controller` 继续被动订阅 shared runtime，在首次挂载时不会额外触发新的 `Ping`。
-- 2026-06-18：`npm run build:inject` 通过；Vite 产出了 `public/inject/index.html`、`public/inject/assets/index-CiioHE7b.css` 和 `public/inject/assets/index-DoT1jmM0.js`，说明包含 `Controller UI 操作`、泛型 command console 和相关 i18n 的 Inject 页面可成功构建。
+- 2026-06-18：`npm run build:inject` 通过；Vite 成功把 Inject 页面产物写入 `public/inject/`（包含 `index.html` 和 `assets/` 下的构建输出），说明包含 `Controller UI 操作`、泛型 command console 和相关 i18n 的 Inject 页面可成功构建。
 - 2026-06-18：`git diff --check` 无输出，说明本轮 current-state 文档同步未引入空白或补丁格式问题。
 - 2026-06-18：Windows native 构建链路修复。`package.json` 新增 `@rolldown/binding-win32-x64-msvc` 到 `optionalDependencies`，与已有的 `@rolldown/binding-linux-x64-gnu` 并列；`ELECTRON_MIRROR` 从 `.npmrc` 静态配置改为运行时环境变量（`pack-win-dir.mjs` 启动时设入 `process.env`，`dist:win` 通过 `node -e` 包装 `electron-builder` 调用），消除 npm 11 对未知 `.npmrc` 键的 warning；`scripts/pack-win-dir.test.mjs` 中 3 个测试改为跨平台写法。
 - 2026-06-18：`npm run build:pages` 在 Windows native (Node.js v24.16.0, Windows 11 Pro 10.0.26200) 通过，7 个页面入口（`home / elsa / ahmed / ethan / monitor / price / inject`）全部构建成功。
