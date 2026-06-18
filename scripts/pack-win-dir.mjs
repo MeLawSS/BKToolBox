@@ -6,6 +6,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
+// Set before any spawn so all child processes (npm run build:pages,
+// electron-builder, etc.) inherit the Electron download mirror.
+process.env.ELECTRON_MIRROR = 'https://npmmirror.com/mirrors/electron/';
+
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), '..');
 

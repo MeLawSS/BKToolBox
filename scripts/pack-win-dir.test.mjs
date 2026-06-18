@@ -136,26 +136,14 @@ describe('runPack', () => {
     });
 
     it('handles a missing process.report header without throwing from the env reader', async () => {
-      const originalReport = process.report;
       const runNativeCommand = vi.fn(async () => {});
 
-      Object.defineProperty(process, 'report', {
-        configurable: true,
-        value: { getReport: () => undefined },
-      });
-
-      try {
-        await expect(runPack({ appDirName: 'BKToolBox-dev' }, {
-          projectRoot: '/repo',
-          hasLinuxRolldownBinding: () => true,
-          runNativeCommand,
-        })).rejects.toThrow('linux-native pack requires glibc runtime');
-      } finally {
-        Object.defineProperty(process, 'report', {
-          configurable: true,
-          value: originalReport,
-        });
-      }
+      await expect(runPack({ appDirName: 'BKToolBox-dev' }, {
+        env: { platform: 'linux', release: '5.15.0-generic', arch: 'x64', glibcVersionRuntime: '' },
+        projectRoot: '/repo',
+        hasLinuxRolldownBinding: () => true,
+        runNativeCommand,
+      })).rejects.toThrow('linux-native pack requires glibc runtime');
 
       expect(runNativeCommand).not.toHaveBeenCalled();
     });
@@ -371,14 +359,16 @@ describe('pack stage dispatch', () => {
 
 describe('patch-win-icons target resolution', () => {
   it('supports the legacy dist root input', () => {
+    const distDir = path.resolve('/repo', 'dist');
     expect(resolveExecutableTargets('/repo/dist')).toEqual([
-      path.join('/repo', 'dist', 'win-unpacked', 'BKToolBox.exe'),
+      path.join(distDir, 'win-unpacked', 'BKToolBox.exe'),
     ]);
   });
 
   it('supports a direct app directory input', () => {
+    const appDir = path.resolve('/repo', 'dist', 'BKToolBox-dev');
     expect(resolveExecutableTargets('/repo/dist/BKToolBox-dev')).toEqual([
-      path.join('/repo', 'dist', 'BKToolBox-dev', 'BKToolBox.exe'),
+      path.join(appDir, 'BKToolBox.exe'),
     ]);
   });
 
