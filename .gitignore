@@ -26,6 +26,8 @@ WiresharkPortable*.paf.exe
 tools/*
 !tools/inject/
 !tools/inject/**
+!tools/bkcli/
+!tools/bkcli/**
 tools/inject/SharpMonoInjector.Console/
 tools/inject/SharpMonoInjector.Gui/
 log/
