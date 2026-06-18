@@ -1,7 +1,11 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue';
 import { useI18n } from '../../shared/i18n.js';
-import { useControllerUiAutomation } from './useControllerUiAutomation.js';
+import {
+  nodeSupportsClick,
+  nodeSupportsTextInput,
+  useControllerUiAutomation,
+} from './useControllerUiAutomation.js';
 
 defineOptions({ name: 'InjectUiAutomationPanel' });
 
@@ -97,15 +101,11 @@ const selectedNodeTypesText = computed(() => {
 });
 
 const displayedSelectedNodeSupportsClick = computed(() => (
-  nodeSupportsCompactClick(displayedSelectedNode.value)
+  nodeSupportsClick(displayedSelectedNode.value)
 ));
 
-const displayedSelectedNodeSupportsTextInput = computed(() => Boolean(
-  displayedSelectedNode.value &&
-  (
-    displayedSelectedNode.value.componentTypes.includes('TMP_InputField') ||
-    displayedSelectedNode.value.componentTypes.includes('NumericInputField')
-  ),
+const displayedSelectedNodeSupportsTextInput = computed(() => (
+  nodeSupportsTextInput(displayedSelectedNode.value)
 ));
 
 const canRunDisplayedClickAction = computed(() => Boolean(
@@ -231,13 +231,6 @@ function rowFeedbackClass(path) {
   return `is-${lastRowFeedback.value.tone}`;
 }
 
-function nodeSupportsCompactClick(node) {
-  return Boolean(
-    node &&
-    (node.componentTypes.includes('Button') || node.componentTypes.includes('Toggle'))
-  );
-}
-
 async function handleNodeDoubleClick(node) {
   if (effectiveCommandLoading.value) {
     return;
@@ -245,7 +238,7 @@ async function handleNodeDoubleClick(node) {
 
   setSelectedNode(node.path);
 
-  if (!nodeSupportsCompactClick(node)) {
+  if (!nodeSupportsClick(node)) {
     uiActionError.value = t('inject.controllerNodeNotClickable');
     setRowFeedback(node.path, 'blocked');
     return;

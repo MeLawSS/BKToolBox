@@ -408,6 +408,69 @@ describe('InjectUiAutomationPanel', () => {
     expect(wrapper.get('[data-testid="controller-ui-node-row-0"]').classes()).not.toContain('is-success');
   });
 
+  it('clears transient row feedback after a successful panel switch', async () => {
+    vi.useFakeTimers();
+
+    const runAutoOperationCommand = vi.fn(async (command, args) => {
+      if (command === 'GetCurrentUI') {
+        return { ok: true, result: { panel: 'UIMain' } };
+      }
+      if (command === 'GetVisiblePanels') {
+        return { ok: true, result: { panels: ['UIMain', 'BidPop_Main'] } };
+      }
+      if (command === 'DumpPanelTree') {
+        if (args.panel === 'BidPop_Main') {
+          return {
+            ok: true,
+            result: {
+              panel: 'BidPop_Main',
+              rootPath: '',
+              truncated: false,
+              nodes: [
+                {
+                  path: 'BidButton',
+                  name: 'BidButton',
+                  active: true,
+                  interactive: true,
+                  componentTypes: ['Button'],
+                },
+              ],
+            },
+          };
+        }
+
+        return {
+          ok: true,
+          result: {
+            panel: 'UIMain',
+            rootPath: '',
+            truncated: false,
+            nodes: createDumpNodes(),
+          },
+        };
+      }
+      if (command === 'ClickNode') {
+        return { ok: true, result: { clicked: true, path: args.path } };
+      }
+      throw new Error(`unexpected command: ${command}`);
+    });
+    const { wrapper } = await mountPanel({ runAutoOperationCommand });
+
+    await wrapper.get('[data-testid="controller-ui-node-row-0"]').trigger('dblclick');
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.get('[data-testid="controller-ui-node-row-0"]').classes()).toContain('is-success');
+
+    await wrapper.get('[data-testid="controller-ui-panel-select"]').setValue('BidPop_Main');
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="controller-ui-node-row-0"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="controller-ui-node-row-0"]').classes()).not.toContain('is-success');
+    expect(wrapper.get('[data-testid="controller-ui-node-row-0"]').text()).toContain('BidButton');
+  });
+
   it('busy state blocks row double click without wiping prior diagnostics, and still allows typing in search', async () => {
     const { wrapper, runAutoOperationCommand } = await mountPanel();
 

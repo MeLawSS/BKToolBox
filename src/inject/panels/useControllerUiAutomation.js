@@ -52,14 +52,14 @@ function resolveRefreshPanel(previousPanel, currentPanel, panels) {
   return resolveActivationPanel(currentPanel, panels);
 }
 
-function nodeSupportsClick(node) {
+export function nodeSupportsClick(node) {
   return Boolean(
     node &&
     (node.componentTypes.includes('Button') || node.componentTypes.includes('Toggle')),
   );
 }
 
-function nodeSupportsTextInput(node) {
+export function nodeSupportsTextInput(node) {
   return Boolean(
     node &&
     (
