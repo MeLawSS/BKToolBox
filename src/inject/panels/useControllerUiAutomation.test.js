@@ -278,7 +278,7 @@ describe('useControllerUiAutomation', () => {
     await flushPromises();
     await nextTick();
 
-    await api.refreshUi({ preserveSelectedPanel: true });
+    await api.refreshUi();
     await flushPromises();
     await nextTick();
 

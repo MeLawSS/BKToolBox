@@ -186,7 +186,7 @@ export function useControllerUiAutomation({
       return false;
     }
 
-    const preserveSelectedPanel = options.preserveSelectedPanel ?? false;
+    const preserveSelectedPanel = options.preserveSelectedPanel ?? true;
     uiAutomationRefreshing.value = true;
     uiAutomationError.value = '';
 
