@@ -196,6 +196,9 @@ describe('InjectUiAutomationPanel', () => {
     await row.trigger('click');
     await flushPromises();
     await nextTick();
+
+    expect(row.classes()).toContain('is-selected');
+    expect(wrapper.find('[data-testid="controller-ui-detail-path"]').exists()).toBe(true);
     expect(getClickCalls(runAutoOperationCommand)).toHaveLength(0);
 
     await row.trigger('dblclick');
@@ -230,6 +233,7 @@ describe('InjectUiAutomationPanel', () => {
 
     expect(getClickCalls(runAutoOperationCommand)).toHaveLength(0);
     expect(wrapper.get('[data-testid="controller-ui-node-row-1"]').classes()).toContain('is-blocked');
+    expect(wrapper.find('[data-testid="controller-ui-action-error"]').exists()).toBe(true);
   });
 
   it('clears row-level failure styling after 1.5s', async () => {
