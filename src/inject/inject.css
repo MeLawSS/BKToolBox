@@ -599,6 +599,86 @@ a { color: inherit; text-decoration: none; }
   white-space: pre-wrap;
 }
 
+.controller-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.controller-command-panel {
+  gap: 14px;
+}
+
+.controller-command-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  gap: 10px;
+}
+
+.controller-command-fields label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.controller-command-fields input,
+.controller-command-fields textarea {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.controller-command-fields input {
+  min-height: 34px;
+}
+
+.controller-command-fields textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.controller-command-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.controller-inline-hint {
+  margin: 0;
+}
+
+.controller-response-placeholder {
+  color: var(--muted);
+}
+
+.controller-domain-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.controller-domain-card {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-2);
+  padding: 14px;
+}
+
+.controller-domain-card h3 {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.controller-domain-card p {
+  color: var(--muted);
+}
+
 @media (max-width: 760px) {
   .page {
     width: min(100vw - 20px, 1440px);
@@ -616,6 +696,11 @@ a { color: inherit; text-decoration: none; }
   .collection-scan-fields,
   .command-grid,
   .advisor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .controller-command-fields,
+  .controller-domain-grid {
     grid-template-columns: 1fr;
   }
 

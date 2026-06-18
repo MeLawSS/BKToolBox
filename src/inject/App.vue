@@ -3,6 +3,7 @@ import StockMovePanel from './StockMovePanel.vue';
 import InjectAgentPanel from './panels/InjectAgentPanel.vue';
 import InjectCabinetRewardPanel from './panels/InjectCabinetRewardPanel.vue';
 import InjectCollectionScanPanel from './panels/InjectCollectionScanPanel.vue';
+import InjectControllerPanel from './panels/InjectControllerPanel.vue';
 import InjectDelayedPricePanel from './panels/InjectDelayedPricePanel.vue';
 import InjectListingPanel from './panels/InjectListingPanel.vue';
 import InjectWarehousePanel from './panels/InjectWarehousePanel.vue';
@@ -23,6 +24,7 @@ const workspaceNavGroups = [
     items: [
       { id: 'cabinet', titleKey: 'inject.nav.cabinet' },
       { id: 'agent', titleKey: 'inject.nav.agent' },
+      { id: 'controller', titleKey: 'inject.nav.controller' },
     ],
   },
   {
@@ -147,6 +149,16 @@ onUnmounted(() => {
             :command-loading="autoOperationCommandLoading"
             @command-loading-change="setAutoOperationCommandLoading"
           />
+        </section>
+
+        <section
+          v-if="renderedPanels.controller"
+          v-show="activePanelId === 'controller'"
+          class="inject-panel workspace-shell__panel"
+          data-testid="inject-panel-controller"
+          :aria-label="t('inject.controllerTitle')"
+        >
+          <InjectControllerPanel />
         </section>
 
         <section

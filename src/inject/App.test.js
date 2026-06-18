@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import App from './App.vue';
+import { LOCALE_STORAGE_KEY } from '../shared/i18n.js';
 import { __resetAutoOperationAgentSwitchRuntimeForTest } from '../shared/useAutoOperationAgentSwitch.js';
 
 async function mountApp() {
@@ -10,6 +11,12 @@ async function mountApp() {
   await flushPromises();
   await nextTick();
   return wrapper;
+}
+
+async function activatePanel(wrapper, panelId) {
+  await wrapper.find(`[data-testid="inject-tab-${panelId}"]`).trigger('click');
+  await flushPromises();
+  await nextTick();
 }
 
 const listNowAdvice = {
@@ -129,6 +136,7 @@ describe('Inject App', () => {
     };
 
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'agent');
     const button = wrapper.find('[data-testid="auto-op-agent-button"]');
     expect(button.exists()).toBe(true);
 
@@ -158,6 +166,7 @@ describe('Inject App', () => {
     };
 
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'agent');
 
     await wrapper.find('[data-testid="topbar-agent-switch"]').trigger('click');
     await flushPromises();
@@ -165,6 +174,101 @@ describe('Inject App', () => {
 
     expect(startAutoOperationAgent).toHaveBeenCalledTimes(1);
     expect(wrapper.find('[data-testid="auto-op-agent-status"]').text()).toContain('已连接');
+  });
+
+  it('adds a controller tab to the basic inject group and mounts the panel on demand', async () => {
+    const wrapper = await mountApp();
+
+    expect(wrapper.find('[data-testid="inject-nav-group-basic"]').text()).toContain('控制器');
+    expect(wrapper.find('[data-testid="inject-panel-controller"]').exists()).toBe(false);
+
+    await activatePanel(wrapper, 'controller');
+
+    expect(wrapper.find('[data-testid="inject-panel-controller"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="controller-send-button"]').element.disabled).toBe(true);
+  });
+
+  it('renders the controller navigation label in English when locale is saved', async () => {
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, 'en-US');
+
+    const wrapper = await mountApp();
+
+    expect(document.documentElement.lang).toBe('en-US');
+    expect(wrapper.find('[data-testid="inject-nav-group-basic"]').text()).toContain('Controller');
+  });
+
+  it('does not trigger an extra Ping when opening the controller panel', async () => {
+    const runAutoOperationCommand = vi.fn().mockResolvedValue({
+      ok: true,
+      value: { pong: true },
+    });
+    window.bidkingDesktop = {
+      isDesktop: true,
+      queryCabinetReward: vi.fn(),
+      claimCabinetReward: vi.fn(),
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand,
+    };
+
+    const wrapper = await mountApp();
+    await flushPromises();
+    await nextTick();
+
+    expect(runAutoOperationCommand).toHaveBeenCalledTimes(1);
+    expect(runAutoOperationCommand).toHaveBeenCalledWith('Ping', {});
+
+    await activatePanel(wrapper, 'controller');
+
+    expect(runAutoOperationCommand).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the shared agent status in the controller panel after the topbar switch loads the agent', async () => {
+    const startAutoOperationAgent = vi.fn().mockResolvedValue({
+      ok: true,
+      value: { pong: true },
+    });
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'Ping') throw new Error('offline');
+      throw new Error(`unexpected command: ${command}`);
+    });
+    window.bidkingDesktop = {
+      isDesktop: true,
+      queryCabinetReward: vi.fn(),
+      claimCabinetReward: vi.fn(),
+      startAutoOperationAgent,
+      runAutoOperationCommand,
+    };
+
+    const wrapper = await mountApp();
+
+    await wrapper.find('[data-testid="topbar-agent-switch"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+    await activatePanel(wrapper, 'controller');
+
+    expect(startAutoOperationAgent).toHaveBeenCalledTimes(1);
+    expect(wrapper.find('[data-testid="controller-status-agentConnection"]').text()).toContain('已连接');
+  });
+
+  it('preserves and then clears controller inputs with the existing inject lifecycle', async () => {
+    const wrapper = await mountApp();
+
+    await activatePanel(wrapper, 'controller');
+    await wrapper.find('[data-testid="controller-command-input"]').setValue('MoveToNpc');
+
+    await activatePanel(wrapper, 'cabinet');
+    await activatePanel(wrapper, 'controller');
+
+    expect(wrapper.find('[data-testid="controller-command-input"]').element.value).toBe('MoveToNpc');
+
+    window.dispatchEvent(new CustomEvent('bidking:leave-inject'));
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="inject-panel-controller"]').exists()).toBe(false);
+
+    await activatePanel(wrapper, 'controller');
+
+    expect(wrapper.find('[data-testid="controller-command-input"]').element.value).toBe('');
   });
 
   it('marks the shared agent state offline after a manual Ping command fails', async () => {
@@ -186,6 +290,7 @@ describe('Inject App', () => {
 
     const wrapper = await mountApp();
     expect(wrapper.find('[data-testid="topbar-agent-switch"]').attributes('aria-pressed')).toBe('true');
+    await activatePanel(wrapper, 'agent');
 
     pingOnline = false;
     await wrapper.find('[data-testid="auto-op-command-Ping"]').trigger('click');
@@ -209,6 +314,7 @@ describe('Inject App', () => {
     };
 
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'agent');
 
     for (const command of ['Ping', 'GetCurrentUI', 'GetVisiblePanels', 'OpenPanel', 'ClosePanel', 'CollectionPrices', 'InvokeMethod', 'UnloadAgent']) {
       expect(wrapper.find(`[data-testid="auto-op-command-${command}"]`).exists()).toBe(true);
@@ -264,6 +370,7 @@ describe('Inject App', () => {
     };
 
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'warehouse');
     await wrapper.find('[data-testid="warehouse-items-button"]').trigger('click');
 
     expect(runAutoOperationCommand).toHaveBeenCalledWith('GetStockCollectibleCounts', {});
@@ -294,11 +401,13 @@ describe('Inject App', () => {
     };
 
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'stockMove');
     expect(wrapper.find('[data-testid="stock-move-panel"]').exists()).toBe(true);
   });
 
   it('hides the stock move panel outside desktop mode', async () => {
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'stockMove');
     expect(wrapper.find('[data-testid="stock-move-panel"]').exists()).toBe(false);
   });
 
@@ -329,6 +438,7 @@ describe('Inject App', () => {
     };
 
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'listing');
     await wrapper.find('[data-testid="exchange-item-query"]').setValue('数据');
     await flushPromises();
     await nextTick();
@@ -362,6 +472,7 @@ describe('Inject App', () => {
     };
 
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'listing');
     await wrapper.find('[data-testid="exchange-item-query"]').setValue('1011001');
     await wrapper.find('[data-testid="exchange-item-count"]').setValue('1');
     await wrapper.find('[data-testid="exchange-item-unit-price"]').setValue('500');
@@ -423,6 +534,7 @@ describe('Inject App', () => {
     };
 
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'delayedPrice');
     await wrapper.find('[data-testid="delayed-price-query-input"]').setValue('进气');
     await flushPromises();
     await nextTick();
@@ -474,6 +586,7 @@ describe('Inject App', () => {
     };
 
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'collectionScan');
     await wrapper.find('[data-testid="collection-scan-interval"]').setValue('30');
     await wrapper.find('[data-testid="collection-scan-item-delay"]').setValue('7');
     await wrapper.find('[data-testid="collection-scan-item-jitter"]').setValue('3');
@@ -516,10 +629,12 @@ describe('Inject App', () => {
     };
 
     const firstWrapper = await mountApp();
+    await activatePanel(firstWrapper, 'collectionScan');
     firstWrapper.unmount();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
 
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'collectionScan');
     const panelText = wrapper.find('[data-testid="collection-price-scan-panel"]').text();
     expect(panelText).toContain('waiting_item');
     expect(panelText).toContain('37 / 128');
@@ -545,6 +660,7 @@ describe('Inject App', () => {
     const confirmHighPriceExchangeListing = setupDesktopWithHighPriceConfirm();
 
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'listing');
     await wrapper.find('[data-testid="exchange-item-query"]').setValue('1083009');
     await wrapper.find('[data-testid="exchange-item-count"]').setValue('1');
     await wrapper.find('[data-testid="refresh-listing-advice"]').trigger('click');
@@ -599,6 +715,7 @@ describe('Inject App', () => {
     const confirmHighPriceExchangeListing = setupDesktopWithHighPriceConfirm();
 
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'listing');
     await wrapper.find('[data-testid="exchange-item-query"]').setValue('1083009');
     await wrapper.find('[data-testid="exchange-item-count"]').setValue('1');
     await wrapper.find('[data-testid="refresh-listing-advice"]').trigger('click');
@@ -634,6 +751,7 @@ describe('Inject App', () => {
     const confirmHighPriceExchangeListing = setupDesktopWithHighPriceConfirm();
 
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'listing');
     await wrapper.find('[data-testid="exchange-item-query"]').setValue('1083009');
     await wrapper.find('[data-testid="exchange-item-count"]').setValue('1');
     await wrapper.find('[data-testid="refresh-listing-advice"]').trigger('click');
@@ -675,6 +793,7 @@ describe('Inject App', () => {
     const confirmHighPriceExchangeListing = setupDesktopWithHighPriceConfirm();
 
     const wrapper = await mountApp();
+    await activatePanel(wrapper, 'listing');
     await wrapper.find('[data-testid="exchange-item-query"]').setValue('1083009');
     await wrapper.find('[data-testid="exchange-item-count"]').setValue('1');
     await wrapper.find('[data-testid="refresh-listing-advice"]').trigger('click');

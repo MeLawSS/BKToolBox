@@ -1,7 +1,7 @@
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, readonly, ref } from 'vue';
 import { useI18n } from './i18n.js';
 
-const AGENT_CONNECTED_STORAGE_KEY = 'bidking-auto-operation-agent-connected';
+export const AGENT_CONNECTED_STORAGE_KEY = 'bidking-auto-operation-agent-connected';
 
 function getSessionStorage() {
   if (typeof window === 'undefined') return null;
@@ -47,6 +47,9 @@ function hydrateConnectedState() {
 const connected = ref(readPersistedConnectedState());
 const errorText = ref('');
 const busy = ref(false);
+const publicConnected = readonly(connected);
+const publicErrorText = readonly(errorText);
+const publicBusy = readonly(busy);
 
 let refreshPromise = null;
 let loadPromise = null;
@@ -97,6 +100,20 @@ function clearPendingIfIdle() {
   if (!refreshPromise && !loadPromise && !unloadPromise) {
     setBusy(false);
   }
+}
+
+function createRuntimeView(t) {
+  return {
+    isAvailable: computed(() => isAvailableBridge()),
+    isConnected: publicConnected,
+    errorText: publicErrorText,
+    isBusy: publicBusy,
+    statusText: computed(() => {
+      if (busy.value) return t('inject.autoOperationStarting');
+      if (errorText.value) return t('inject.failed');
+      return connected.value ? t('inject.autoOperationConnected') : t('inject.waiting');
+    }),
+  };
 }
 
 async function refreshAgentState() {
@@ -220,6 +237,13 @@ async function toggleAgent() {
   return connected.value ? unloadAgent() : loadAgent();
 }
 
+export function useAutoOperationAgentRuntimeState() {
+  const { t } = useI18n();
+  hydrateConnectedState();
+
+  return createRuntimeView(t);
+}
+
 export function useAutoOperationAgentSwitch() {
   const { t } = useI18n();
   hydrateConnectedState();
@@ -234,15 +258,7 @@ export function useAutoOperationAgentSwitch() {
   });
 
   return {
-    isAvailable: computed(() => isAvailableBridge()),
-    isConnected: connected,
-    errorText,
-    isBusy: busy,
-    statusText: computed(() => {
-      if (busy.value) return t('inject.autoOperationStarting');
-      if (errorText.value) return t('inject.failed');
-      return connected.value ? t('inject.autoOperationConnected') : t('inject.waiting');
-    }),
+    ...createRuntimeView(t),
     refreshAgentState,
     loadAgent,
     unloadAgent,

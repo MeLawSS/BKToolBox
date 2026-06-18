@@ -1,9 +1,10 @@
 /* @vitest-environment happy-dom */
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, nextTick } from 'vue';
+import { defineComponent, isReadonly, nextTick } from 'vue';
 import {
   __resetAutoOperationAgentSwitchRuntimeForTest,
+  useAutoOperationAgentRuntimeState,
   useAutoOperationAgentSwitch,
 } from './useAutoOperationAgentSwitch.js';
 
@@ -26,6 +27,36 @@ function mountHook() {
   });
 
   return mount(Probe, { attachTo: document.body });
+}
+
+function mountPassiveHook() {
+  const Probe = defineComponent({
+    setup() {
+      return useAutoOperationAgentRuntimeState();
+    },
+    template: '<div />',
+  });
+
+  return mount(Probe, { attachTo: document.body });
+}
+
+function capturePassiveHook() {
+  let runtimeState = null;
+  const Probe = defineComponent({
+    setup() {
+      runtimeState = useAutoOperationAgentRuntimeState();
+      return runtimeState;
+    },
+    template: '<div />',
+  });
+
+  const wrapper = mount(Probe, { attachTo: document.body });
+  return {
+    wrapper,
+    getRuntimeState() {
+      return runtimeState;
+    },
+  };
 }
 
 describe('useAutoOperationAgentSwitch', () => {
@@ -274,5 +305,72 @@ describe('useAutoOperationAgentSwitch', () => {
 
     expect(runAutoOperationCommand).toHaveBeenCalledWith('Ping', {});
     expect(wrapper.vm.isBusy).toBe(false);
+  });
+
+  it('exposes a passive runtime view without probing the agent on mount', async () => {
+    const runAutoOperationCommand = vi.fn().mockResolvedValue({
+      ok: true,
+      value: { pong: true },
+    });
+    window.bidkingDesktop = {
+      isDesktop: true,
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand,
+    };
+
+    const wrapper = mountPassiveHook();
+    await flushPromises();
+    await nextTick();
+
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+    expect(wrapper.vm.isAvailable).toBe(true);
+    expect(wrapper.vm.isConnected).toBe(false);
+    expect(wrapper.vm.statusText).toBe('等待获取');
+  });
+
+  it('lets passive consumers observe shared agent state after an active probe', async () => {
+    const runAutoOperationCommand = vi.fn().mockResolvedValue({
+      ok: true,
+      value: { pong: true },
+    });
+    window.bidkingDesktop = {
+      isDesktop: true,
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand,
+    };
+
+    const activeWrapper = mountHook();
+    await flushPromises();
+    await nextTick();
+
+    const passiveWrapper = mountPassiveHook();
+    await flushPromises();
+    await nextTick();
+
+    expect(runAutoOperationCommand).toHaveBeenCalledTimes(1);
+    expect(activeWrapper.vm.isConnected).toBe(true);
+    expect(passiveWrapper.vm.isAvailable).toBe(true);
+    expect(passiveWrapper.vm.isConnected).toBe(true);
+    expect(passiveWrapper.vm.statusText).toBe('已连接');
+  });
+
+  it('exposes passive runtime state as readonly refs', async () => {
+    window.bidkingDesktop = {
+      isDesktop: true,
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand: vi.fn(),
+    };
+
+    const { wrapper, getRuntimeState } = capturePassiveHook();
+    await flushPromises();
+    await nextTick();
+
+    const runtimeState = getRuntimeState();
+
+    expect(isReadonly(runtimeState.isConnected)).toBe(true);
+    expect(isReadonly(runtimeState.errorText)).toBe(true);
+    expect(isReadonly(runtimeState.isBusy)).toBe(true);
+
+    wrapper.unmount();
   });
 });
