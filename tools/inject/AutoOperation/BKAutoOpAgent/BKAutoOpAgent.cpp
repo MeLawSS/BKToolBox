@@ -3885,13 +3885,13 @@ typedef void (*ProbeEntryFn)(const char*, char*, int);
 static void CmdLoadProbe(AgentConn* c, const char* id, const char* json) {
     char dllPath[MAX_PATH] = {};
     char argsJson[BK_BUF_SIZE] = {};
-    strncpy(argsJson, "{}", sizeof(argsJson) - 1);
 
     if (!JsonGetString(json, "dllPath", dllPath, sizeof(dllPath))) {
         SendResponse(c, id, false, "dllPath is required");
         return;
     }
-    JsonGetString(json, "argsJson", argsJson, sizeof(argsJson));
+    if (!JsonGetString(json, "argsJson", argsJson, sizeof(argsJson)))
+        strncpy(argsJson, "{}", sizeof(argsJson) - 1);
 
     HMODULE h = LoadLibraryA(dllPath);
     if (!h) {
@@ -3908,25 +3908,13 @@ static void CmdLoadProbe(AgentConn* c, const char* id, const char* json) {
         return;
     }
 
-    static char resultBuf[65536];
-    memset(resultBuf, 0, sizeof(resultBuf));
-    fn(argsJson, resultBuf, (int)sizeof(resultBuf));
+    std::vector<char> resultBuf(65536, 0);
+    fn(argsJson, resultBuf.data(), (int)resultBuf.size());
     FreeLibrary(h);
 
-    // JSON-escape resultBuf into output field
-    char escaped[131072];
-    int ei = 0;
-    for (int i = 0; resultBuf[i] && ei < (int)sizeof(escaped) - 4; i++) {
-        unsigned char ch = (unsigned char)resultBuf[i];
-        if (ch == '"' || ch == '\\') { escaped[ei++] = '\\'; escaped[ei++] = ch; }
-        else if (ch == '\n')         { escaped[ei++] = '\\'; escaped[ei++] = 'n'; }
-        else if (ch == '\r')         { escaped[ei++] = '\\'; escaped[ei++] = 'r'; }
-        else                         { escaped[ei++] = (char)ch; }
-    }
-    escaped[ei] = '\0';
-
+    std::string escaped = EscapeJsonString(std::string(resultBuf.data()));
     char result[BK_BUF_SIZE];
-    snprintf(result, sizeof(result), "{\"output\":\"%s\"}", escaped);
+    snprintf(result, sizeof(result), "{\"output\":\"%s\"}", escaped.c_str());
     SendResponse(c, id, true, result);
 }
 

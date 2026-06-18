@@ -7,8 +7,7 @@ const { sendCommand, PIPE_NAME } = require('./pipe.js');
 
 function toWslPath(winPath) {
     return winPath
-        .toLowerCase()
-        .replace(/^([a-z]):/, (_, d) => `/mnt/${d}`)
+        .replace(/^([A-Za-z]):/, (_, d) => `/mnt/${d.toLowerCase()}`)
         .replace(/\\/g, '/');
 }
 

@@ -370,7 +370,7 @@ describe('probe.js', () => {
     assert.ok(calls[0].args.includes('bash'));
     assert.ok(calls[0].args.some(a => a.includes('build_probe.sh')));
     assert.ok(calls[0].args.some(a => a === '/mnt/c/test/probe.cpp'));
-    assert.ok(calls[0].args.some(a => a === '/mnt/c/temp/bkprobe_test.dll'));
+    assert.ok(calls[0].args.some(a => a === '/mnt/c/Temp/bkprobe_test.dll'));
   });
 
   it('compileProbeDll: throws with detail when wsl exits non-zero', () => {
