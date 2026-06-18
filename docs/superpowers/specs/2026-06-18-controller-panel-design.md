@@ -50,6 +50,10 @@
 - `柜子奖励`
 - `Agent 状态`
 
+这里以当前代码 `src/inject/App.vue` 为准。
+
+当前 `docs/Documentation.md` 里仍残留旧口径，把 `仓库藏品` 也写在 `基础` 分组中；这属于 current-state 文档待同步项，后续实现轮需要一并修正。
+
 当前 `Agent 状态` panel 已经承担：
 
 - agent 注入与连接状态
@@ -187,6 +191,12 @@
 - 可以读取 `useAutoOperationAgentSwitch()` 暴露的可用性、连接态和状态文案
 - 不负责 `loadAgent()` / `unloadAgent()` / `toggleAgent()`
 - 不自己再次执行 `Ping`，避免和共享 runtime 重复维护另一份状态
+- 不允许通过“在 `InjectControllerPanel.vue` 内直接实例化会于 `onMounted` 触发 `refreshAgentState()` 的 composable”来达成只读消费
+- 必须通过真正被动的只读接入方式消费共享 agent 状态，例如：
+  - 从已存在的 runtime owner 传入只读状态
+  - 或从同一 runtime 模块导出不带 mount-refresh 副作用的只读访问层
+
+换句话说，`Controller` 首版允许展示共享 agent runtime 的当前状态，但不允许因为 panel 首次挂载而额外触发一轮新的 `Ping`。
 
 ### 测试定位约定
 
@@ -247,6 +257,7 @@
 - `Agent 桥接可用性` 必须直接读取共享 `useAutoOperationAgentSwitch()` runtime 的 `isAvailable`
 - `Agent 当前状态` 必须直接读取共享 `useAutoOperationAgentSwitch()` runtime 的 `isConnected` / `statusText`
   - 不能自己重新 `Ping`
+  - 不能因为本 panel 首次挂载而触发共享 runtime 的 mount-refresh
   - 不能只根据 bridge 能力是否存在来推断
 - `Controller 通道状态` 首版固定表达为“未接入”或等价文案
 
@@ -320,7 +331,7 @@
 - `agentBridgeAvailable`
   - 当前是否存在已知 agent 相关桥接能力
   - 直接消费共享 `useAutoOperationAgentSwitch()` runtime 的 `isAvailable`
-  - 与 `agentConnected` 一样，不在 `InjectControllerPanel.vue` 内重复计算
+  - 与 `agentConnected` 一样，不在 `InjectControllerPanel.vue` 内重复计算，也不通过直接实例化带 mount-refresh 的 composable 获得
 - `agentConnected`
   - 不作为本地自管状态保存
   - 直接消费共享 `useAutoOperationAgentSwitch()` runtime 的 `isConnected`
@@ -428,6 +439,7 @@ window.bidkingDesktop.runAutoOperationCommand(command, args)
 - 现有 panel 切换逻辑不回归
 - 新 panel 同样遵循首次访问挂载、后续保活的模式
 - `Controller` panel 显示的 agent 当前状态与共享 runtime 一致
+- 首次打开 `Controller` panel 不会因为自身挂载额外触发新的 `Ping`
 
 ### Panel 级测试
 
@@ -436,6 +448,7 @@ window.bidkingDesktop.runAutoOperationCommand(command, args)
 - 标题与说明文案渲染
 - readiness 状态渲染
 - `Agent 当前状态` 来源于共享 `useAutoOperationAgentSwitch()` runtime，而不是本地硬编码
+- `Agent 桥接可用性` 同样来源于共享 runtime，而不是本地重复判断
 - `发送` 按钮在首版默认 disabled
 - “controller 通道尚未接入”类提示存在
 - 响应区空态存在
