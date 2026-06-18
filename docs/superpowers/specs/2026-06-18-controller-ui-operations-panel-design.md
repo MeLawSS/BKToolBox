@@ -292,11 +292,20 @@ The node list always comes from:
 
 ```json
 {
-  "interactiveOnly": true
+  "interactiveOnly": true,
+  "maxDepth": 4,
+  "nodeLimit": 200
 }
 ```
 
 for the selected panel's `DumpPanelTree` call.
+
+Phase 1 uses the protocol defaults for `DumpPanelTree` depth/size limits:
+
+- `maxDepth: 4`
+- `nodeLimit: 200`
+
+If the response includes `truncated: true`, the node-list area must show a visible truncated-results hint so the user knows the interactive list may be incomplete.
 
 Phase 1 list items only need these fields:
 
@@ -512,6 +521,7 @@ Minimum key set:
 
 - `inject.controllerUiOperations`
 - `inject.controllerRefreshUi`
+- `inject.controllerUiTransportNotReady`
 - `inject.controllerCurrentMainUi`
 - `inject.controllerVisiblePanels`
 - `inject.controllerSelectedPanel`
