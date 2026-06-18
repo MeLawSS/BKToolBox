@@ -7,6 +7,7 @@ const DEFAULT_TIMEOUT_MS = 5000;
 
 function encodeFrame(jsonStr) {
     const body = Buffer.from(jsonStr, 'utf8');
+    if (body.length > MAX_FRAME) throw new Error(`frame too large: ${body.length} > ${MAX_FRAME}`);
     const header = Buffer.allocUnsafe(4);
     header.writeUInt32LE(body.length, 0);
     return Buffer.concat([header, body]);
