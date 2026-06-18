@@ -389,7 +389,7 @@ BKToolBox/
 当前关键实现：
 
 - `src/inject/App.vue` 现在只是 workspace 壳层：维护左侧导航、当前激活 panel、已访问 panel 集合、共享 `collectibles` 加载和跨 panel 的 AutoOperation command lock。
-- `InjectControllerPanel.vue` 当前通过 `src/shared/useAutoOperationAgentSwitch.js` 的无副作用只读视图消费共享 agent runtime，并复用 `App.vue` 提供的 shared AutoOperation command lock；它在 `desktop + bridge + connected` 时可直接发任意 `runAutoOperationCommand(command, args)`，同时仍不会在 panel 首次挂载时自行触发新的 `Ping`。
+- `InjectControllerPanel.vue` 当前通过 `src/shared/useAutoOperationAgentSwitch.js` 的无副作用只读视图消费共享 agent runtime，并作为 readiness cards + 泛型 command console 的外层壳；`InjectUiAutomationPanel.vue` + `useControllerUiAutomation.js` 则负责 activation refresh、visible panel 切换、node 选择，以及 `ClickNode / SetInputText` 结构化动作，同时复用 `App.vue` 提供的 shared AutoOperation command lock；整个 `Controller` panel 在首次挂载时仍不会自行触发新的 `Ping`。
 - `src/inject/panels/InjectCabinetRewardPanel.vue`
 - `src/inject/panels/InjectAgentPanel.vue`
 - `src/inject/panels/InjectControllerPanel.vue`

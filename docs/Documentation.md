@@ -50,7 +50,7 @@
   - 已改为 workspace shell：左侧按 `基础 / 交易` 分组切换 panel，右侧只显示一个激活 panel
   - 基础 panel 为 `展示柜收益 / Agent 状态 / 控制器`，交易 panel 为 `仓库统计 / 批量移仓 / 上架建议 / 延迟价格查询 / 收藏价格采集`
   - `src/inject/panels/*.vue` 现在承载除 `StockMovePanel` 外的各个 panel；`StockMovePanel` 继续作为一级 workspace panel 保留
-  - `src/inject/panels/InjectControllerPanel.vue` 现在是可用的泛型 controller 工作台：只读显示桌面环境、共享 agent runtime 的桥接可用性/连接状态，复用页级 AutoOperation command lock，并在 `desktop + bridge + connected` 时直接发送任意 `runAutoOperationCommand(command, args)`；它不会在首次挂载时额外触发新的 `Ping`
+  - `src/inject/panels/InjectControllerPanel.vue` 现在同时承载 `UI 操作` 和泛型 command console：它先只读显示桌面环境、共享 agent runtime 的桥接可用性/连接状态；`UI 操作` 会通过 `GetCurrentUI -> GetVisiblePanels -> DumpPanelTree` 刷新当前 UI，并对 `Button / Toggle / TMP_InputField / NumericInputField` 提供结构化操作；command console 在 `desktop + bridge + connected` 时仍可直接发送任意 `runAutoOperationCommand(command, args)`；两者都复用页级 AutoOperation command lock，且 Controller 首次挂载时仍不会额外触发新的 `Ping`
   - 页内切换 panel 时保留各 panel 的局部输入和结果；收到 `bidking:leave-inject` 后会把 Inject 工作台恢复到冷启动状态
   - 批量移仓当前支持主仓库；来源列表按 `itemCid` 合并同类藏品，支持按 `名称 / CID / 品质 / 类型` 搜索，`全选` 仅作用于当前可见分组；在当前游戏构建里，主仓库可能以 `stockId: 0` 出现在 `GetStockContainers` / `MoveStockItem` 流程中
 
@@ -178,7 +178,7 @@
 - 面向 `Inject -> Controller` 页的可直接复制命令示例在 `docs/CONTROLLER_PAGE_COMMAND_EXAMPLES.md`
 - 当前桌面端 `startAutoOperationAgent()` 会先尝试 ping 已存在的 `BKAutoOp` 命名管道；只有 pipe 不可达时才重新注入 `BKAutoOpAgent.dll`，避免同一游戏进程里重复 `LoadLibrary` 同一路径的 agent DLL。
 - 当前桌面端执行 `UnloadAgent` 时，会等待 `BKAutoOp` pipe 消失并额外留出短暂释放缓冲后再返回，降低退出应用后立刻重打包时命中旧 DLL 文件锁的概率。
-- `Inject` 页当前由 `src/inject/App.vue` 只负责 workspace 壳层、共享 `collectibles` 加载和跨 panel 的 AutoOperation command lock；展示柜收益 / Agent 状态 / 控制器 / 仓库统计 / 上架建议 / 延迟价格 / 收藏采集都已拆到 `src/inject/panels/*.vue`，只有 `StockMovePanel.vue` 继续保留为一级 panel。`Controller` panel 现在也接入这把共享 command lock，因此不会和 `Agent 状态 / 上架建议 / 延迟价格` 并发发 pipe 命令。
+- `Inject` 页当前由 `src/inject/App.vue` 只负责 workspace 壳层、共享 `collectibles` 加载和跨 panel 的 AutoOperation command lock；展示柜收益 / Agent 状态 / 控制器 / 仓库统计 / 上架建议 / 延迟价格 / 收藏采集都已拆到 `src/inject/panels/*.vue`，只有 `StockMovePanel.vue` 继续保留为一级 panel。`Controller` panel 内部现在拆成 readiness cards + `UI 操作` 子面板 + 泛型 command console；其中 `UI 操作` 与 command console 一样接入这把共享 command lock，因此不会和 `Agent 状态 / 上架建议 / 延迟价格` 等其他 AutoOperation 面板并发发 pipe 命令。
 - `Inject` 页当前新增 `批量移仓` 面板：先调用 `runAutoOperationCommand('GetStockContainers')` 拉取物品箱快照，再由 `src/inject/stock-move.js` 在 renderer 侧按 row-major 空位扫描目标落点，最后顺序执行 `MoveStockItem`；来源表按 `itemCid` 聚合同类实例，并支持对 `名称 / 品质 / 类型 / CID / 尺寸 / 数量 / 占格` 7 列做单列升序/降序排序，默认顺序仍为 `boxCount` 降序、藏品名称升序、`itemCid` 升序；勾选一行会展开成该 `itemCid` 的全部实例参与移动；若实际要发出多条 `MoveStockItem`，两条真实移动命令之间固定等待 `1s`，并且每次跳过/成功/失败后都会实时刷新 `已处理 / 总数 / 成功 / 跳过 / 失败 / 当前藏品` 进度，成功移动仍以前一条命令返回的新快照作为下一次摆放依据。当前 agent 会在每次 `MoveStockItem` 成功后额外调用一次 `PlayerManager.GetAllStocks()` 刷新库存缓存；若这一步未完成，pipe 响应会把 `stocksRefreshed` 标成 `false`，但不会把已成功的移动误报为失败。面板当前还支持把 Saved List 保存到 `Documents/BidKing/stock-move-lists/`：每个列表一个 JSON 文件，包含 `itemCids` 和展示快照 `items`；新建列表入口已经改成独立 modal，可从全量 `collectibles.json` 搜索任意藏品追加到草稿，也可以把当前源仓勾选的 `itemCid` 快速导入草稿；页面挂载、成功加载物品箱和 modal 保存成功后都会刷新列表；应用列表时只选中当前源仓实际存在的 `itemCid`，并显示保存种类数、保存时间、当前匹配数；如果刷新请求乱序返回，renderer 会丢弃过期响应，避免旧列表结果覆盖新状态。当前游戏构建里，这一步仍不能稳定触发已打开的仓库 / 物品箱页面即时重绘。
 - `GetStockContainers` 当前会把主仓库作为合法容器返回；如果游戏原始 `GetAllStocks()` 把主仓库标成 `stockId: 0`，renderer 和 agent 都会按“非负整数 stockId”处理，而不会再把它当作非法容器过滤掉。
 - AutoOperation 命名管道当前接受到 `256KB` 的单帧 JSON 响应；这是为了让 `GetStockContainers` 在包含主仓库完整 `boxIds` 时不再命中旧的 `64KB` 响应上限。
@@ -252,10 +252,10 @@
 
 ## 最新验证
 
-- 2026-06-18：`npx vitest run src/shared/useAutoOperationAgentSwitch.test.js src/inject/panels/InjectControllerPanel.test.js src/inject/App.test.js` 通过，`3` 个测试文件、`42` 个用例全绿；新增覆盖 `Controller` panel 的可发送命令工作台、英文降级文案、无额外 `Ping` 的被动 shared runtime 订阅，以及 TopBar / shared agent runtime 状态变化会同步影响 `Controller` transport ready 态。
-- 2026-06-18：`npx vitest run electron/services/inject-service.test.mjs` 通过，`1` 个测试文件、`34` 个用例全绿；覆盖新增 UI 自动化 wait 命令的 bridge timeout 派生逻辑。
-- 2026-06-18：`npm run build:inject` 通过，说明可执行的 `Controller` command console、Inject 导航项和相关 i18n 改动可正常构建到 `public/inject/`。
-- 2026-06-18：`git diff --check` 无输出，说明本轮 `Controller` panel 与 current-state 文档更新未引入空白或补丁格式问题。
+- 2026-06-18：`npx vitest run src/inject/panels/useControllerUiAutomation.test.js src/inject/panels/InjectUiAutomationPanel.test.js src/inject/panels/InjectControllerPanel.test.js src/inject/App.test.js` 通过，`4` 个测试文件、`54` 个用例全绿；覆盖 `Controller` 新增 `UI 操作` 子面板的 activation refresh、visible panel 切换、node 选择，以及对 `Button / Toggle / TMP_InputField / NumericInputField` 的 `ClickNode / SetInputText` 结构化操作，并确认它继续接入页面级 shared AutoOperation command lock。
+- 2026-06-18：`npx vitest run src/shared/useAutoOperationAgentSwitch.test.js` 通过，`1` 个测试文件、`12` 个用例全绿；结合上面的 `InjectControllerPanel` / `App` 测试链路，shared AutoOperation runtime 仍是唯一 `Ping` owner，因此 `Controller` 继续被动订阅 shared runtime，在首次挂载时不会额外触发新的 `Ping`。
+- 2026-06-18：`npm run build:inject` 通过；Vite 产出了 `public/inject/index.html`、`public/inject/assets/index-CiioHE7b.css` 和 `public/inject/assets/index-DoT1jmM0.js`，说明包含 `Controller UI 操作`、泛型 command console 和相关 i18n 的 Inject 页面可成功构建。
+- 2026-06-18：`git diff --check` 无输出，说明本轮 current-state 文档同步未引入空白或补丁格式问题。
 - 2026-06-18：Windows native 构建链路修复。`package.json` 新增 `@rolldown/binding-win32-x64-msvc` 到 `optionalDependencies`，与已有的 `@rolldown/binding-linux-x64-gnu` 并列；`ELECTRON_MIRROR` 从 `.npmrc` 静态配置改为运行时环境变量（`pack-win-dir.mjs` 启动时设入 `process.env`，`dist:win` 通过 `node -e` 包装 `electron-builder` 调用），消除 npm 11 对未知 `.npmrc` 键的 warning；`scripts/pack-win-dir.test.mjs` 中 3 个测试改为跨平台写法。
 - 2026-06-18：`npm run build:pages` 在 Windows native (Node.js v24.16.0, Windows 11 Pro 10.0.26200) 通过，7 个页面入口（`home / elsa / ahmed / ethan / monitor / price / inject`）全部构建成功。
 - 2026-06-18：`npm run pack -- --app-dir-name BKToolBox-dev` 在 Windows native 通过，完整链路 `build:pages → prepare:dumpcap (79 files) → electron-builder → patch-win-icons` 全部成功；electron-builder 报告 `@rolldown/binding-linux-x64-gnu` 为 missing optional dependency（Windows 上预期行为）。
