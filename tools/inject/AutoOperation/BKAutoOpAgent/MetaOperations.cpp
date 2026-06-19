@@ -819,7 +819,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             const char* sc = DetectScreenState().screen;
             if (strcmp(sc, "auction_in_progress") == 0) { found = true; break; }
             if (strcmp(sc, "auction_ended") == 0) {
-                SendResponse(c, id, true, "{\"result\":\"auction_ended\",\"rounds\":0}"); return;
+                char earlyResult[128];
+                snprintf(earlyResult, sizeof(earlyResult),
+                    "{\"result\":\"auction_ended\",\"rounds\":0,\"expectedPrice\":%d}",
+                    g_expectedPrice.load());
+                SendResponse(c, id, true, earlyResult); return;
             }
         }
         if (!found) { SendResponse(c, id, false, "timeout waiting for auction_in_progress"); return; }
@@ -850,10 +854,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         }
 
         if (secs < 30 && !round.empty() && round != lastBidRound) {
+            int currentPrice = g_expectedPrice.load();
             int amount = useExpectedPrice
-                ? ComputeBidAmount(g_expectedPrice.load(), roundsEncountered)
+                ? ComputeBidAmount(currentPrice, roundsEncountered)
                 : bidAmount;
-            lastExpectedPrice = g_expectedPrice.load();
+            lastExpectedPrice = useExpectedPrice ? currentPrice : 0;
 
             if (amount == 0) continue; // skip — price not set yet
 
