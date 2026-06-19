@@ -202,3 +202,37 @@ void CmdSelectRole(AgentConn* c, const char* id, const char*) {
 
     SendResponse(c, id, true, u8"{\"clicked\":true,\"selected\":\"艾莎\"}");
 }
+
+// StartAction: click the 开始行动 button (ui_main_startbattle) in room detail view.
+// Precondition: BattlePrevPanel_Main visible and in room detail view (MapPanel active).
+// WARNING: clicking this button triggers a scene transition that unloads the DLL.
+//          Response is sent BEFORE the click so it is delivered before the pipe drops.
+// Returns {"clicked":true} — pipe will disconnect immediately after.
+//         {"clicked":false,"reason":"..."} as no-op when preconditions unmet.
+void CmdStartAction(AgentConn* c, const char* id, const char*) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    Il2CppObject* panelTransform = nullptr;
+    char error[128] = {};
+    UiPanelLookupResult panelResult = FindVisiblePanelTransform("BattlePrevPanel_Main", nullptr, &panelTransform, error, sizeof(error));
+    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (panelResult != UI_PANEL_FOUND) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"BattlePrevPanel_Main not visible\"}");
+        return;
+    }
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(panelTransform, "Panel_1/MapPanel/Button", UI_PATH_EXACT, 2, &matches);
+    if (matches.empty()) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"start action button not found — not in room detail view\"}");
+        return;
+    }
+
+    UiNodeSnapshot& node = matches[0];
+    if (!node.active) { SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"start action button inactive\"}"); return; }
+    if (!node.components.button) { SendResponse(c, id, false, "start action button: no Button component"); return; }
+
+    // Send response before click — DLL unloads on scene transition
+    SendResponse(c, id, true, "{\"clicked\":true}");
+    PerformButtonClick(node.components.button);
+}

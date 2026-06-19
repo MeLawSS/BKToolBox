@@ -3913,6 +3913,7 @@ static const CmdEntry kCommands[] = {
     { "EnterRoom",        CmdEnterRoom        },
     { "OpenSkillConfig",  CmdOpenSkillConfig  },
     { "SelectRole",       CmdSelectRole       },
+    { "StartAction",      CmdStartAction      },
     { "UnloadAgent",      CmdUnloadAgent      },
     { nullptr,            nullptr             },
 };
