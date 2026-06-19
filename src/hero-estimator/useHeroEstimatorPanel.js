@@ -554,6 +554,31 @@ export function useHeroEstimatorPanel(profile) {
 
   function getMonitorOutlineQualityClass(outline) {
     if (outline.qualityStatus === 'conflict') return 'quality-conflict';
+    const qualityId = Number(outline?.qualityId);
+    const qualityIdClassMap = {
+      1: 'quality-white',
+      2: 'quality-green',
+      3: 'quality-blue',
+      4: 'quality-purple',
+      5: 'quality-gold',
+      6: 'quality-red',
+    };
+    if (Number.isInteger(qualityId) && qualityIdClassMap[qualityId]) {
+      return qualityIdClassMap[qualityId];
+    }
+    const groupKey = getGroupKeyForQuality(outline?.qualityName, outline?.qualityId);
+    const qualityGroupClassMap = {
+      white: 'quality-white',
+      green: 'quality-green',
+      wg: 'quality-white',
+      blue: 'quality-blue',
+      purple: 'quality-purple',
+      orange: 'quality-gold',
+      red: 'quality-red',
+    };
+    if (groupKey && qualityGroupClassMap[groupKey]) {
+      return qualityGroupClassMap[groupKey];
+    }
     const quality = String(outline.qualityName ?? '').trim();
     const classMap = {
       白: 'quality-white',

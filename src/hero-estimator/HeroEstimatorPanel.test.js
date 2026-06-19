@@ -490,6 +490,39 @@ describe('HeroEstimatorPanel', () => {
     expect(wrapper.findAll('.monitor-outline')).toHaveLength(0);
   });
 
+  it('colors Elsa outlines from quality ids even when hero payload omits itemQuilityName', async () => {
+    const wrapper = mount(HeroEstimatorPanel, {
+      props: { profile: elsaProfile, embedded: true },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    const monitorSource = FakeEventSource.instances.find((source) => source.url === '/api/bidking-monitor/events');
+
+    monitorSource.emitEvent('event', {
+      key: 'elsa-id-only-quality',
+      gameUid: 'game-1',
+      group: 'hero',
+      skill: {
+        uid: 'elsa-id-only-quality-skill',
+        heroCid: 103,
+        skillCid: 1001033,
+        hitBoxList: [
+          { boxId: 10, itemSlotType: 11, itemQuility: 2 },
+        ],
+      },
+    });
+    await nextTick();
+
+    const outline = wrapper.find('.monitor-outline');
+    expect(outline.exists()).toBe(true);
+    expect(outline.classes()).toContain('quality-green');
+    expect(outline.classes()).not.toContain('quality-unknown');
+    expect(outline.attributes('data-outline-quality')).toBe('绿');
+  });
+
   it('ignores same-game Ethan hero follow-up packets after Elsa has latched the current match', async () => {
     const wrapper = mount(HeroEstimatorPanel, {
       props: { profile: elsaProfile, embedded: true },
