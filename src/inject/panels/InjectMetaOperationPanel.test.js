@@ -9,14 +9,14 @@ import {
 } from '../../shared/useAutoOperationAgentSwitch.js';
 
 const ROOM_OPTIONS = [
-  { value: '101', label: '101 快递盲盒堆' },
-  { value: '102', label: '102 废弃仓库' },
-  { value: '103', label: '103 航运集装箱' },
-  { value: '104', label: '104 空置别墅' },
-  { value: '105', label: '105 沉船密封仓' },
-  { value: '106', label: '106 隐秘拍卖会' },
-  { value: '304', label: '304 幽静别墅' },
-  { value: '305', label: '305 深海沉船' },
+  { value: '101', label: '快递盲盒堆' },
+  { value: '102', label: '废弃仓库' },
+  { value: '103', label: '航运集装箱' },
+  { value: '104', label: '空置别墅' },
+  { value: '105', label: '沉船密封仓' },
+  { value: '106', label: '隐秘拍卖会' },
+  { value: '304', label: '幽静别墅' },
+  { value: '305', label: '深海沉船' },
 ];
 
 async function mountPanel(props = {}) {
@@ -77,6 +77,9 @@ describe('InjectMetaOperationPanel', () => {
           label: option.text(),
         })),
     ).toEqual(ROOM_OPTIONS);
+    expect(roomSelect.text()).toContain('快递盲盒堆');
+    expect(roomSelect.text()).toContain('深海沉船');
+    expect(roomSelect.text()).not.toContain('101 快递盲盒堆');
 
     expect(wrapper.get('[data-testid="meta-operation-latest-result-empty"]').text()).toContain('尚无结果');
   });
