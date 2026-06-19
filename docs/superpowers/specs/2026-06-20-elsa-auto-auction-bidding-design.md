@@ -139,24 +139,31 @@ export const elsaExpectedPrice = ref(0);
 
 ### 2.2 Write to `elsaExpectedPrice` from `useHeroEstimatorPanel.js`
 
-`useHeroEstimatorPanel` is used by all hero profiles (Elsa and Ethan). The write must be gated to the Elsa profile to avoid corrupting the singleton when the Ethan page recalculates.
+`useHeroEstimatorPanel` is used by all hero profiles. The write must be gated to Elsa, and must reflect **only fresh calculations** — not restored state from localStorage.
 
-Inside `useHeroEstimatorPanel(profile)`, after `summary` is defined, add:
+**Why no `immediate: true`:** `useHeroEstimatorPanel` runs `restoreState()` at init time, which calls `Object.assign(summary, ...)` before the watcher is registered. Since `watch()` only fires for changes made *after* registration, omitting `immediate: true` means restored values do not seed the singleton. `elsaExpectedPrice` stays 0 until the user runs a fresh estimate in the current session.
+
+**Why reset on unmount:** The singleton is module-level and survives component unmounts. Without a reset, a price from a previous session could persist into the next. Resetting on unmount forces a fresh estimate on each visit.
+
+Add two imports at the top of `useHeroEstimatorPanel.js`:
 
 ```javascript
+import { onUnmounted } from 'vue';
 import { elsaExpectedPrice } from '../elsa/elsaEstimateState.js';
+```
 
-// near the end of the composable body, before return:
+Inside `useHeroEstimatorPanel(profile)`, near the end of the composable body (before `return`):
+
+```javascript
 if (profile.id === 'elsa') {
   watch(
     () => summary.total,
     (total) => { elsaExpectedPrice.value = Math.round(total) || 0; },
-    { immediate: true },
+    // No immediate: true — restored values must not be treated as fresh estimates
   );
+  onUnmounted(() => { elsaExpectedPrice.value = 0; });
 }
 ```
-
-The `immediate: true` ensures the singleton reflects the last calculated value immediately when the Elsa panel mounts (e.g., if the user already ran an estimate in this session).
 
 ---
 
@@ -164,12 +171,16 @@ The `immediate: true` ensures the singleton reflects the last calculated value i
 
 ### 3.1 Composable-scope `cmd`
 
-Add inside `useElsaAutoOperation()`, before any async functions:
+Add two imports at the top of `useElsaAutoOperation.js` (alongside existing imports):
 
 ```javascript
 import { watch } from 'vue';
 import { elsaExpectedPrice } from './elsaEstimateState.js';
+```
 
+Add inside `useElsaAutoOperation()`, before any async functions:
+
+```javascript
 const cmd = (name, args) => window.bidkingDesktop.runAutoOperationCommand(name, args);
 ```
 
@@ -243,12 +254,14 @@ runScript(controller.signal)
 ### 3.5 Stop behavior
 
 When the user presses stop while `AutoAuction` is in flight:
-1. `disable()` runs immediately — aborts the signal, tears down the price watcher, unloads the agent (if owned), sets `isEnabled = false`
-2. Unloading the agent disconnects the named pipe; the in-flight `cmd('AutoAuction', ...)` rejects with an IPC error
-3. `runScript` propagates the error to `.catch(e => addLog(...))`
-4. `.finally(() => disable())` is called — `disable()` returns early because `isEnabled` is already false
 
-The in-game auction process in the game binary may continue briefly until it detects the pipe is gone; this is out of scope.
+1. `disable()` runs — price watcher torn down, `isEnabled = false`, `agent.unloadAgent()` called (if owned)
+2. The DLL's unload guard (`BKAutoOpAgent.cpp:3781`) waits up to 10 s for active connection handlers to finish. Since `CmdAutoAuction` is still an active handler, the unload **cancels** after 10 s and the agent remains loaded
+3. The renderer-side `waitForAutoOperationAgentToUnload` eventually times out or errors
+4. The in-flight `cmd('AutoAuction', ...)` continues until the auction ends naturally (up to the 600 s IPC timeout); when it resolves, `runScript` logs the result
+5. `.finally(() => disable())` is called — no-op because `isEnabled` is already false
+
+**Consequence:** pressing stop while an auction is in progress disables the UI immediately but does not interrupt the in-game auction. The agent stays alive for the duration. This is acceptable behavior for this feature; native mid-flight cancellation is out of scope.
 
 ### 3.6 Log messages (hardcoded, not i18n'd)
 
