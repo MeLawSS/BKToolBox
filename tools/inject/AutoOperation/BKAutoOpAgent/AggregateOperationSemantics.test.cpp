@@ -17,6 +17,25 @@ int main() {
     assert(!ShouldCountAutoAuctionRound(true, true, true, true, false));
     assert(ShouldCountAutoAuctionRound(true, true, true, true, true));
 
+    assert(IsAutoAuctionCleanupCompleteScreen("main_lobby"));
+    assert(!IsAutoAuctionCleanupCompleteScreen("auction_lobby_map"));
+
+    assert(IsAutoAuctionCleanupBattlePrevScreen("auction_lobby_map"));
+    assert(IsAutoAuctionCleanupBattlePrevScreen("auction_lobby_room"));
+    assert(!IsAutoAuctionCleanupBattlePrevScreen("auction_ended"));
+
+    assert(IsAutoAuctionCleanupEndedScreen("auction_ended"));
+    assert(!IsAutoAuctionCleanupEndedScreen("main_lobby"));
+
+    assert(IsAutoAuctionCleanupRecoverableScreen("auction_ended"));
+    assert(IsAutoAuctionCleanupRecoverableScreen("auction_lobby_map"));
+    assert(IsAutoAuctionCleanupRecoverableScreen("main_lobby"));
+    assert(!IsAutoAuctionCleanupRecoverableScreen("warehouse"));
+
+    assert(ShouldAbortAutoAuction(true, false));
+    assert(ShouldAbortAutoAuction(false, true));
+    assert(!ShouldAbortAutoAuction(false, false));
+
     // ComputeBidAmount
     assert(ComputeBidAmount(0, 1)     == 0);     // price not set → 0
     assert(ComputeBidAmount(-1, 1)    == 0);     // negative → 0

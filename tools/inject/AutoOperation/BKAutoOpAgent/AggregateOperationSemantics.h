@@ -25,6 +25,29 @@ inline bool ShouldCountAutoAuctionRound(
         confirmBidClicked;
 }
 
+inline bool IsAutoAuctionCleanupCompleteScreen(const char* screen) {
+    return screen && strcmp(screen, "main_lobby") == 0;
+}
+
+inline bool IsAutoAuctionCleanupBattlePrevScreen(const char* screen) {
+    return screen &&
+        (strcmp(screen, "auction_lobby_map") == 0 || strcmp(screen, "auction_lobby_room") == 0);
+}
+
+inline bool IsAutoAuctionCleanupEndedScreen(const char* screen) {
+    return screen && strcmp(screen, "auction_ended") == 0;
+}
+
+inline bool IsAutoAuctionCleanupRecoverableScreen(const char* screen) {
+    return IsAutoAuctionCleanupCompleteScreen(screen) ||
+        IsAutoAuctionCleanupBattlePrevScreen(screen) ||
+        IsAutoAuctionCleanupEndedScreen(screen);
+}
+
+inline bool ShouldAbortAutoAuction(bool cancelRequested, bool shuttingDown) {
+    return cancelRequested || shuttingDown;
+}
+
 // roundsEncountered: 1-indexed count of distinct auction rounds seen (first round = 1).
 // Returns bid amount (truncated). Returns 0 if expectedPrice <= 0 — caller must skip bidding.
 inline int ComputeBidAmount(int expectedPrice, int roundsEncountered) {

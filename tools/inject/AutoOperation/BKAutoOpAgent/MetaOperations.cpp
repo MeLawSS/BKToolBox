@@ -1,8 +1,11 @@
 #include "MetaOperations.h"
 #include "AggregateOperationSemantics.h"
+#include "AutoAuctionOpponentCap.h"
 #include <atomic>
 
 static std::atomic<int> g_expectedPrice{0};
+static std::atomic<bool> g_autoAuctionRunning{false};
+static std::atomic<bool> g_autoAuctionCancelRequested{false};
 
 static HANDLE g_priceReaderThread = NULL;
 static HANDLE g_priceReaderStopEvent = NULL;
@@ -58,6 +61,26 @@ static void StopPriceReaderThread() {
         CloseHandle(g_priceReaderStopEvent);
         g_priceReaderStopEvent = NULL;
     }
+}
+
+static bool IsAutoAuctionStopRequested() {
+    const bool shuttingDown = InterlockedCompareExchange(&g_shuttingDown, 0, 0) != 0;
+    return ShouldAbortAutoAuction(
+        g_autoAuctionCancelRequested.load(std::memory_order_relaxed),
+        shuttingDown
+    );
+}
+
+static bool SleepInterruptibly(int totalMs, int sliceMs = 50) {
+    if (totalMs <= 0) return !IsAutoAuctionStopRequested();
+    int remaining = totalMs;
+    while (remaining > 0) {
+        if (IsAutoAuctionStopRequested()) return false;
+        const int chunk = remaining < sliceMs ? remaining : sliceMs;
+        Sleep((DWORD)chunk);
+        remaining -= chunk;
+    }
+    return !IsAutoAuctionStopRequested();
 }
 
 // ==========================================================================
@@ -746,6 +769,22 @@ void CmdSetExpectedPrice(AgentConn* c, const char* id, const char* json) {
     SendResponse(c, id, true, buf);
 }
 
+void CmdCancelAutoAuction(AgentConn* c, const char* id, const char*) {
+    const bool running = g_autoAuctionRunning.load(std::memory_order_relaxed);
+    if (running) {
+        g_autoAuctionCancelRequested.store(true, std::memory_order_relaxed);
+    }
+    char result[96];
+    snprintf(
+        result,
+        sizeof(result),
+        "{\"cancelRequested\":%s,\"running\":%s}",
+        running ? "true" : "false",
+        running ? "true" : "false"
+    );
+    SendResponse(c, id, true, result);
+}
+
 // --------------------------------------------------------------------------
 // AutoAuction aggregate operation
 // --------------------------------------------------------------------------
@@ -780,6 +819,110 @@ static void ReadBidState(Il2CppObject* battleTransform,
     }
 }
 
+static bool ReadExactNodeText(Il2CppObject* anchor, const char* path, std::string* out) {
+    if (!out) return false;
+    out->clear();
+    if (!anchor || !path || !path[0]) return false;
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(anchor, path, UI_PATH_EXACT, 1, &matches);
+    if (matches.empty()) return false;
+    return ReadNodeTextValue(matches[0].components, out);
+}
+
+static bool ReadExactNodeTransform(Il2CppObject* anchor, const char* path, Il2CppObject** out) {
+    if (out) *out = nullptr;
+    if (!anchor || !path || !path[0]) return false;
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(anchor, path, UI_PATH_EXACT, 1, &matches);
+    if (matches.empty() || !matches[0].transform) return false;
+    if (out) *out = matches[0].transform;
+    return true;
+}
+
+static bool IsRoundUnitRowName(const std::string& name) {
+    return name == "RoundUnit" || name.compare(0, strlen("RoundUnit("), "RoundUnit(") == 0;
+}
+
+static bool TryReadVisiblePlayerName(Il2CppObject* battleTransform, int slot, std::string* out) {
+    if (!out) return false;
+    char path[128];
+    snprintf(
+        path,
+        sizeof(path),
+        "Gaming/PlayerContainer/Player_%d/NameUnit/NameLayout/nameTxt",
+        slot
+    );
+    return ReadExactNodeText(battleTransform, path, out);
+}
+
+static bool TryReadOpponentPreviousRoundBid(
+    Il2CppObject* battleTransform,
+    int opponentSlot,
+    int currentRoundNumber,
+    int* outBid,
+    std::string* outReason
+) {
+    if (outBid) *outBid = 0;
+    if (outReason) outReason->clear();
+    if (!battleTransform || !outBid || !outReason || currentRoundNumber <= 1) return false;
+
+    char containerPath[128];
+    snprintf(
+        containerPath,
+        sizeof(containerPath),
+        "Gaming/PlayerContainer/Player_%d/containers",
+        opponentSlot
+    );
+    Il2CppObject* containerTransform = nullptr;
+    if (!ReadExactNodeTransform(battleTransform, containerPath, &containerTransform) || !containerTransform) {
+        *outReason = "history_container_missing";
+        return false;
+    }
+
+    std::vector<UiNodeSnapshot> rowSnapshots;
+    if (!CollectActiveDirectChildSnapshots(containerTransform, &rowSnapshots) || rowSnapshots.empty()) {
+        *outReason = "history_row_missing";
+        return false;
+    }
+
+    Il2CppObject* matchedRowTransform = nullptr;
+    const int previousRoundNumber = currentRoundNumber - 1;
+    for (size_t i = 0; i < rowSnapshots.size(); ++i) {
+        const UiNodeSnapshot& snapshot = rowSnapshots[i];
+        if (!snapshot.transform || !IsRoundUnitRowName(snapshot.name)) continue;
+
+        std::string rowRoundText;
+        if (!ReadExactNodeText(snapshot.transform, "roundTxt", &rowRoundText)) continue;
+
+        int rowRoundNumber = 0;
+        if (!TryParseHistoryRoundNumber(rowRoundText, &rowRoundNumber)) continue;
+        if (rowRoundNumber != previousRoundNumber) continue;
+
+        if (matchedRowTransform) {
+            *outReason = "history_row_ambiguous";
+            return false;
+        }
+        matchedRowTransform = snapshot.transform;
+    }
+
+    if (!matchedRowTransform) {
+        *outReason = "history_row_missing";
+        return false;
+    }
+
+    std::string priceText;
+    if (!ReadExactNodeText(matchedRowTransform, "priceTxt", &priceText) || priceText.empty()) {
+        *outReason = "previous_price_missing";
+        return false;
+    }
+
+    if (!TryParsePriceText(priceText, outBid)) {
+        *outReason = "previous_price_invalid";
+        return false;
+    }
+    return true;
+}
+
 // AutoAuction: full automated auction sequence from main_lobby.
 // Params: {"roomId":<int>, "bidAmount":<int>}  (defaults: roomId=101, bidAmount=25000)
 // Steps:
@@ -801,40 +944,79 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
 
     bool useExpectedPrice = false;
     JsonGetBool(json, "useExpectedPrice", &useExpectedPrice);
+    char selfNameBuf[128] = "melo";
+    char requestedSelfName[128] = {};
+    if (JsonGetString(json, "selfName", requestedSelfName, sizeof(requestedSelfName)) &&
+        requestedSelfName[0]) {
+        snprintf(selfNameBuf, sizeof(selfNameBuf), "%s", requestedSelfName);
+    }
+    const std::string selfName(selfNameBuf);
+
+    g_autoAuctionCancelRequested.store(false, std::memory_order_relaxed);
+    g_autoAuctionRunning.store(true, std::memory_order_relaxed);
+    struct AutoAuctionStateGuard {
+        ~AutoAuctionStateGuard() {
+            g_autoAuctionRunning.store(false, std::memory_order_relaxed);
+            g_autoAuctionCancelRequested.store(false, std::memory_order_relaxed);
+        }
+    } _autoAuctionStateGuard;
 
     StartPriceReaderThread();
     struct PriceReaderGuard { ~PriceReaderGuard() { StopPriceReaderThread(); } } _priceGuard;
 
     char errBuf[256] = {};
+    int roundsPlayed = 0;
+    int lastExpectedPrice = 0;
+
+    auto stopIfRequested = [&]() -> bool {
+        if (!IsAutoAuctionStopRequested()) return false;
+        const char* reason = g_autoAuctionCancelRequested.load(std::memory_order_relaxed)
+            ? "cancel_requested"
+            : "agent_unloading";
+        char result[160];
+        snprintf(
+            result,
+            sizeof(result),
+            "{\"result\":\"canceled\",\"reason\":\"%s\",\"rounds\":%d,\"expectedPrice\":%d}",
+            reason,
+            roundsPlayed,
+            lastExpectedPrice
+        );
+        SendResponse(c, id, true, result);
+        return true;
+    };
 
     auto clickOnPanel = [&](const char* panelName, const char* nodePath, int delayMs) -> bool {
         Il2CppObject* t = nullptr;
         if (FindVisiblePanelTransform(panelName, nullptr, &t, errBuf, sizeof(errBuf)) != UI_PANEL_FOUND || !t)
             return false;
         std::string e;
-        bool ok = ClickNode(t, nodePath, delayMs, &e);
+        bool ok = ClickNode(t, nodePath, 0, &e);
         if (!ok) snprintf(errBuf, sizeof(errBuf), "%s", e.c_str());
+        if (ok && delayMs > 0 && !SleepInterruptibly(delayMs)) return false;
         return ok;
     };
 
     // Step 1: navigate to main_lobby
     for (int attempt = 0; ; attempt++) {
+        if (stopIfRequested()) return;
         ScreenState cur = DetectScreenState();
         if (strcmp(cur.screen, "main_lobby") == 0) break;
         if (attempt >= 10) { SendResponse(c, id, false, "could not reach main_lobby"); return; }
         Il2CppObject* t = nullptr; const char* p = nullptr;
         if (ResolveCloseTarget(cur, &t, &p)) { std::string e; ClickNode(t, p, 0, &e); }
-        Sleep(1500);
+        if (!SleepInterruptibly(1500)) { stopIfRequested(); return; }
     }
 
     // Step 2: GoToBattlePrev + wait for auction_lobby_map
     if (!clickOnPanel("UIMain", "MainPanel/mask/Button", 1500)) {
+        if (stopIfRequested()) return;
         SendResponse(c, id, false, errBuf[0] ? errBuf : "GoToBattlePrev failed"); return;
     }
     {
         bool found = false;
         for (int i = 0; i < 15; i++) {
-            Sleep(1000);
+            if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
             if (strcmp(DetectScreenState().screen, "auction_lobby_map") == 0) { found = true; break; }
         }
         if (!found) { SendResponse(c, id, false, "timeout waiting for auction_lobby_map"); return; }
@@ -845,13 +1027,14 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         char roomPath[128];
         snprintf(roomPath, sizeof(roomPath), "Panel_1/bg/MapContainer/MapItem_%d/Image (1)", roomId);
         if (!clickOnPanel("BattlePrevPanel_Main", roomPath, 2000)) {
+            if (stopIfRequested()) return;
             SendResponse(c, id, false, errBuf[0] ? errBuf : "EnterRoom failed"); return;
         }
     }
     {
         bool found = false;
         for (int i = 0; i < 15; i++) {
-            Sleep(1000);
+            if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
             if (strcmp(DetectScreenState().screen, "auction_lobby_room") == 0) { found = true; break; }
         }
         if (!found) { SendResponse(c, id, false, "timeout waiting for auction_lobby_room"); return; }
@@ -859,14 +1042,17 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
 
     // Step 4: OpenSkillConfig → SelectRole → StartAction
     if (!clickOnPanel("BattlePrevPanel_Main", "Panel_1/MapPanel/battleSet/Hero/Button", 1500)) {
+        if (stopIfRequested()) return;
         SendResponse(c, id, false, errBuf[0] ? errBuf : "OpenSkillConfig failed"); return;
     }
     if (!clickOnPanel("BattlePrevPanel_Main",
             "Panel_1/MapPanel/battleSet/HeroChoose/ScrollView/Viewport/Content/herochooseItem_103/button",
             1500)) {
+        if (stopIfRequested()) return;
         SendResponse(c, id, false, errBuf[0] ? errBuf : "SelectRole failed"); return;
     }
     if (!clickOnPanel("BattlePrevPanel_Main", "Panel_1/MapPanel/Button", 2000)) {
+        if (stopIfRequested()) return;
         SendResponse(c, id, false, errBuf[0] ? errBuf : "StartAction failed"); return;
     }
 
@@ -874,7 +1060,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
     {
         bool found = false;
         for (int i = 0; i < 80; i++) {
-            Sleep(1500);
+            if (!SleepInterruptibly(1500)) { stopIfRequested(); return; }
             const char* sc = DetectScreenState().screen;
             if (strcmp(sc, "auction_in_progress") == 0) { found = true; break; }
             if (strcmp(sc, "auction_ended") == 0) {
@@ -892,13 +1078,12 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
     std::string lastBidRound;
     std::string lastRoundSeen;
     int roundsEncountered = 0;
-    int roundsPlayed = 0;
-    int lastExpectedPrice = 0;
 
     for (;;) {
-        Sleep(1000);
+        if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
         ScreenState s = DetectScreenState();
 
+        if (stopIfRequested()) return;
         if (strcmp(s.screen, "auction_ended") == 0) break;
         if (strcmp(s.screen, "auction_in_progress") != 0 || !s.battleMainTransform) continue;
 
@@ -919,12 +1104,93 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             int amount = useExpectedPrice
                 ? ComputeBidAmount(currentPrice, roundsEncountered)
                 : bidAmount;
+            const int originalBid = amount;
             lastExpectedPrice = useExpectedPrice ? currentPrice : 0;
 
             if (amount == 0) continue; // skip — price not set yet
 
+            if (useExpectedPrice && roundsEncountered >= 2 && roundsEncountered <= 5) {
+                std::string fallbackReason;
+                std::string opponentName;
+
+                std::string player1Name;
+                std::string player2Name;
+                const bool hasPlayer1Name = TryReadVisiblePlayerName(s.battleMainTransform, 1, &player1Name) &&
+                    !player1Name.empty();
+                const bool hasPlayer2Name = TryReadVisiblePlayerName(s.battleMainTransform, 2, &player2Name) &&
+                    !player2Name.empty();
+
+                if (!hasPlayer1Name && !hasPlayer2Name) {
+                    fallbackReason = "player_names_missing";
+                } else {
+                    int opponentSlot = 0;
+                    if (!TryResolveOpponentSlot(
+                        selfName,
+                        hasPlayer1Name ? player1Name : std::string(),
+                        hasPlayer2Name ? player2Name : std::string(),
+                        &opponentSlot
+                    )) {
+                        fallbackReason = "opponent_slot_ambiguous";
+                    } else {
+                        opponentName = opponentSlot == 1 ? player1Name : player2Name;
+                        int opponentPreviousBid = 0;
+                        if (!TryReadOpponentPreviousRoundBid(
+                            s.battleMainTransform,
+                            opponentSlot,
+                            roundsEncountered,
+                            &opponentPreviousBid,
+                            &fallbackReason
+                        )) {
+                            // fallbackReason already set by helper
+                        } else {
+                            double multiplier = 0.0;
+                            if (!TryGetOpponentCapMultiplier(roundsEncountered, &multiplier)) {
+                                fallbackReason = "current_round_out_of_scope";
+                            } else {
+                                const int opponentCap = (int)floor(opponentPreviousBid * multiplier);
+                                if (opponentCap <= 0) {
+                                    fallbackReason = "opponent_cap_non_positive";
+                                } else {
+                                    amount = ComputeOpponentCappedBid(originalBid, opponentPreviousBid, multiplier);
+                                    Logf(
+                                        "AutoAuction round=%d opponent=%s prevBid=%d multiplier=%.2f originalBid=%d cappedBid=%d finalBid=%d",
+                                        roundsEncountered,
+                                        opponentName.c_str(),
+                                        opponentPreviousBid,
+                                        multiplier,
+                                        originalBid,
+                                        opponentCap,
+                                        amount
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!fallbackReason.empty()) {
+                    if (!opponentName.empty()) {
+                        Logf(
+                            "AutoAuction round=%d limiter skipped: %s; originalBid=%d; opponent=%s",
+                            roundsEncountered,
+                            fallbackReason.c_str(),
+                            originalBid,
+                            opponentName.c_str()
+                        );
+                    } else {
+                        Logf(
+                            "AutoAuction round=%d limiter skipped: %s; originalBid=%d",
+                            roundsEncountered,
+                            fallbackReason.c_str(),
+                            originalBid
+                        );
+                    }
+                }
+            }
+
             std::string clickErr;
-            bool placeBidClicked = ClickNode(s.battleMainTransform, "Gaming/chujia", 1500, &clickErr);
+            bool placeBidClicked = ClickNode(s.battleMainTransform, "Gaming/chujia", 0, &clickErr);
+            if (placeBidClicked && !SleepInterruptibly(1500)) { stopIfRequested(); return; }
             bool hasBattleMainAfterClick = false;
             bool hasActiveBidInput = false;
             bool setBidAmountSucceeded = false;
@@ -944,8 +1210,9 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                         std::string compName;
                         setBidAmountSucceeded = PerformSetInputText(inputM[0], amountStr, false, &compName);
                         if (setBidAmountSucceeded) {
-                            Sleep(500);
-                            confirmBidClicked = ClickNode(s2.battleMainTransform, "InputDevice/Panel1/chujia", 1500, &clickErr);
+                            if (!SleepInterruptibly(500)) { stopIfRequested(); return; }
+                            confirmBidClicked = ClickNode(s2.battleMainTransform, "InputDevice/Panel1/chujia", 0, &clickErr);
+                            if (confirmBidClicked && !SleepInterruptibly(1500)) { stopIfRequested(); return; }
                         }
                     }
                 }
@@ -964,34 +1231,97 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         }
     }
 
-    // Step 7: 快捷回收 (if available)
+    // Step 7: 快捷回收 (if available on the visible end screen)
     {
-        ScreenState se = DetectScreenState();
-        if (se.battleMainTransform) {
+        for (int attempt = 0; attempt < 3; ++attempt) {
+            if (stopIfRequested()) return;
+            ScreenState se = DetectScreenState();
+            if (!IsAutoAuctionCleanupEndedScreen(se.screen) || !se.battleMainTransform) break;
+
             std::vector<UiNodeSnapshot> huishouM;
             ResolveUiNodeMatches(se.battleMainTransform,
                 "PanelBattleHuiShouTran/huishou", UI_PATH_EXACT, 1, &huishouM);
-            if (!huishouM.empty() && huishouM[0].active && huishouM[0].components.button) {
-                PerformButtonClick(huishouM[0].components.button);
-                Sleep(1500);
+            if (huishouM.empty() || !huishouM[0].active) break;
+            if (!huishouM[0].components.button) {
+                SendResponse(c, id, false, "快捷回收按钮缺少 Button 组件");
+                return;
             }
+            if (PerformButtonClick(huishouM[0].components.button)) {
+                if (!SleepInterruptibly(1500)) { stopIfRequested(); return; }
+                break;
+            }
+            if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
         }
     }
 
-    // Step 8: exit to main_lobby — continueBtn → auction_lobby_map → Top/Close
+    // Step 8: exit to main_lobby.
+    // Important: only close BattlePrevPanel_Main after continueBtn has actually
+    // navigated away from the auction_ended screen. Otherwise we can close the
+    // underlying lobby first and strand the user on EndPanel.
     {
-        ScreenState se = DetectScreenState();
-        if (se.battleMainTransform) {
-            std::string e;
-            ClickNode(se.battleMainTransform, "EndPanel/tuichu/continueBtn", 1500, &e);
+        bool cleanupComplete = false;
+        for (int attempt = 0; attempt < 12; ++attempt) {
+            if (stopIfRequested()) return;
+            ScreenState se = DetectScreenState();
+            if (IsAutoAuctionCleanupCompleteScreen(se.screen)) {
+                cleanupComplete = true;
+                break;
+            }
+
+            if (IsAutoAuctionCleanupEndedScreen(se.screen)) {
+                if (!se.battleMainTransform) {
+                    if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
+                    continue;
+                }
+                std::string e;
+                if (!ClickNode(se.battleMainTransform, "EndPanel/tuichu/continueBtn", 0, &e)) {
+                    if (attempt == 11) {
+                        if (stopIfRequested()) return;
+                        SendResponse(c, id, false, e.c_str());
+                        return;
+                    }
+                    if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
+                    continue;
+                }
+                if (!SleepInterruptibly(1500)) { stopIfRequested(); return; }
+                continue;
+            }
+
+            if (IsAutoAuctionCleanupBattlePrevScreen(se.screen)) {
+                if (!se.battlePrevTransform) {
+                    if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
+                    continue;
+                }
+                std::string e;
+                if (!ClickNode(se.battlePrevTransform, "Top/Close", 0, &e)) {
+                    if (stopIfRequested()) return;
+                    SendResponse(c, id, false, e.c_str());
+                    return;
+                }
+                if (!SleepInterruptibly(1500)) { stopIfRequested(); return; }
+                continue;
+            }
+
+            if (!IsAutoAuctionCleanupRecoverableScreen(se.screen)) {
+                if (stopIfRequested()) return;
+                char msg[160];
+                snprintf(msg, sizeof(msg),
+                    "auto auction cleanup entered unexpected screen: %s",
+                    se.screen ? se.screen : "null");
+                SendResponse(c, id, false, msg);
+                return;
+            }
         }
-    }
-    {
-        Il2CppObject* bpTransform = nullptr;
-        char bpErr[128] = {};
-        if (FindVisiblePanelTransform("BattlePrevPanel_Main", nullptr, &bpTransform, bpErr, sizeof(bpErr)) == UI_PANEL_FOUND && bpTransform) {
-            std::string e;
-            ClickNode(bpTransform, "Top/Close", 1500, &e);
+
+        if (!cleanupComplete) {
+            if (stopIfRequested()) return;
+            ScreenState finalState = DetectScreenState();
+            char msg[160];
+            snprintf(msg, sizeof(msg),
+                "auto auction cleanup incomplete: stuck on %s",
+                finalState.screen ? finalState.screen : "null");
+            SendResponse(c, id, false, msg);
+            return;
         }
     }
 

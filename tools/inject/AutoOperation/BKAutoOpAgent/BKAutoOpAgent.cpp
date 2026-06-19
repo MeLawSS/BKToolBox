@@ -83,7 +83,7 @@ bool                 g_il2cppReady = false;
 static HINSTANCE     g_hModule = NULL;
 static HANDLE        g_agentThread = NULL;
 static HANDLE        g_heartbeatThread = NULL;
-static volatile LONG g_shuttingDown = 0;
+volatile LONG g_shuttingDown = 0;
 static volatile LONG g_unloadScheduled = 0;
 static volatile LONG g_activeConnectionHandlers = 0;
 static char          g_logPath[MAX_PATH] = {};
@@ -178,7 +178,7 @@ static void InitLogPath() {
     }
 }
 
-static void Logf(const char* fmt, ...) {
+void Logf(const char* fmt, ...) {
     InitLogPath();
     if (g_logCsReady) EnterCriticalSection(&g_logCs);
 
@@ -1664,6 +1664,34 @@ static void CollectNamedChildTransforms(Il2CppObject* parent, std::vector<UiName
         occurrenceCounts[child.name] += 1;
         out->push_back(child);
     }
+}
+
+bool CollectActiveDirectChildSnapshots(Il2CppObject* parent, std::vector<UiNodeSnapshot>* children) {
+    if (!children) return false;
+    children->clear();
+    if (!parent) return false;
+
+    std::vector<UiNamedChild> namedChildren;
+    CollectNamedChildTransforms(parent, &namedChildren);
+    for (size_t i = 0; i < namedChildren.size(); ++i) {
+        Il2CppObject* child = namedChildren[i].transform;
+        if (!child) continue;
+
+        UiNodeSnapshot snapshot;
+        InspectUiNode(
+            child,
+            BuildUiAddressedSegment(
+                namedChildren[i].name,
+                namedChildren[i].occurrenceIndex,
+                namedChildren[i].siblingCount
+            ),
+            1,
+            &snapshot
+        );
+        if (!snapshot.active) continue;
+        children->push_back(snapshot);
+    }
+    return true;
 }
 
 static bool ResolveChildTransformBySegment(
@@ -3925,6 +3953,7 @@ static const CmdEntry kCommands[] = {
     { "CollectCabinetReward",  CmdCollectCabinetReward  },
     { "SetExpectedPrice",      CmdSetExpectedPrice      },
     { "AutoAuction",           CmdAutoAuction           },
+    { "CancelAutoAuction",     CmdCancelAutoAuction     },
     { "UnloadAgent",           CmdUnloadAgent           },
     { nullptr,            nullptr             },
 };

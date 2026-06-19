@@ -63,16 +63,20 @@ struct AgentConn {
 
 extern bool                       g_il2cppReady;
 extern fn_class_get_method_from_name g_class_get_method_from_name;
+extern volatile LONG             g_shuttingDown;
 
 Il2CppClass*        FindClass(const char* name);
 Il2CppObject*       SafeInvoke(const Il2CppMethod* m, void* obj, void** args);
 const char*         ObjClassName(Il2CppObject* obj);
+void                Logf(const char* fmt, ...);
 
 void                SendResponse(AgentConn* c, const char* id, bool ok, const char* result);
 UiPanelLookupResult FindVisiblePanelTransform(const char* panelName,
                                                Il2CppObject** panelObj,
                                                Il2CppObject** panelTransform,
                                                char* error, int errorSize);
+bool                CollectActiveDirectChildSnapshots(Il2CppObject* parent,
+                                                      std::vector<UiNodeSnapshot>* children);
 bool                ResolveUiNodeMatches(Il2CppObject* anchor, const char* path,
                                          UiPathMode pathMode, int maxMatches,
                                          std::vector<UiNodeSnapshot>* matches);
@@ -99,4 +103,5 @@ void CmdGetCurrentScreen(AgentConn* c, const char* id, const char* json);
 void CmdCloseCurrentOverlay(AgentConn* c, const char* id, const char* json);
 void CmdCollectCabinetReward(AgentConn* c, const char* id, const char* json);
 void CmdAutoAuction(AgentConn* c, const char* id, const char* json);
+void CmdCancelAutoAuction(AgentConn* c, const char* id, const char* json);
 void CmdSetExpectedPrice(AgentConn* c, const char* id, const char* json);

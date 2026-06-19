@@ -109,27 +109,41 @@ describe('useElsaAutoOperation', () => {
   it('disable() unloads agent only when this mode started it', async () => {
     monitorRunning = true;
     mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    let resolveAuction;
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
+      if (name === 'AutoAuction') return new Promise(r => { resolveAuction = r; });
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
     const { result, wrapper } = withSetup(() => useElsaAutoOperation());
     await result.enable();
     await flushPromises();
     await result.disable();
     await flushPromises();
+    expect(window.bidkingDesktop.runAutoOperationCommand).toHaveBeenCalledWith('CancelAutoAuction', {});
     expect(mockUnloadAgent).toHaveBeenCalledTimes(1);
     expect(mockStopMonitor).not.toHaveBeenCalled();
     expect(result.isEnabled.value).toBe(false);
+    resolveAuction?.({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 0 }, response: {} });
     wrapper.unmount();
   });
 
   it('disable() does NOT unload agent when agent was already running before enable()', async () => {
     monitorRunning = true;
     agentConnected = true; // already running before enable
+    let resolveAuction;
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
+      if (name === 'AutoAuction') return new Promise(r => { resolveAuction = r; });
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
     const { result, wrapper } = withSetup(() => useElsaAutoOperation());
     await result.enable();
     await flushPromises();
     expect(mockLoadAgent).not.toHaveBeenCalled();
     await result.disable();
     await flushPromises();
+    expect(window.bidkingDesktop.runAutoOperationCommand).toHaveBeenCalledWith('CancelAutoAuction', {});
     expect(mockUnloadAgent).not.toHaveBeenCalled();
+    resolveAuction?.({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 0 }, response: {} });
     wrapper.unmount();
   });
 
@@ -264,6 +278,23 @@ describe('useElsaAutoOperation', () => {
     await flushPromises();
     expect(result.isEnabled.value).toBe(false);
     expect(result.log.value.some(e => e.message.includes('竞拍完成'))).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('logs a stopped message instead of completion when AutoAuction is canceled', async () => {
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
+    window.bidkingDesktop.runAutoOperationCommand.mockResolvedValue({
+      ok: true,
+      value: { result: 'canceled', rounds: 1, expectedPrice: 50000 },
+      response: {},
+    });
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
+    await result.enable();
+    await flushPromises();
+    expect(result.log.value.some(e => e.message.includes('自动竞拍已停止'))).toBe(true);
+    expect(result.log.value.some(e => e.message.includes('竞拍完成'))).toBe(false);
     wrapper.unmount();
   });
 });

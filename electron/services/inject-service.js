@@ -11,6 +11,7 @@ const AUTO_OPERATION_PIPE = '\\\\.\\pipe\\BKAutoOp';
 const MAX_AUTO_OPERATION_FRAME_BYTES = 262144;
 const DEFAULT_AUTO_OPERATION_TIMEOUT_MS = 5000;
 const LONG_AUTO_OPERATION_TIMEOUT_MS = 45000;
+const AUTO_AUCTION_TIMEOUT_MS = 600000;
 const DEFAULT_WAIT_AUTO_OPERATION_TIMEOUT_MS = 3000;
 const WAIT_AUTO_OPERATION_TIMEOUT_BUFFER_MS = 1000;
 const WAIT_AUTO_OPERATION_MIN_TIMEOUT_MS = 100;
@@ -376,8 +377,12 @@ function getAutoOperationCommandTimeoutMs(command, args = {}, deps = {}) {
         command === 'GetWarehouseItemList' ||
         command === 'GetStockCollectibleCounts' ||
         command === 'GetStockContainers' ||
-        command === 'MoveStockItem') {
+        command === 'MoveStockItem' ||
+        command === 'CollectCabinetReward') {
         return LONG_AUTO_OPERATION_TIMEOUT_MS;
+    }
+    if (command === 'AutoAuction') {
+        return AUTO_AUCTION_TIMEOUT_MS;
     }
     if (command === 'ExchangeItem') {
         const nativeTimeoutMs = clampSafeInteger(

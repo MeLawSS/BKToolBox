@@ -40,8 +40,13 @@ export function useElsaAutoOperation() {
     addLog(`当前估价: ${elsaExpectedPrice.value || '无，将使用底价'}`);
 
     const result = await cmd('AutoAuction', { roomId: 101, useExpectedPrice: true });
+    const status = result?.value?.result || '';
     const rounds = result?.value?.rounds ?? 0;
     const usedPrice = result?.value?.expectedPrice ?? 0;
+    if (signal.aborted || status === 'canceled') {
+      addLog(`自动竞拍已停止，共出价 ${rounds} 轮，最近估价 ${usedPrice}`);
+      return;
+    }
     addLog(`竞拍完成，共出价 ${rounds} 轮，使用估价 ${usedPrice}`);
   }
 
@@ -89,6 +94,7 @@ export function useElsaAutoOperation() {
     if (scriptAbort) { scriptAbort.abort(); scriptAbort = null; }
     try {
       addLog('正在停止…');
+      await cmd('CancelAutoAuction', {}).catch(e => addLog(`停止自动竞拍失败: ${e?.message || e}`, 'warn'));
       if (weStartedAgent) {
         await agent.unloadAgent().catch(e => addLog(`Agent 卸载失败: ${e?.message || e}`, 'error'));
         weStartedAgent = false;

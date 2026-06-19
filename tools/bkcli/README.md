@@ -1,5 +1,7 @@
 # bkcli
 
+Overview manual: [`../../docs/AUTO_OPERATION_MANUAL.md`](../../docs/AUTO_OPERATION_MANUAL.md). Use the manual first for the current `bkcli` / Agent / MetaOperation / AggregateOperation boundary map. This file stays focused on CLI usage.
+
 AI 辅助开发工具，通过 DLL 注入访问 BidKing 游戏进程内部结构，用于 UI 分析和自动化操作。
 
 ## 前提条件

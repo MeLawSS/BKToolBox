@@ -435,6 +435,11 @@ describe('inject-service AutoOperation Agent', () => {
       newSlot: 13,
       isRotate: false,
     }, { sendAutoOperationCommand });
+    await service.runAutoOperationCommand('CollectCabinetReward', {}, { sendAutoOperationCommand });
+    await service.runAutoOperationCommand('AutoAuction', {
+      roomId: 101,
+      bidAmount: 25000,
+    }, { sendAutoOperationCommand });
     await service.runAutoOperationCommand('ExchangeItem', {
       itemCid: 1032006,
       count: 1,
@@ -486,6 +491,21 @@ describe('inject-service AutoOperation Agent', () => {
     );
     expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
       7,
+      'CollectCabinetReward',
+      {},
+      expect.objectContaining({ timeoutMs: 45000 }),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      8,
+      'AutoAuction',
+      {
+        roomId: 101,
+        bidAmount: 25000,
+      },
+      expect.objectContaining({ timeoutMs: 600000 }),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      9,
       'ExchangeItem',
       {
         itemCid: 1032006,

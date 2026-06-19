@@ -57,6 +57,14 @@ const ZERO_ARG_ACTIONS = [
     command: 'GetCurrentScreen',
     titleKey: 'inject.metaOperationGetCurrentScreen',
   },
+  {
+    command: 'CloseCurrentOverlay',
+    titleKey: 'inject.metaOperationCloseCurrentOverlay',
+  },
+  {
+    command: 'CollectCabinetReward',
+    titleKey: 'inject.metaOperationCollectCabinetReward',
+  },
 ];
 
 const META_OPERATION_LABEL_KEYS = {
@@ -72,6 +80,8 @@ const META_OPERATION_LABEL_KEYS = {
   DismissRewardsBox: 'inject.metaOperationDismissRewardsBox',
   DismissCollectAward: 'inject.metaOperationDismissCollectAward',
   GetCurrentScreen: 'inject.metaOperationGetCurrentScreen',
+  CloseCurrentOverlay: 'inject.metaOperationCloseCurrentOverlay',
+  CollectCabinetReward: 'inject.metaOperationCollectCabinetReward',
 };
 
 const props = defineProps({

@@ -1,5 +1,7 @@
 # AutoOperation Commands
 
+Overview manual: [`docs/AUTO_OPERATION_MANUAL.md`](./AUTO_OPERATION_MANUAL.md). Use the manual first for stack boundaries, surface differences, and the current `bkcli` / Agent / MetaOperation / AggregateOperation map. This file stays focused on transport and command-contract detail.
+
 This document records the current BKToolBox AutoOperation command protocol implemented by:
 
 - `tools/inject/AutoOperation/BKAutoOpAgent/BKAutoOpAgent.cpp`
@@ -1270,6 +1272,8 @@ The old topbar schedule switch is not part of the new workflow.
 
 ## Current Command List
 
+For the higher-level grouping of these commands, plus the current difference between native registration and Inject panel exposure, see [`docs/AUTO_OPERATION_MANUAL.md`](./AUTO_OPERATION_MANUAL.md).
+
 The current dispatch table contains:
 
 ```text
@@ -1296,6 +1300,22 @@ GetDelayedPriceQueryStatus
 CancelDelayedPriceQuery
 ExchangeItem
 InvokeMethod
+LoadProbe
+GoToBattlePrev
+EnterRoom
+OpenSkillConfig
+SelectRole
+StartAction
+GetBidState
+PlaceBid
+SetBidAmount
+ConfirmBid
+DismissRewardsBox
+DismissCollectAward
+GetCurrentScreen
+CloseCurrentOverlay
+CollectCabinetReward
+AutoAuction
 UnloadAgent
 ```
 

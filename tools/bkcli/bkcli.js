@@ -74,6 +74,19 @@ async function main() {
         } else if (subcmd === 'dismiss-collect-award') {
             ok(await runCmd('DismissCollectAward', {}));
 
+        } else if (subcmd === 'close-current-overlay') {
+            ok(await runCmd('CloseCurrentOverlay', {}));
+
+        } else if (subcmd === 'collect-cabinet-reward') {
+            ok(await runCmd('CollectCabinetReward', {}, 30000));
+
+        } else if (subcmd === 'auto-auction') {
+            const { flags } = parseFlags(rest);
+            const args = {};
+            if (flags.room)   args.roomId    = parseInt(flags.room, 10);
+            if (flags.amount) args.bidAmount = parseInt(flags.amount, 10);
+            ok(await runCmd('AutoAuction', args, 600000));
+
         } else if (subcmd === 'dump') {
             const { flags, pos } = parseFlags(rest);
             const panel = pos[0];
