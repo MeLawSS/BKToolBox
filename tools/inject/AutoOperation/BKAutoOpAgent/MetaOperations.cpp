@@ -164,10 +164,10 @@ void CmdOpenSkillConfig(AgentConn* c, const char* id, const char*) {
     SendResponse(c, id, true, "{\"clicked\":true}");
 }
 
-// SelectRole: inside the skill config character list (MapImage/Left), click 艾莎's SkinItem.
-// Precondition: BattlePrevPanel_Main visible, skill config panel open
-//   (Panel_1/MapImage/Left must be present — it appears only after OpenSkillConfig).
-// 艾莎 is always the first SkinItem (no-Clone) in ScrollView2; the Clone item is locked.
+// SelectRole: click 艾莎's entry in the HeroChoose character list.
+// herochooseItem_103 = 艾莎 (confirmed from heroname text node).
+// The HeroChoose list is always present in room detail view; no prerequisite click needed.
+// Precondition: BattlePrevPanel_Main visible and in room detail view.
 // Returns {"clicked":true,"selected":"艾莎"} on success,
 //         {"clicked":false,"reason":"..."} as no-op when preconditions unmet.
 void CmdSelectRole(AgentConn* c, const char* id, const char*) {
@@ -184,16 +184,16 @@ void CmdSelectRole(AgentConn* c, const char* id, const char*) {
 
     std::vector<UiNodeSnapshot> matches;
     ResolveUiNodeMatches(panelTransform,
-        "Panel_1/MapImage/Left/ScrollView2/Viewport/Content/SkinItem",
+        "Panel_1/MapPanel/battleSet/HeroChoose/ScrollView/Viewport/Content/herochooseItem_103/button",
         UI_PATH_EXACT, 2, &matches);
     if (matches.empty()) {
-        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"SkinItem not found — skill config panel not open\"}");
+        SendResponse(c, id, true, u8"{\"clicked\":false,\"reason\":\"艾莎 not found — not in room detail view\"}");
         return;
     }
 
     UiNodeSnapshot& node = matches[0];
-    if (!node.active) { SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"SkinItem inactive\"}"); return; }
-    if (!node.components.button) { SendResponse(c, id, false, "SkinItem: no Button component"); return; }
+    if (!node.active) { SendResponse(c, id, true, u8"{\"clicked\":false,\"reason\":\"艾莎 button inactive\"}"); return; }
+    if (!node.components.button) { SendResponse(c, id, false, u8"艾莎 button: no Button component"); return; }
 
     if (!PerformButtonClick(node.components.button)) {
         SendResponse(c, id, false, "click failed");
