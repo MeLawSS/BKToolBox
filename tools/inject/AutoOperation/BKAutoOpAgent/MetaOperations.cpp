@@ -854,7 +854,9 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         }
 
         if (secs < 30 && !round.empty() && round != lastBidRound) {
+            static const int FLOOR_PRICE = 11119;
             int currentPrice = g_expectedPrice.load();
+            if (useExpectedPrice && currentPrice <= 0) currentPrice = FLOOR_PRICE;
             int amount = useExpectedPrice
                 ? ComputeBidAmount(currentPrice, roundsEncountered)
                 : bidAmount;

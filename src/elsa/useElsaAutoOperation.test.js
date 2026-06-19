@@ -181,16 +181,17 @@ describe('useElsaAutoOperation', () => {
     removeSpy.mockRestore();
   });
 
-  it('runScript() logs error and auto-disables when elsaExpectedPrice is 0', async () => {
+  it('runScript() skips SetExpectedPrice and calls AutoAuction when elsaExpectedPrice is 0', async () => {
     monitorRunning = true;
     mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
     elsaExpectedPrice.value = 0;
     const { result, wrapper } = withSetup(() => useElsaAutoOperation());
     await result.enable();
     await flushPromises();
-    await flushPromises(); // let runScript fire, error, and .finally() disable
-    expect(result.isEnabled.value).toBe(false); // auto-disabled after script error
-    expect(result.log.value.some(e => e.level === 'error' && e.message.includes('请先运行估算'))).toBe(true);
+    const calls = window.bidkingDesktop.runAutoOperationCommand.mock.calls;
+    expect(calls.some(([name]) => name === 'SetExpectedPrice')).toBe(false); // no initial price sync
+    expect(calls.some(([name]) => name === 'AutoAuction')).toBe(true);       // auction still runs
+    expect(result.isEnabled.value).toBe(false); // auto-disabled after success
     wrapper.unmount();
   });
 

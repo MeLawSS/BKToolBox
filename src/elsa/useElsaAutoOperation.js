@@ -34,10 +34,10 @@ export function useElsaAutoOperation() {
     addLog('开始自动竞拍…');
 
     const initialPrice = elsaExpectedPrice.value;
-    if (!initialPrice) throw new Error('请先运行估算后再开启自动竞拍');
-
-    await cmd('SetExpectedPrice', { price: initialPrice });
-    addLog(`估价已更新: ${initialPrice}`);
+    if (initialPrice) {
+      await cmd('SetExpectedPrice', { price: initialPrice });
+      addLog(`初始估价: ${initialPrice}`);
+    }
 
     if (signal.aborted) throw new Error('操作已取消');
 
