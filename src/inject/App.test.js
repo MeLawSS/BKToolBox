@@ -189,6 +189,20 @@ describe('Inject App', () => {
     expect(wrapper.find('[data-testid="controller-command-examples"]').text()).toContain('DumpPanelTree');
   });
 
+  it('adds a metaoperation tab to the basic inject group and mounts the panel on demand', async () => {
+    const wrapper = await mountApp();
+
+    expect(wrapper.find('[data-testid="inject-nav-group-basic"]').text()).toContain('元操作');
+    expect(wrapper.find('[data-testid="inject-panel-metaOperation"]').exists()).toBe(false);
+
+    await activatePanel(wrapper, 'metaOperation');
+
+    expect(wrapper.find('[data-testid="inject-panel-metaOperation"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="meta-operation-title"]').text()).toContain('元操作');
+    expect(wrapper.find('[data-testid="meta-operation-command-GoToBattlePrev"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="meta-operation-command-GoToBattlePrev"]').element.disabled).toBe(true);
+  });
+
   it('renders the controller navigation label in English when locale is saved', async () => {
     window.localStorage.setItem(LOCALE_STORAGE_KEY, 'en-US');
 
@@ -196,6 +210,15 @@ describe('Inject App', () => {
 
     expect(document.documentElement.lang).toBe('en-US');
     expect(wrapper.find('[data-testid="inject-nav-group-basic"]').text()).toContain('Controller');
+  });
+
+  it('renders the metaoperation navigation label in English when locale is saved', async () => {
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, 'en-US');
+
+    const wrapper = await mountApp();
+
+    expect(document.documentElement.lang).toBe('en-US');
+    expect(wrapper.find('[data-testid="inject-nav-group-basic"]').text()).toContain('MetaOperation');
   });
 
   it('does not trigger an extra Ping when opening the controller panel', async () => {

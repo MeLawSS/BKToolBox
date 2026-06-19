@@ -6,6 +6,7 @@ import InjectCollectionScanPanel from './panels/InjectCollectionScanPanel.vue';
 import InjectControllerPanel from './panels/InjectControllerPanel.vue';
 import InjectDelayedPricePanel from './panels/InjectDelayedPricePanel.vue';
 import InjectListingPanel from './panels/InjectListingPanel.vue';
+import InjectMetaOperationPanel from './panels/InjectMetaOperationPanel.vue';
 import InjectWarehousePanel from './panels/InjectWarehousePanel.vue';
 import TopBar from '../shared/TopBar.vue';
 import { useI18n } from '../shared/i18n.js';
@@ -25,6 +26,7 @@ const workspaceNavGroups = [
       { id: 'cabinet', titleKey: 'inject.nav.cabinet' },
       { id: 'agent', titleKey: 'inject.nav.agent' },
       { id: 'controller', titleKey: 'inject.nav.controller' },
+      { id: 'metaOperation', titleKey: 'inject.nav.metaOperation' },
     ],
   },
   {
@@ -160,6 +162,19 @@ onUnmounted(() => {
         >
           <InjectControllerPanel
             :is-active="activePanelId === 'controller'"
+            :command-loading="autoOperationCommandLoading"
+            @command-loading-change="setAutoOperationCommandLoading"
+          />
+        </section>
+
+        <section
+          v-if="renderedPanels.metaOperation"
+          v-show="activePanelId === 'metaOperation'"
+          class="inject-panel workspace-shell__panel"
+          data-testid="inject-panel-metaOperation"
+          :aria-label="t('inject.metaOperationTitle')"
+        >
+          <InjectMetaOperationPanel
             :command-loading="autoOperationCommandLoading"
             @command-loading-change="setAutoOperationCommandLoading"
           />
