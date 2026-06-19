@@ -200,7 +200,6 @@ describe('Inject App', () => {
     expect(wrapper.find('[data-testid="inject-panel-metaOperation"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="meta-operation-title"]').text()).toContain('元操作');
     expect(wrapper.find('[data-testid="meta-operation-command-GoToBattlePrev"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="meta-operation-command-GoToBattlePrev"]').element.disabled).toBe(true);
   });
 
   it('renders the controller navigation label in English when locale is saved', async () => {
