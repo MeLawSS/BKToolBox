@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { useI18n } from '../../shared/i18n.js';
 import InjectUiAutomationPanel from './InjectUiAutomationPanel.vue';
+import InjectWarehouseBatchOpPanel from './InjectWarehouseBatchOpPanel.vue';
 import { useAutoOperationAgentRuntimeState } from '../../shared/useAutoOperationAgentSwitch.js';
 
 defineOptions({ name: 'InjectControllerPanel' });
@@ -393,6 +394,8 @@ async function submitControllerCommand() {
 
       <pre class="command-result" data-testid="controller-response-log">{{ responseLogText }}</pre>
     </section>
+
+    <InjectWarehouseBatchOpPanel />
 
     <section class="controller-domain-grid">
       <article
