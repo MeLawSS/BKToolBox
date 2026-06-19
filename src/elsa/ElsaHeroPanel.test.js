@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import ElsaHeroPanel from './ElsaHeroPanel.vue';
 import HeroEstimatorPanel from '../hero-estimator/HeroEstimatorPanel.vue';
+import ElsaAutoOperationPanel from './ElsaAutoOperationPanel.vue';
 import { elsaProfile } from '../hero-estimator/hero-profiles.js';
 
 const realAveragePrices = JSON.parse(fs.readFileSync('public/data/quality-size-average-prices.json', 'utf8'));
@@ -30,6 +31,19 @@ class FakeEventSource {
 }
 
 FakeEventSource.instances = [];
+
+vi.mock('./useElsaAutoOperation.js', () => ({
+  useElsaAutoOperation: () => ({
+    isEnabled: { value: false },
+    isBusy: { value: false },
+    enable: vi.fn(),
+    disable: vi.fn(),
+    monitorStatus: { value: 'idle' },
+    agentConnected: { value: false },
+    log: { value: [] },
+    clearLog: vi.fn(),
+  }),
+}));
 
 function mockFetch() {
   vi.stubGlobal('fetch', vi.fn(async (url) => {
@@ -79,5 +93,8 @@ describe('ElsaHeroPanel', () => {
     expect(wrapper.find('#elsa-total-price-orange').exists()).toBe(true);
     expect(wrapper.find('#elsa-cells-wg').exists()).toBe(false);
     expect(wrapper.find('#elsa-monitor-board').exists()).toBe(true);
+
+    const autoOpPanel = wrapper.findComponent(ElsaAutoOperationPanel);
+    expect(autoOpPanel.exists()).toBe(true);
   });
 });
