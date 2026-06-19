@@ -3936,13 +3936,26 @@ static void CmdGoToBattlePrev(AgentConn* c, const char* id, const char*) {
     Il2CppObject* curUI = (Il2CppObject*)SafeInvoke(getCurM, nullptr, nullptr);
     const char* curName = ObjClassName(curUI);
 
-    if (!curName || strcmp(curName, "UIMain") != 0) {
+    if (strcmp(curName, "UIMain") != 0) {
         char result[256];
         snprintf(result, sizeof(result),
                  "{\"clicked\":false,\"reason\":\"not on main UI\",\"current\":\"%s\"}",
-                 curName ? curName : "");
+                 curName);
         SendResponse(c, id, true, result);
         return;
+    }
+
+    // GetCurShowMainUI returns "UIMain" even while BattlePrevPanel_Main is overlaid.
+    // Check the visible panel list to confirm the auction hall is not already open.
+    {
+        Il2CppObject* bpTransform = nullptr;
+        char bpErr[128] = {};
+        UiPanelLookupResult bpResult = FindVisiblePanelTransform("BattlePrevPanel_Main", nullptr, &bpTransform, bpErr, sizeof(bpErr));
+        if (bpResult == UI_PANEL_FOUND) {
+            SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"already in BattlePrevPanel_Main\"}");
+            return;
+        }
+        if (bpResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, bpErr); return; }
     }
 
     Il2CppObject* panelTransform = nullptr;
