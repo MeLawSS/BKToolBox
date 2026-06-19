@@ -3980,6 +3980,43 @@ static void CmdGoToBattlePrev(AgentConn* c, const char* id, const char*) {
     SendResponse(c, id, true, "{\"clicked\":true,\"panel\":\"UIMain\"}");
 }
 
+// EnterBlindBoxRoom: if BattlePrevPanel_Main is open in map view,
+// click into the 快递盲盒堆 room (MapItem_101).
+// Returns {"clicked":true,"room":101} on success,
+//         {"clicked":false,"reason":"..."} as no-op when preconditions unmet.
+// Entering the room stays within BattlePrevPanel_Main (no scene transition).
+// Only 开始竞拍 inside the room causes DLL unload.
+static void CmdEnterBlindBoxRoom(AgentConn* c, const char* id, const char*) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    Il2CppObject* panelTransform = nullptr;
+    char error[128] = {};
+    UiPanelLookupResult panelResult = FindVisiblePanelTransform("BattlePrevPanel_Main", nullptr, &panelTransform, error, sizeof(error));
+    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (panelResult != UI_PANEL_FOUND) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"BattlePrevPanel_Main not visible\"}");
+        return;
+    }
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(panelTransform, "Panel_1/bg/MapContainer/MapItem_101/Image (1)", UI_PATH_EXACT, 2, &matches);
+    if (matches.empty()) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"MapItem_101 not found — not in map view or room unavailable\"}");
+        return;
+    }
+
+    UiNodeSnapshot& node = matches[0];
+    if (!node.active) { SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"MapItem_101 inactive\"}"); return; }
+    if (!node.components.button) { SendResponse(c, id, false, "MapItem_101: no Button component"); return; }
+
+    if (!PerformButtonClick(node.components.button)) {
+        SendResponse(c, id, false, "click failed");
+        return;
+    }
+
+    SendResponse(c, id, true, "{\"clicked\":true,\"room\":101}");
+}
+
 // ==========================================================================
 // Dispatch table
 // ==========================================================================
@@ -4011,6 +4048,7 @@ static const CmdEntry kCommands[] = {
     { "InvokeMethod",     CmdInvokeMethod     },
     { "LoadProbe",        CmdLoadProbe        },
     { "GoToBattlePrev",   CmdGoToBattlePrev   },
+    { "EnterBlindBoxRoom", CmdEnterBlindBoxRoom },
     { "UnloadAgent",      CmdUnloadAgent      },
     { nullptr,            nullptr             },
 };
