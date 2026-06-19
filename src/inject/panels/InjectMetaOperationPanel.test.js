@@ -66,6 +66,7 @@ describe('InjectMetaOperationPanel', () => {
     expect(wrapper.get('[data-testid="meta-operation-command-StartAction"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="meta-operation-command-GetBidState"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="meta-operation-command-PlaceBid"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('选择艾莎');
 
     const roomSelect = wrapper.get('[data-testid="meta-operation-room-select"]');
     expect(roomSelect.element.value).toBe('101');
@@ -99,7 +100,7 @@ describe('InjectMetaOperationPanel', () => {
     expect(runAutoOperationCommand).toHaveBeenCalledWith('EnterRoom', { roomId: 102 });
   });
 
-  it('dispatches zero-arg operations and preserves a clicked:false payload in the latest result JSON', async () => {
+  it('dispatches zero-arg operations and shows both the operator label and command id in the latest result header', async () => {
     const response = {
       ok: true,
       clicked: false,
@@ -114,9 +115,9 @@ describe('InjectMetaOperationPanel', () => {
     await nextTick();
 
     expect(runAutoOperationCommand).toHaveBeenCalledWith('GoToBattlePrev', {});
-    expect(wrapper.get('[data-testid="meta-operation-latest-command"]').text()).toContain(
-      'GoToBattlePrev',
-    );
+    const latestHeader = wrapper.get('[data-testid="meta-operation-latest-command"]').text();
+    expect(latestHeader).toContain('前往房间页');
+    expect(latestHeader).toContain('GoToBattlePrev');
     expect(
       JSON.parse(wrapper.get('[data-testid="meta-operation-latest-result-payload"]').text()),
     ).toEqual(response);
@@ -167,5 +168,31 @@ describe('InjectMetaOperationPanel', () => {
       ok: false,
       error: 'bridge exploded',
     });
+  });
+
+  it('shows the error banner for resolved native failures and preserves the raw resolved error payload', async () => {
+    const response = {
+      ok: false,
+      error: 'native command rejected',
+      code: 'E_NATIVE',
+    };
+    const runAutoOperationCommand = setupConnectedDesktop(vi.fn().mockResolvedValue(response));
+
+    const wrapper = await mountPanel();
+
+    await wrapper.get('[data-testid="meta-operation-command-SelectRole"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(runAutoOperationCommand).toHaveBeenCalledWith('SelectRole', {});
+    const latestHeader = wrapper.get('[data-testid="meta-operation-latest-command"]').text();
+    expect(latestHeader).toContain('选择艾莎');
+    expect(latestHeader).toContain('SelectRole');
+    expect(wrapper.get('[data-testid="meta-operation-error"]').text()).toContain(
+      'native command rejected',
+    );
+    expect(
+      JSON.parse(wrapper.get('[data-testid="meta-operation-latest-result-payload"]').text()),
+    ).toEqual(response);
   });
 });

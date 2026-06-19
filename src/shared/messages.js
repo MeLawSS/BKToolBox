@@ -78,7 +78,7 @@ export const messages = {
       metaOperationEnterRoom: '进入房间',
       metaOperationGoToBattlePrev: '前往房间页',
       metaOperationOpenSkillConfig: '打开技能配置',
-      metaOperationSelectElsa: '选择 Elsa',
+      metaOperationSelectElsa: '选择艾莎',
       metaOperationStartAction: '开始行动',
       metaOperationGetBidState: '获取竞拍状态',
       metaOperationPlaceBid: '出价',

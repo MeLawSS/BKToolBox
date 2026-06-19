@@ -43,6 +43,16 @@ const ZERO_ARG_ACTIONS = [
   },
 ];
 
+const META_OPERATION_LABEL_KEYS = {
+  GoToBattlePrev: 'inject.metaOperationGoToBattlePrev',
+  EnterRoom: 'inject.metaOperationEnterRoom',
+  OpenSkillConfig: 'inject.metaOperationOpenSkillConfig',
+  SelectRole: 'inject.metaOperationSelectElsa',
+  StartAction: 'inject.metaOperationStartAction',
+  GetBidState: 'inject.metaOperationGetBidState',
+  PlaceBid: 'inject.metaOperationPlaceBid',
+};
+
 const props = defineProps({
   commandLoading: {
     type: String,
@@ -59,6 +69,7 @@ const selectedRoomId = ref('101');
 const localCommandLoading = ref('');
 const panelError = ref('');
 const latestCommand = ref('');
+const latestResultLabel = ref('');
 const latestResultPayload = ref(null);
 
 const desktopReady = computed(() => Boolean(window.bidkingDesktop?.isDesktop));
@@ -114,6 +125,7 @@ async function runMetaOperationCommand(command, args = {}) {
 
   panelError.value = '';
   latestCommand.value = command;
+  latestResultLabel.value = t(META_OPERATION_LABEL_KEYS[command] || command);
   localCommandLoading.value = command;
   emit('command-loading-change', command);
 
@@ -225,7 +237,7 @@ async function submitEnterRoom() {
           class="status-text is-muted"
           data-testid="meta-operation-latest-command"
         >
-          {{ t('inject.metaOperationLatestCommand') }}: {{ latestCommand }}
+          {{ t('inject.metaOperationLatestCommand') }}: {{ latestResultLabel }} ({{ latestCommand }})
         </span>
       </header>
 
