@@ -52,6 +52,15 @@ describe('ElsaAutoOperationPanel', () => {
     expect(wrapper.find('[data-testid="elsa-auto-operation-panel"]').exists()).toBe(true);
   });
 
+  it('renders the upgraded panel chrome with summary cards and a log card', () => {
+    const wrapper = mount(ElsaAutoOperationPanel, { attachTo: document.body });
+    mountedWrappers.push(wrapper);
+
+    expect(wrapper.find('.elsa-auto-operation-toolbar').exists()).toBe(true);
+    expect(wrapper.findAll('.elsa-auto-status-card')).toHaveLength(2);
+    expect(wrapper.find('.elsa-auto-operation-log-card').exists()).toBe(true);
+  });
+
   it('shows enable button when not enabled', () => {
     const wrapper = mount(ElsaAutoOperationPanel, { attachTo: document.body });
     mountedWrappers.push(wrapper);

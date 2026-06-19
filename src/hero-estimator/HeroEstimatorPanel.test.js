@@ -274,6 +274,26 @@ describe('HeroEstimatorPanel', () => {
     expect(wrapper.find('#elsa-monitor-board').exists()).toBe(true);
   });
 
+  it('renders the before-monitor slot ahead of the live monitor panel', async () => {
+    const wrapper = mount(HeroEstimatorPanel, {
+      props: { profile: elsaProfile, embedded: true },
+      slots: {
+        'before-monitor': '<div data-testid="before-monitor-slot">Before monitor</div>',
+      },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    const slotEl = wrapper.find('[data-testid="before-monitor-slot"]');
+    const monitorEl = wrapper.find('.live-monitor-panel');
+
+    expect(slotEl.exists()).toBe(true);
+    expect(monitorEl.exists()).toBe(true);
+    expect(slotEl.element.compareDocumentPosition(monitorEl.element) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
+
   it('boots the shared estimation worker for Elsa and keeps Elsa totals correct', async () => {
     vi.stubGlobal('Worker', FakeEstimationWorker);
 

@@ -97,4 +97,20 @@ describe('ElsaHeroPanel', () => {
     const autoOpPanel = wrapper.findComponent(ElsaAutoOperationPanel);
     expect(autoOpPanel.exists()).toBe(true);
   });
+
+  it('renders the auto-operation panel above the live monitor panel', async () => {
+    const wrapper = mount(ElsaHeroPanel, {
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    const autoOpPanel = wrapper.find('[data-testid="elsa-auto-operation-panel"]');
+    const monitorPanel = wrapper.find('.live-monitor-panel');
+
+    expect(autoOpPanel.exists()).toBe(true);
+    expect(monitorPanel.exists()).toBe(true);
+    expect(autoOpPanel.element.compareDocumentPosition(monitorPanel.element) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
 });

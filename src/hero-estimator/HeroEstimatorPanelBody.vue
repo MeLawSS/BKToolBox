@@ -197,6 +197,8 @@ function showsGroupTotalPriceField(groupKey) {
         </section>
       </section>
 
+      <slot name="before-monitor" />
+
       <section v-if="props.profile.supportsMonitor" class="live-monitor-panel" :aria-label="panel.t(panel.heroKey('monitor.boardAria'))">
         <header class="live-monitor-head">
           <div>

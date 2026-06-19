@@ -143,7 +143,15 @@ This section should distinguish three different sets because they are not identi
 2. commands registered in the native dispatch table
 3. commands currently exposed in `src/inject/panels/InjectMetaOperationPanel.vue`
 
-The manual should explicitly call out that the Inject panel currently exposes a curated subset, while the native layer currently includes additional meta-style commands such as `SetBidAmount`, `ConfirmBid`, `GetCurrentScreen`, `CloseCurrentOverlay`, and `CollectCabinetReward`.
+The manual should not assume these differences from older docs. It must derive the current sets from code.
+
+The manual should explicitly reflect the current reality:
+
+- the Inject MetaOperation panel already exposes most human-facing meta commands implemented in native code, including `ConfirmBid`, `DismissRewardsBox`, `DismissCollectAward`, `GetCurrentScreen`, `CloseCurrentOverlay`, and `CollectCabinetReward`
+- `AutoAuction` is currently registered in the native dispatch table and available through `bkcli`, but not exposed in the Inject MetaOperation panel
+- `LoadProbe` is also in the native dispatch table, but it belongs to probe loading infrastructure rather than MetaOperation and must not be mixed into the MetaOperation difference set
+
+Because `MetaOperations.cpp` now contains both meta-style commands and aggregate-style commands, the manual should classify commands by current behavior and exposure, not by source file membership alone.
 
 ### 6. `AggregateOperation`
 
@@ -197,14 +205,19 @@ This is a documentation-only change. Verification should focus on factual consis
 
 1. Re-read:
    - `tools/bkcli/bkcli.js`
+   - `tools/bkcli/inject.js`
+   - `tools/bkcli/shellcode.js`
+   - `tools/bkcli/probe.js`
    - `tools/bkcli/README.md`
    - `tools/inject/AutoOperation/BKAutoOpAgent/BKAutoOpAgent.cpp`
    - `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.cpp`
+   - `src/inject/panels/InjectMetaOperationPanel.vue`
    - `docs/AUTO_OPERATION_COMMANDS.md`
    - `docs/CONTROLLER_PAGE_COMMAND_EXAMPLES.md`
 2. Confirm the manual's command lists match the current code rather than older specs.
-3. Confirm the manual never claims Inject MetaOperation exposes commands that are only present in native code.
-4. Run `git diff --check`.
+3. Confirm the manual's `bkcli` section describes injection / shellcode / probe wrappers from their implementation files, not only from README text.
+4. Confirm the manual never claims Inject MetaOperation exposes commands that are only present in native code.
+5. Run `git diff --check`.
 
 ## Acceptance Criteria
 

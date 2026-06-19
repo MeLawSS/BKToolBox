@@ -5,6 +5,9 @@ import { elsaProfile } from '../hero-estimator/hero-profiles.js';
 </script>
 
 <template>
-  <HeroEstimatorPanel :profile="elsaProfile" embedded />
-  <ElsaAutoOperationPanel />
+  <HeroEstimatorPanel :profile="elsaProfile" embedded>
+    <template #before-monitor>
+      <ElsaAutoOperationPanel />
+    </template>
+  </HeroEstimatorPanel>
 </template>

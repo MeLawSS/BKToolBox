@@ -14,5 +14,9 @@ defineProps({
     :profile="profile"
     :active-page="activePage"
     :embedded="embedded"
-  />
+  >
+    <template #before-monitor>
+      <slot name="before-monitor" />
+    </template>
+  </HeroEstimatorPanelBody>
 </template>
