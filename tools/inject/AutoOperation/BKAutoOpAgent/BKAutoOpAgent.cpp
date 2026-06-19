@@ -4082,6 +4082,45 @@ static void CmdOpenSkillConfig(AgentConn* c, const char* id, const char*) {
     SendResponse(c, id, true, "{\"clicked\":true}");
 }
 
+// SelectElsa: inside the skill config character list (MapImage/Left), click 艾莎's SkinItem.
+// Precondition: BattlePrevPanel_Main visible, skill config panel open
+//   (Panel_1/MapImage/Left must be present — it appears only after OpenSkillConfig).
+// 艾莎 is always the first SkinItem (no-Clone) in ScrollView2; the Clone item is locked.
+// Returns {"clicked":true,"selected":"艾莎"} on success,
+//         {"clicked":false,"reason":"..."} as no-op when preconditions unmet.
+static void CmdSelectElsa(AgentConn* c, const char* id, const char*) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    Il2CppObject* panelTransform = nullptr;
+    char error[128] = {};
+    UiPanelLookupResult panelResult = FindVisiblePanelTransform("BattlePrevPanel_Main", nullptr, &panelTransform, error, sizeof(error));
+    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (panelResult != UI_PANEL_FOUND) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"BattlePrevPanel_Main not visible\"}");
+        return;
+    }
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(panelTransform,
+        "Panel_1/MapImage/Left/ScrollView2/Viewport/Content/SkinItem",
+        UI_PATH_EXACT, 2, &matches);
+    if (matches.empty()) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"SkinItem not found — skill config panel not open\"}");
+        return;
+    }
+
+    UiNodeSnapshot& node = matches[0];
+    if (!node.active) { SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"SkinItem inactive\"}"); return; }
+    if (!node.components.button) { SendResponse(c, id, false, "SkinItem: no Button component"); return; }
+
+    if (!PerformButtonClick(node.components.button)) {
+        SendResponse(c, id, false, "click failed");
+        return;
+    }
+
+    SendResponse(c, id, true, u8"{\"clicked\":true,\"selected\":\"艾莎\"}");
+}
+
 // ==========================================================================
 // Dispatch table
 // ==========================================================================
@@ -4115,6 +4154,7 @@ static const CmdEntry kCommands[] = {
     { "GoToBattlePrev",   CmdGoToBattlePrev   },
     { "EnterRoom",        CmdEnterRoom        },
     { "OpenSkillConfig",  CmdOpenSkillConfig  },
+    { "SelectElsa",       CmdSelectElsa       },
     { "UnloadAgent",      CmdUnloadAgent      },
     { nullptr,            nullptr             },
 };
