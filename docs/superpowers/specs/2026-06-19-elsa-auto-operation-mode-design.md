@@ -11,13 +11,14 @@
 ## Global Constraints
 
 - Vue 3 `<script setup>` style throughout — no Options API
-- i18n via `useI18n()` / `t()` from `src/shared/i18n.js`; all user-visible strings use i18n keys in `src/shared/messages.js`
+- i18n via `useI18n()` / `t()` from `src/shared/i18n.js`; all UI structural labels (titles, button text, status labels, section headers) use i18n keys nested under `tools.hero` in `src/shared/messages.js`. **Activity log message strings are hardcoded and are NOT i18n'd** — they are developer/status output, not UI labels; this is an explicit exception.
 - No TypeScript — plain `.js` / `.vue` files
 - Follow existing patterns in `src/elsa/` and `src/inject/panels/InjectMetaOperationPanel.vue`
 - Do not modify `HeroEstimatorPanelBody.vue` or `useHeroEstimatorPanel.js`
 - Log entries capped at 200; when exceeded, drop the oldest
-- Monitor start calls `startMonitor()` with no explicit options — relies on the options resolver already registered by `useHeroEstimatorPanel`
-- The operation script (`runScript`) is a placeholder in this phase: it logs one message and returns; actual bidding logic is out of scope
+- Monitor start uses `monitor.toggleMonitor()` (not `startMonitor()`) so the options resolver registered by `useHeroEstimatorPanel` is applied; only call it when `monitor.status.value?.running` is false
+- The operation script (`runScript`) is a placeholder in this phase: logs one message and returns; actual bidding logic is out of scope
+- `useElsaAutoOperation()` calls `useAutoOperationAgentSwitch()` internally, which uses `onMounted` — the composable must be called inside a component `setup()` context (not at module level)
 
 ---
 
@@ -28,7 +29,7 @@
 
 **Interfaces:**
 - Consumes: `useMonitorSwitch` from `src/shared/useMonitorSwitch.js`, `useAutoOperationAgentSwitch` from `src/shared/useAutoOperationAgentSwitch.js`
-- Produces: exported `useElsaAutoOperation()` returning `{ isEnabled, isBusy, enable, disable, monitorStatus, agentConnected, agentBusy, log, clearLog }`
+- Produces: exported `useElsaAutoOperation()` returning `{ isEnabled, isBusy, enable, disable, monitorStatus, agentConnected, log, clearLog }`
 
 - [ ] **Step 1: Write the composable**
 
@@ -59,7 +60,7 @@ export function useElsaAutoOperation() {
     log.value = [];
   }
 
-  async function runScript(signal) {
+  async function runScript(/* signal */) {
     addLog('自动竞拍脚本已启动');
     // TODO: bidding logic
   }
@@ -70,12 +71,29 @@ export function useElsaAutoOperation() {
     clearLog();
     try {
       addLog('正在启动 Monitor 和 Agent…');
-      await Promise.all([
-        monitor.startMonitor().catch(e => addLog(`Monitor 启动失败: ${e?.message || e}`, 'error')),
-        agent.loadAgent().catch(e => addLog(`Agent 启动失败: ${e?.message || e}`, 'error')),
-      ]);
-      addLog('Monitor 已启动');
-      addLog('Agent 已连接');
+      let monitorOk = true;
+      let agentOk = true;
+
+      // toggleMonitor() uses the options resolver registered by useHeroEstimatorPanel;
+      // only call it when the monitor is not already running to avoid stopping it.
+      if (!monitor.status.value?.running) {
+        await monitor.toggleMonitor().catch(e => {
+          monitorOk = false;
+          addLog(`Monitor 启动失败: ${e?.message || e}`, 'error');
+        });
+      } else {
+        addLog('Monitor 已在运行');
+      }
+      if (monitorOk) addLog('Monitor 已启动');
+
+      await agent.loadAgent().catch(e => {
+        agentOk = false;
+        addLog(`Agent 启动失败: ${e?.message || e}`, 'error');
+      });
+      if (agentOk) addLog('Agent 已连接');
+
+      if (!monitorOk && !agentOk) return; // both failed — stay disabled
+
       isEnabled.value = true;
       const controller = new AbortController();
       scriptAbort = controller;
@@ -104,15 +122,14 @@ export function useElsaAutoOperation() {
 
   const monitorStatus = computed(() => monitor.status.value?.state ?? 'idle');
   const agentConnected = computed(() => agent.isConnected.value);
-  const agentBusy = computed(() => agent.isBusy.value);
 
-  return { isEnabled, isBusy, enable, disable, monitorStatus, agentConnected, agentBusy, log, clearLog };
+  return { isEnabled, isBusy, enable, disable, monitorStatus, agentConnected, log, clearLog };
 }
 ```
 
 - [ ] **Step 2: Verify file is syntactically valid**
 
-Open the file and confirm no obvious syntax errors. No automated test for this task — the composable is tested via the component in Task 2.
+Open the file and confirm no obvious syntax errors. No automated test for this task — the composable is tested via the component in Task 3.
 
 - [ ] **Step 3: Commit**
 
@@ -131,9 +148,13 @@ git commit -m "feat(elsa): add useElsaAutoOperation composable skeleton"
 **Interfaces:**
 - Produces: i18n keys used by `ElsaAutoOperationPanel.vue` in Task 3
 
-- [ ] **Step 1: Add keys to the Chinese section**
+- [ ] **Step 1: Find the correct nesting path**
 
-In the `zh` locale object, find the `inject:` key group (or `elsa:` if it exists) and add:
+Open `src/shared/messages.js` and search for `elsaTitle` to locate where existing Elsa-related keys live. They are nested under `tools.hero` (e.g., `tools.hero.elsaTitle`). All new keys in this task go under the same `tools.hero` object in both locales.
+
+- [ ] **Step 2: Add keys to the Chinese section**
+
+Inside the `tools.hero` object of the `zh` locale, add:
 
 ```js
 elsaAutoOperationTitle: '自动操作模式',
@@ -148,9 +169,9 @@ elsaAutoOperationLogTitle: '活动日志',
 elsaAutoOperationLogEmpty: '暂无日志',
 ```
 
-- [ ] **Step 2: Add keys to the English section**
+- [ ] **Step 3: Add keys to the English section**
 
-In the `en` locale object, add the same keys:
+Inside the `tools.hero` object of the `en` locale, add:
 
 ```js
 elsaAutoOperationTitle: 'Auto Operation Mode',
@@ -165,9 +186,7 @@ elsaAutoOperationLogTitle: 'Activity Log',
 elsaAutoOperationLogEmpty: 'No log entries',
 ```
 
-> **Note:** Find existing elsa-related i18n keys in `messages.js` (search for `elsa`) to place the new keys in the correct nested path. Use the same nesting path (e.g., if Elsa keys live under `tools.hero`, add under `tools.hero` for both locales). The key short names above are leaf names; adjust the full dotted path to match.
-
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add src/shared/messages.js
@@ -184,6 +203,7 @@ git commit -m "feat(elsa): add i18n keys for auto operation panel"
 **Interfaces:**
 - Consumes: `useElsaAutoOperation` from `./useElsaAutoOperation.js`, `useI18n` from `../shared/i18n.js`
 - Produces: self-contained panel component with no props and no emits
+- All i18n keys are accessed as `t('tools.hero.elsaAutoOperation*')` — the full dotted path matching Task 2
 
 - [ ] **Step 1: Write the component**
 
@@ -196,7 +216,7 @@ import { useElsaAutoOperation } from './useElsaAutoOperation.js';
 defineOptions({ name: 'ElsaAutoOperationPanel' });
 
 const { t } = useI18n();
-const { isEnabled, isBusy, enable, disable, monitorStatus, agentConnected, agentBusy, log } =
+const { isEnabled, isBusy, enable, disable, monitorStatus, agentConnected, log } =
   useElsaAutoOperation();
 
 const logEl = ref(null);
@@ -217,8 +237,8 @@ function toggle() {
 
 <template>
   <section class="listing-advice-panel elsa-auto-operation-panel" data-testid="elsa-auto-operation-panel">
-    <header class="section-head">
-      <h2>{{ t('elsa.autoOperationTitle') }}</h2>
+    <header class="section-head elsa-auto-operation-head">
+      <h2>{{ t('tools.hero.elsaAutoOperationTitle') }}</h2>
       <button
         class="command-button"
         type="button"
@@ -228,34 +248,32 @@ function toggle() {
       >
         {{
           isBusy
-            ? t('elsa.autoOperationBusy')
+            ? t('tools.hero.elsaAutoOperationBusy')
             : isEnabled
-              ? t('elsa.autoOperationDisable')
-              : t('elsa.autoOperationEnable')
+              ? t('tools.hero.elsaAutoOperationDisable')
+              : t('tools.hero.elsaAutoOperationEnable')
         }}
       </button>
     </header>
 
-    <div class="meta-operation-status-grid">
-      <div class="meta-operation-status-item" data-testid="elsa-auto-operation-monitor-status">
-        <span>{{ t('elsa.autoOperationMonitorLabel') }}</span>
+    <div class="elsa-auto-status-grid">
+      <div class="elsa-auto-status-item" data-testid="elsa-auto-operation-monitor-status">
+        <span>{{ t('tools.hero.elsaAutoOperationMonitorLabel') }}</span>
         <strong>{{ monitorStatus }}</strong>
       </div>
-      <div class="meta-operation-status-item" data-testid="elsa-auto-operation-agent-status">
-        <span>{{ t('elsa.autoOperationAgentLabel') }}</span>
+      <div class="elsa-auto-status-item" data-testid="elsa-auto-operation-agent-status">
+        <span>{{ t('tools.hero.elsaAutoOperationAgentLabel') }}</span>
         <strong>{{
           agentConnected
-            ? t('elsa.autoOperationAgentConnected')
-            : t('elsa.autoOperationAgentDisconnected')
+            ? t('tools.hero.elsaAutoOperationAgentConnected')
+            : t('tools.hero.elsaAutoOperationAgentDisconnected')
         }}</strong>
       </div>
     </div>
 
-    <div class="elsa-auto-operation-log-header">
-      <h3>{{ t('elsa.autoOperationLogTitle') }}</h3>
-    </div>
+    <h3 class="elsa-auto-operation-log-header">{{ t('tools.hero.elsaAutoOperationLogTitle') }}</h3>
     <div ref="logEl" class="elsa-auto-operation-log" data-testid="elsa-auto-operation-log">
-      <p v-if="!log.length" class="status-text is-muted">{{ t('elsa.autoOperationLogEmpty') }}</p>
+      <p v-if="!log.length" class="status-text is-muted">{{ t('tools.hero.elsaAutoOperationLogEmpty') }}</p>
       <div
         v-for="(entry, i) in log"
         :key="i"
@@ -271,10 +289,27 @@ function toggle() {
 </template>
 
 <style scoped>
-.elsa-auto-operation-panel .section-head {
+.elsa-auto-operation-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.elsa-auto-status-grid {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.elsa-auto-status-item {
+  display: flex;
+  gap: 6px;
+  font-size: 0.85em;
+}
+
+.elsa-auto-operation-log-header {
+  margin-top: 12px;
+  margin-bottom: 4px;
 }
 
 .elsa-auto-operation-log {
@@ -296,21 +331,12 @@ function toggle() {
 .elsa-auto-operation-log-entry.is-error { color: var(--color-error, #c00); }
 .elsa-auto-operation-log-entry.is-warn  { color: var(--color-warn, #a60); }
 
-.log-time  { opacity: 0.5; flex-shrink: 0; }
+.log-time    { opacity: 0.5; flex-shrink: 0; }
 .log-message { word-break: break-all; }
-
-.elsa-auto-operation-log-header {
-  margin-top: 12px;
-  margin-bottom: 4px;
-}
 </style>
 ```
 
-- [ ] **Step 2: Confirm i18n key path**
-
-Open `src/shared/messages.js` and verify that the key path used in `t('elsa.autoOperationTitle')` etc. matches the actual nesting from Task 2. Adjust `t(...)` calls in this component if the nesting path differs.
-
-- [ ] **Step 3: Commit**
+- [ ] **Step 2: Commit**
 
 ```bash
 git add src/elsa/ElsaAutoOperationPanel.vue
@@ -329,7 +355,7 @@ git commit -m "feat(elsa): add ElsaAutoOperationPanel component"
 
 - [ ] **Step 1: Read the current file**
 
-Read `src/elsa/ElsaHeroPanel.vue` to see its current content (it's a thin wrapper around `HeroEstimatorPanel`).
+Read `src/elsa/ElsaHeroPanel.vue` to see its current content (it is a thin wrapper around `HeroEstimatorPanel` that passes `elsaProfile`).
 
 - [ ] **Step 2: Add the new panel**
 
@@ -369,27 +395,27 @@ npm run dev
 
 - [ ] **Step 2: Navigate to the Elsa Expected Value page**
 
-Confirm that the "自动操作模式" panel appears below the estimator.
+Confirm that the "自动操作模式" panel appears below the estimator, with correct translated labels (not raw key strings).
 
 - [ ] **Step 3: Test toggle — without desktop bridge**
 
 With no Electron desktop bridge available (browser-only), click "开启". Verify:
-- The enable() function runs without crashing
-- Log entries appear showing monitor/agent start attempts
+- `isBusy` disables the button during startup
+- Log entries appear for monitor/agent start attempts
 - Error entries appear (expected — no bridge in browser)
-- Toggle button becomes "关闭" after isBusy resolves
+- Toggle button stays "开启" (isEnabled remains false because both failed)
 
 - [ ] **Step 4: Test in Electron (if available)**
 
 With Electron running and BidKing process present:
-1. Open Elsa page
-2. Click "开启" — monitor and agent should start
-3. Monitor status should update to "capturing"
-4. Agent status should show "已连接"
-5. Log should show the startup sequence and "自动竞拍脚本已启动"
-6. Click "关闭" — both should stop, log shows "已停止"
+1. Open Elsa page — confirm monitor status and agent status show correctly
+2. Click "开启" — monitor and agent start
+3. Monitor status updates to "capturing"; agent status shows "已连接"
+4. Log shows startup sequence ending with "自动竞拍脚本已启动"
+5. Click "关闭" — both stop, log shows "已停止"
+6. If Elsa estimator monitor is already running before clicking "开启", confirm the composable logs "Monitor 已在运行" (skips `toggleMonitor`) instead of starting a duplicate
 
-- [ ] **Step 5: Commit if any fixes were needed**
+- [ ] **Step 5: Commit any fixes needed**
 
 ```bash
 git add -p
