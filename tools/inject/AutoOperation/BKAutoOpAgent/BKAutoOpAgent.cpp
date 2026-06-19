@@ -4017,6 +4017,41 @@ static void CmdEnterBlindBoxRoom(AgentConn* c, const char* id, const char*) {
     SendResponse(c, id, true, "{\"clicked\":true,\"room\":101}");
 }
 
+// EnterAbandonedWarehouse: if BattlePrevPanel_Main is open in map view,
+// click into the 废弃仓库 room (MapItem_102).
+// Returns {"clicked":true,"room":102} on success,
+//         {"clicked":false,"reason":"..."} as no-op when preconditions unmet.
+static void CmdEnterAbandonedWarehouse(AgentConn* c, const char* id, const char*) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    Il2CppObject* panelTransform = nullptr;
+    char error[128] = {};
+    UiPanelLookupResult panelResult = FindVisiblePanelTransform("BattlePrevPanel_Main", nullptr, &panelTransform, error, sizeof(error));
+    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (panelResult != UI_PANEL_FOUND) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"BattlePrevPanel_Main not visible\"}");
+        return;
+    }
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(panelTransform, "Panel_1/bg/MapContainer/MapItem_102/Image (1)", UI_PATH_EXACT, 2, &matches);
+    if (matches.empty()) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"MapItem_102 not found — not in map view or room unavailable\"}");
+        return;
+    }
+
+    UiNodeSnapshot& node = matches[0];
+    if (!node.active) { SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"MapItem_102 inactive\"}"); return; }
+    if (!node.components.button) { SendResponse(c, id, false, "MapItem_102: no Button component"); return; }
+
+    if (!PerformButtonClick(node.components.button)) {
+        SendResponse(c, id, false, "click failed");
+        return;
+    }
+
+    SendResponse(c, id, true, "{\"clicked\":true,\"room\":102}");
+}
+
 // ==========================================================================
 // Dispatch table
 // ==========================================================================
@@ -4048,8 +4083,9 @@ static const CmdEntry kCommands[] = {
     { "InvokeMethod",     CmdInvokeMethod     },
     { "LoadProbe",        CmdLoadProbe        },
     { "GoToBattlePrev",   CmdGoToBattlePrev   },
-    { "EnterBlindBoxRoom", CmdEnterBlindBoxRoom },
-    { "UnloadAgent",      CmdUnloadAgent      },
+    { "EnterBlindBoxRoom",       CmdEnterBlindBoxRoom       },
+    { "EnterAbandonedWarehouse", CmdEnterAbandonedWarehouse },
+    { "UnloadAgent",             CmdUnloadAgent             },
     { nullptr,            nullptr             },
 };
 
