@@ -3919,6 +3919,55 @@ static void CmdLoadProbe(AgentConn* c, const char* id, const char* json) {
 }
 
 // ==========================================================================
+// Meta-operations
+// ==========================================================================
+
+// GoToBattlePrev: if the current main UI is UIMain, click the 竞拍 entry button.
+// Returns {"clicked":true,"panel":"UIMain"} on success,
+//         {"clicked":false,"reason":"not on main UI","current":"<name>"} when on a different UI.
+static void CmdGoToBattlePrev(AgentConn* c, const char* id, const char*) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    Il2CppClass* uiBhvrCls = FindClass("UIBehavior");
+    if (!uiBhvrCls) { SendResponse(c, id, false, "UIBehavior not found"); return; }
+    const Il2CppMethod* getCurM = g_class_get_method_from_name(uiBhvrCls, "GetCurShowMainUI", 0);
+    if (!getCurM) { SendResponse(c, id, false, "GetCurShowMainUI not found"); return; }
+
+    Il2CppObject* curUI = (Il2CppObject*)SafeInvoke(getCurM, nullptr, nullptr);
+    const char* curName = ObjClassName(curUI);
+
+    if (!curName || strcmp(curName, "UIMain") != 0) {
+        char result[256];
+        snprintf(result, sizeof(result),
+                 "{\"clicked\":false,\"reason\":\"not on main UI\",\"current\":\"%s\"}",
+                 curName ? curName : "");
+        SendResponse(c, id, true, result);
+        return;
+    }
+
+    Il2CppObject* panelTransform = nullptr;
+    char error[128] = {};
+    UiPanelLookupResult panelResult = FindVisiblePanelTransform("UIMain", nullptr, &panelTransform, error, sizeof(error));
+    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (panelResult != UI_PANEL_FOUND) { SendResponse(c, id, false, "UIMain panel not visible"); return; }
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(panelTransform, "MainPanel/mask/Button", UI_PATH_EXACT, 2, &matches);
+    if (matches.empty()) { SendResponse(c, id, false, "battle button not found"); return; }
+
+    UiNodeSnapshot& node = matches[0];
+    if (!node.active) { SendResponse(c, id, false, "battle button inactive"); return; }
+    if (!node.components.button) { SendResponse(c, id, false, "battle button: no Button component"); return; }
+
+    if (!PerformButtonClick(node.components.button)) {
+        SendResponse(c, id, false, "click failed");
+        return;
+    }
+
+    SendResponse(c, id, true, "{\"clicked\":true,\"panel\":\"UIMain\"}");
+}
+
+// ==========================================================================
 // Dispatch table
 // ==========================================================================
 typedef void (*CmdFn)(AgentConn*, const char*, const char*);
@@ -3948,6 +3997,7 @@ static const CmdEntry kCommands[] = {
     { "ExchangeItem",     CmdExchangeItem     },
     { "InvokeMethod",     CmdInvokeMethod     },
     { "LoadProbe",        CmdLoadProbe        },
+    { "GoToBattlePrev",   CmdGoToBattlePrev   },
     { "UnloadAgent",      CmdUnloadAgent      },
     { nullptr,            nullptr             },
 };
