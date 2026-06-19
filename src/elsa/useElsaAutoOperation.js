@@ -72,6 +72,7 @@ export function useElsaAutoOperation() {
 
       isEnabled.value = true;
       stopPriceWatcher = watch(elsaExpectedPrice, (price) => {
+        if (!price) return; // ignore reset-to-0 from unmount
         cmd('SetExpectedPrice', { price })
           .then(() => addLog(`估价已更新: ${price}`))
           .catch(e => addLog(`价格同步失败: ${e?.message || e}`, 'warn'));
