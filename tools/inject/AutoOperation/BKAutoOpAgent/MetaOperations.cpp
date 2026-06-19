@@ -4,6 +4,62 @@
 
 static std::atomic<int> g_expectedPrice{0};
 
+static HANDLE g_priceReaderThread = NULL;
+static HANDLE g_priceReaderStopEvent = NULL;
+
+static DWORD WINAPI PriceReaderThreadProc(LPVOID) {
+    wchar_t userProfile[MAX_PATH] = {};
+    GetEnvironmentVariableW(L"USERPROFILE", userProfile, MAX_PATH);
+    wchar_t pricePath[MAX_PATH];
+    swprintf_s(pricePath, MAX_PATH, L"%s\\Documents\\BidKing\\Price", userProfile);
+    while (WaitForSingleObject(g_priceReaderStopEvent, 2000) == WAIT_TIMEOUT) {
+        FILE* f = nullptr;
+        if (_wfopen_s(&f, pricePath, L"r") == 0 && f) {
+            char buf[32] = {};
+            if (fgets(buf, sizeof(buf), f)) {
+                int price = atoi(buf);
+                if (price > 0) g_expectedPrice.store(price);
+            }
+            fclose(f);
+        }
+    }
+    return 0;
+}
+
+static void StartPriceReaderThread() {
+    // Stop any existing thread first
+    if (g_priceReaderStopEvent) {
+        SetEvent(g_priceReaderStopEvent);
+        if (g_priceReaderThread) {
+            WaitForSingleObject(g_priceReaderThread, 3000);
+            CloseHandle(g_priceReaderThread);
+            g_priceReaderThread = NULL;
+        }
+        CloseHandle(g_priceReaderStopEvent);
+        g_priceReaderStopEvent = NULL;
+    }
+    g_priceReaderStopEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
+    if (!g_priceReaderStopEvent) return;
+    g_priceReaderThread = CreateThread(NULL, 0, PriceReaderThreadProc, NULL, 0, NULL);
+    if (!g_priceReaderThread) {
+        CloseHandle(g_priceReaderStopEvent);
+        g_priceReaderStopEvent = NULL;
+    }
+}
+
+static void StopPriceReaderThread() {
+    if (g_priceReaderStopEvent) SetEvent(g_priceReaderStopEvent);
+    if (g_priceReaderThread) {
+        WaitForSingleObject(g_priceReaderThread, 5000);
+        CloseHandle(g_priceReaderThread);
+        g_priceReaderThread = NULL;
+    }
+    if (g_priceReaderStopEvent) {
+        CloseHandle(g_priceReaderStopEvent);
+        g_priceReaderStopEvent = NULL;
+    }
+}
+
 // ==========================================================================
 // Internal helpers
 // ==========================================================================
@@ -745,6 +801,9 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
 
     bool useExpectedPrice = false;
     JsonGetBool(json, "useExpectedPrice", &useExpectedPrice);
+
+    StartPriceReaderThread();
+    struct PriceReaderGuard { ~PriceReaderGuard() { StopPriceReaderThread(); } } _priceGuard;
 
     char errBuf[256] = {};
 

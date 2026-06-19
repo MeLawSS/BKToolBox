@@ -700,6 +700,12 @@ function registerIpc() {
         scheduler.resetTimer(notifyAll);
         return scheduler.getState();
     });
+
+    ipcMain.handle('app:writeDataFile', (_event, filename, content) => {
+        const dir = path.join(app.getPath('documents'), 'BidKing');
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, filename), String(content ?? ''), 'utf8');
+    });
 }
 
 async function createMainWindow() {

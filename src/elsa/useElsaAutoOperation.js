@@ -16,6 +16,7 @@ export function useElsaAutoOperation() {
 
   let scriptAbort = null;
   let weStartedAgent = false;
+  let stopPriceWatcher = null;
   const cmd = (name, args) => window.bidkingDesktop.runAutoOperationCommand(name, args);
 
   function addLog(message, level = 'info') {
@@ -28,43 +29,15 @@ export function useElsaAutoOperation() {
     log.value = [];
   }
 
-  // Wait up to maxMs for elsaExpectedPrice to become non-zero.
-  // Resolves immediately if already set; resolves with 0 on timeout.
-  function waitForPrice(signal, maxMs = 10000) {
-    const current = elsaExpectedPrice.value;
-    if (current) return Promise.resolve(current);
-    return new Promise((resolve) => {
-      let settled = false;
-      const settle = (value) => {
-        if (settled) return;
-        settled = true;
-        stopWatcher();
-        clearTimeout(timer);
-        resolve(value);
-      };
-      const stopWatcher = watch(elsaExpectedPrice, (price) => {
-        if (price) settle(price);
-      });
-      const timer = setTimeout(() => settle(0), maxMs);
-      signal.addEventListener('abort', () => settle(0), { once: true });
-    });
+  function writePriceFile(price) {
+    window.bidkingDesktop.writeDataFile('Price', String(price || 0))
+      .catch(e => addLog(`价格文件写入失败: ${e?.message || e}`, 'warn'));
   }
 
   async function runScript(signal) {
     if (signal.aborted) throw new Error('操作已取消');
     addLog('开始自动竞拍…');
-
-    addLog(`当前估价: ${elsaExpectedPrice.value || '无，等待最多10秒…'}`);
-    const price = await waitForPrice(signal);
-
-    if (signal.aborted) throw new Error('操作已取消');
-
-    if (price) {
-      await cmd('SetExpectedPrice', { price });
-      addLog(`估价已发送: ${price}`);
-    } else {
-      addLog('未获得估价，将使用底价');
-    }
+    addLog(`当前估价: ${elsaExpectedPrice.value || '无，将使用底价'}`);
 
     const result = await cmd('AutoAuction', { roomId: 101, useExpectedPrice: true });
     const rounds = result?.value?.rounds ?? 0;
@@ -96,6 +69,9 @@ export function useElsaAutoOperation() {
       }
 
       isEnabled.value = true;
+      // Write current price immediately, then keep syncing on every change
+      stopPriceWatcher = watch(elsaExpectedPrice, writePriceFile, { immediate: true });
+
       const controller = new AbortController();
       scriptAbort = controller;
       runScript(controller.signal)
@@ -109,6 +85,7 @@ export function useElsaAutoOperation() {
   async function disable() {
     if (!isEnabled.value || isBusy.value) return;
     isBusy.value = true;
+    if (stopPriceWatcher) { stopPriceWatcher(); stopPriceWatcher = null; }
     if (scriptAbort) { scriptAbort.abort(); scriptAbort = null; }
     try {
       addLog('正在停止…');
