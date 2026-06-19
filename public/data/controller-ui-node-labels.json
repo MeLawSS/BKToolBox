@@ -17,7 +17,8 @@
   "MainPanel/Btns3/Button_5": "藏品百科",
   "MainPanel/Btns3/Button_6": "充值",
   "AssetItem_2/Button": "充值",
-  "WareHousePanel/leftDown/Button": "展柜奖励查看",
+  "WareHousePanel/leftDown/Button[0]": "展柜奖励查看",
+  "WareHousePanel/leftDown/Button[1]": "展柜奖励查看",
   "WareHousePanel/Top/Close": "仓库关闭",
   "MainPanel/Btns1/mail": "邮箱",
   "MainPanel/Btns1/notice": "通知"
