@@ -1,4 +1,4 @@
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import {
   buildPriceProfilesByGroup,
   collectEstimationInputs,
@@ -28,6 +28,7 @@ import {
   resolveGroupKeyFromQuality,
 } from './hero-profiles.js';
 import { useMonitorSwitch } from '../shared/useMonitorSwitch.js';
+import { elsaExpectedPrice } from '../elsa/elsaEstimateState.js';
 
 const PREDICTION_OUTPUT_LIMIT = 30;
 const PRICE_COMBO_MIN_CELL_SPACING = 4;
@@ -1756,6 +1757,15 @@ export function useHeroEstimatorPanel(profile) {
     window.removeEventListener('pagehide', handlePageHide);
     window.removeEventListener(LEAVE_TOOLS_EVENT, handleLeaveToolsPage);
   });
+
+  if (profile.id === 'elsa') {
+    watch(
+      () => summary.total,
+      (total) => { elsaExpectedPrice.value = Math.round(total) || 0; },
+      // No immediate: true — restored values from localStorage must not seed the price
+    );
+    onUnmounted(() => { elsaExpectedPrice.value = 0; });
+  }
 
   return {
     t,
