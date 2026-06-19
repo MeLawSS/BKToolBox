@@ -27,9 +27,11 @@ int main() {
     int slot = 0;
     assert(TryResolveOpponentSlot("melo", "melo", "澈澈澈", &slot) && slot == 2);
     assert(TryResolveOpponentSlot("melo", "澈澈澈", "melo", &slot) && slot == 1);
+    assert(TryResolveOpponentSlot("melo", "巅峰收藏家1", "巅峰收藏家2", &slot) && slot == 2);
     assert(!TryResolveOpponentSlot("melo", "", "", &slot));
     assert(!TryResolveOpponentSlot("melo", "melo", "melo", &slot));
     assert(!TryResolveOpponentSlot("melo", "澈澈澈", "澈澈澈", &slot));
+    assert(!TryResolveOpponentSlot("melo", "巅峰收藏家1", "陌生人", &slot));
 
     assert(ComputeOpponentCappedBid(50000, 44444, 1.4) == 50000);
     assert(ComputeOpponentCappedBid(90000, 44444, 1.4) == 62221);

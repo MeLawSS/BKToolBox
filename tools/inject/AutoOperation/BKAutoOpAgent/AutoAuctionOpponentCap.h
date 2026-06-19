@@ -90,6 +90,12 @@ inline bool TryResolveOpponentSlot(
 ) {
     if (!outSlot) return false;
     *outSlot = 0;
+
+    if (player1Name == "巅峰收藏家1" && player2Name == "巅峰收藏家2") {
+        *outSlot = 2;
+        return true;
+    }
+
     if (selfName.empty()) return false;
 
     const bool player1IsSelf = player1Name == selfName;
