@@ -96,3 +96,7 @@ void CmdConfirmBid(AgentConn* c, const char* id, const char* json);
 void CmdDismissRewardsBox(AgentConn* c, const char* id, const char* json);
 void CmdDismissCollectAward(AgentConn* c, const char* id, const char* json);
 void CmdGetCurrentScreen(AgentConn* c, const char* id, const char* json);
+void CmdCloseCurrentOverlay(AgentConn* c, const char* id, const char* json);
+void CmdCollectCabinetReward(AgentConn* c, const char* id, const char* json);
+void CmdAutoAuction(AgentConn* c, const char* id, const char* json);
+void CmdSetExpectedPrice(AgentConn* c, const char* id, const char* json);

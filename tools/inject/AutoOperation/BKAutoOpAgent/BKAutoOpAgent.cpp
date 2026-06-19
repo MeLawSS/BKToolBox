@@ -3920,8 +3920,12 @@ static const CmdEntry kCommands[] = {
     { "ConfirmBid",         CmdConfirmBid         },
     { "DismissRewardsBox",  CmdDismissRewardsBox  },
     { "DismissCollectAward", CmdDismissCollectAward },
-    { "GetCurrentScreen",   CmdGetCurrentScreen   },
-    { "UnloadAgent",      CmdUnloadAgent      },
+    { "GetCurrentScreen",      CmdGetCurrentScreen      },
+    { "CloseCurrentOverlay",   CmdCloseCurrentOverlay   },
+    { "CollectCabinetReward",  CmdCollectCabinetReward  },
+    { "SetExpectedPrice",      CmdSetExpectedPrice      },
+    { "AutoAuction",           CmdAutoAuction           },
+    { "UnloadAgent",           CmdUnloadAgent           },
     { nullptr,            nullptr             },
 };
 
