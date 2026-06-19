@@ -1,0 +1,13 @@
+{
+  "screen": "交易所 (Exchange)",
+  "currentUI": "UIMain",
+  "visiblePanels": ["UIMain", "TradingPanel", "ItemDetail_Main", "InvitePanel"],
+  "uiMainDepth1ActiveNodes": ["Bg", "Cabinet", "MainPanel", "WareHousePanel", "AssetItem_1", "AssetItem_2"],
+  "tabDetection": {
+    "method": "TradingPanel/Toggles/Toggle (N).toggleOn",
+    "buyTab":  "Toggle (1).toggleOn == true",
+    "sellTab": "Toggle (2).toggleOn == true",
+    "historyTab": "Toggle (3).toggleOn == true"
+  },
+  "notes": "TradingPanel 作为 overlay，UIMain 子节点与主界面大厅相同。tab 切换不改变 visiblePanels，通过各 Toggle 的 isOn 状态区分"
+}

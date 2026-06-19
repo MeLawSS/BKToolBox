@@ -1,0 +1,7 @@
+{
+  "screen": "主界面大厅 (Main Lobby)",
+  "currentUI": "UIMain",
+  "visiblePanels": ["UIMain", "ItemDetail_Main", "InvitePanel"],
+  "uiMainDepth1ActiveNodes": ["Bg", "Cabinet", "MainPanel", "WareHousePanel", "AssetItem_1", "AssetItem_2"],
+  "notes": "与仓库区别：MainPanel active。WareHousePanel 在两种界面下均 active，不能作为区分依据"
+}

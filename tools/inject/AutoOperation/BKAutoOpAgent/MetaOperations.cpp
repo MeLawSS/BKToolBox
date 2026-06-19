@@ -1,6 +1,12 @@
 #include "MetaOperations.h"
 
 // ==========================================================================
+// Internal helpers
+// ==========================================================================
+
+static bool GetBattleMainPanel(AgentConn* c, const char* id, Il2CppObject** out);
+
+// ==========================================================================
 // Meta-operations
 // ==========================================================================
 
@@ -245,13 +251,7 @@ void CmdGetBidState(AgentConn* c, const char* id, const char*) {
     if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
 
     Il2CppObject* panelTransform = nullptr;
-    char error[128] = {};
-    UiPanelLookupResult panelResult = FindVisiblePanelTransform("Battle_Main", nullptr, &panelTransform, error, sizeof(error));
-    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
-    if (panelResult != UI_PANEL_FOUND) {
-        SendResponse(c, id, true, "{\"ok\":false,\"reason\":\"Battle_Main not visible\"}");
-        return;
-    }
+    if (!GetBattleMainPanel(c, id, &panelTransform)) return;
 
     std::string round, timeRemaining;
 
@@ -274,6 +274,15 @@ void CmdGetBidState(AgentConn* c, const char* id, const char*) {
     SendResponse(c, id, true, result.c_str());
 }
 
+// Helper: look up Battle_Main panel; on failure sends error and returns false.
+static bool GetBattleMainPanel(AgentConn* c, const char* id, Il2CppObject** out) {
+    char error[128] = {};
+    UiPanelLookupResult r = FindVisiblePanelTransform("Battle_Main", nullptr, out, error, sizeof(error));
+    if (r == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return false; }
+    if (r != UI_PANEL_FOUND) { SendResponse(c, id, true, "{\"ok\":false,\"reason\":\"Battle_Main not visible\"}"); return false; }
+    return true;
+}
+
 // PlaceBid: click the 出价 (chujia) button in Battle_Main to place the current bid.
 // Precondition: Battle_Main must be visible and the chujia button active.
 // Returns {"clicked":true} on success, {"clicked":false,"reason":"..."} otherwise.
@@ -281,13 +290,7 @@ void CmdPlaceBid(AgentConn* c, const char* id, const char*) {
     if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
 
     Il2CppObject* panelTransform = nullptr;
-    char error[128] = {};
-    UiPanelLookupResult panelResult = FindVisiblePanelTransform("Battle_Main", nullptr, &panelTransform, error, sizeof(error));
-    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
-    if (panelResult != UI_PANEL_FOUND) {
-        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"Battle_Main not visible\"}");
-        return;
-    }
+    if (!GetBattleMainPanel(c, id, &panelTransform)) return;
 
     std::vector<UiNodeSnapshot> matches;
     ResolveUiNodeMatches(panelTransform, "Gaming/chujia", UI_PATH_EXACT, 2, &matches);
@@ -299,6 +302,197 @@ void CmdPlaceBid(AgentConn* c, const char* id, const char*) {
     UiNodeSnapshot& node = matches[0];
     if (!node.active) { SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"chujia button inactive\"}"); return; }
     if (!node.components.button) { SendResponse(c, id, false, "chujia button: no Button component"); return; }
+
+    if (!PerformButtonClick(node.components.button)) {
+        SendResponse(c, id, false, "click failed");
+        return;
+    }
+
+    SendResponse(c, id, true, "{\"clicked\":true}");
+}
+
+// SetBidAmount: set the price in the bid input dialog (InputDevice/Panel1/InputField (TMP)).
+// Must be called after PlaceBid has opened the InputDevice dialog.
+// Param: {"amount": <int>}  — the bid price as a non-negative integer.
+// Returns {"set":true,"amount":<n>} on success, {"set":false,"reason":"..."} otherwise.
+void CmdSetBidAmount(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    int amount = JsonGetInt(json, "amount");
+    if (amount == INT_MIN) { SendResponse(c, id, false, "missing amount"); return; }
+    if (amount < 0) { SendResponse(c, id, false, "amount must be non-negative"); return; }
+
+    Il2CppObject* panelTransform = nullptr;
+    if (!GetBattleMainPanel(c, id, &panelTransform)) return;
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(panelTransform, "InputDevice/Panel1/InputField (TMP)", UI_PATH_EXACT, 2, &matches);
+    if (matches.empty()) {
+        SendResponse(c, id, true, "{\"set\":false,\"reason\":\"InputField not found — bid dialog not open\"}");
+        return;
+    }
+
+    UiNodeSnapshot& node = matches[0];
+    if (!node.active) { SendResponse(c, id, true, "{\"set\":false,\"reason\":\"InputField inactive\"}"); return; }
+    if (!node.components.tmpInput && !node.components.numericInput) {
+        SendResponse(c, id, false, "InputField: no input component");
+        return;
+    }
+
+    char amountStr[32];
+    snprintf(amountStr, sizeof(amountStr), "%d", amount);
+
+    std::string componentName;
+    if (!PerformSetInputText(node, amountStr, false, &componentName)) {
+        SendResponse(c, id, false, "set text failed");
+        return;
+    }
+
+    char result[64];
+    snprintf(result, sizeof(result), "{\"set\":true,\"amount\":%d}", amount);
+    SendResponse(c, id, true, result);
+}
+
+// GetCurrentScreen: determine which UI screen is currently shown.
+// Returns {"screen":"<name>"} where screen is one of:
+//   "auction_in_progress"  — Battle_Main visible, Gaming active
+//   "auction_ended"        — Battle_Main visible, EndPanel active
+//   "auction_lobby_room"   — BattlePrevPanel_Main visible, in room detail (Panel_1/MapPanel active)
+//   "auction_lobby_map"    — BattlePrevPanel_Main visible, in map view
+//   "cabinet_reward_popup" — CollectAward_Main + RewardsBox both visible
+//   "cabinet_reward_list"  — CollectAward_Main visible, no RewardsBox
+//   "mailbox"              — Mail_Main visible
+//   "exchange"             — TradingPanel visible
+//   "battlepass"           — BattlePass_Main visible
+//   "main_lobby"           — UIMain only, MainPanel active
+//   "warehouse"            — UIMain only, MainPanel inactive
+//   "unknown"              — none of the above
+void CmdGetCurrentScreen(AgentConn* c, const char* id, const char*) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    Il2CppObject* battleMainTransform = nullptr;
+    Il2CppObject* battlePrevTransform = nullptr;
+    Il2CppObject* uiMainTransform     = nullptr;
+    char err[128] = {};
+
+    bool hasBattleMain   = FindVisiblePanelTransform("Battle_Main",          nullptr, &battleMainTransform, err, sizeof(err)) == UI_PANEL_FOUND;
+    bool hasBattlePrev   = FindVisiblePanelTransform("BattlePrevPanel_Main", nullptr, &battlePrevTransform, err, sizeof(err)) == UI_PANEL_FOUND;
+    bool hasCollectAward = FindVisiblePanelTransform("CollectAward_Main",    nullptr, nullptr,               err, sizeof(err)) == UI_PANEL_FOUND;
+    bool hasRewardsBox   = FindVisiblePanelTransform("RewardsBox",           nullptr, nullptr,               err, sizeof(err)) == UI_PANEL_FOUND;
+    bool hasMailMain     = FindVisiblePanelTransform("Mail_Main",            nullptr, nullptr,               err, sizeof(err)) == UI_PANEL_FOUND;
+    bool hasTradingPanel = FindVisiblePanelTransform("TradingPanel",         nullptr, nullptr,               err, sizeof(err)) == UI_PANEL_FOUND;
+    bool hasBattlePass   = FindVisiblePanelTransform("BattlePass_Main",      nullptr, nullptr,               err, sizeof(err)) == UI_PANEL_FOUND;
+                           FindVisiblePanelTransform("UIMain",               nullptr, &uiMainTransform,      err, sizeof(err));
+
+    const char* screen = "unknown";
+
+    if (hasBattleMain && battleMainTransform) {
+        std::vector<UiNodeSnapshot> endMatches, gamingMatches;
+        ResolveUiNodeMatches(battleMainTransform, "EndPanel", UI_PATH_EXACT, 1, &endMatches);
+        ResolveUiNodeMatches(battleMainTransform, "Gaming",   UI_PATH_EXACT, 1, &gamingMatches);
+        bool endActive    = !endMatches.empty()    && endMatches[0].active;
+        bool gamingActive = !gamingMatches.empty() && gamingMatches[0].active;
+        if      (endActive)    screen = "auction_ended";
+        else if (gamingActive) screen = "auction_in_progress";
+        else                   screen = "auction_in_progress";
+    } else if (hasBattlePrev && battlePrevTransform) {
+        std::vector<UiNodeSnapshot> mapPanelMatches;
+        ResolveUiNodeMatches(battlePrevTransform, "Panel_1/MapPanel", UI_PATH_EXACT, 1, &mapPanelMatches);
+        bool mapPanelActive = !mapPanelMatches.empty() && mapPanelMatches[0].active;
+        screen = mapPanelActive ? "auction_lobby_room" : "auction_lobby_map";
+    } else if (hasCollectAward) {
+        screen = hasRewardsBox ? "cabinet_reward_popup" : "cabinet_reward_list";
+    } else if (hasMailMain) {
+        screen = "mailbox";
+    } else if (hasTradingPanel) {
+        screen = "exchange";
+    } else if (hasBattlePass) {
+        screen = "battlepass";
+    } else if (uiMainTransform) {
+        std::vector<UiNodeSnapshot> mainPanelMatches;
+        ResolveUiNodeMatches(uiMainTransform, "MainPanel", UI_PATH_EXACT, 1, &mainPanelMatches);
+        bool mainPanelActive = !mainPanelMatches.empty() && mainPanelMatches[0].active;
+        screen = mainPanelActive ? "main_lobby" : "warehouse";
+    }
+
+    char result[64];
+    snprintf(result, sizeof(result), "{\"screen\":\"%s\"}", screen);
+    SendResponse(c, id, true, result);
+}
+
+// DismissRewardsBox: click the background of the RewardsBox popup ("点击屏幕继续").
+// Precondition: RewardsBox must be visible.
+// Returns {"clicked":true} on success, {"clicked":false,"reason":"..."} otherwise.
+void CmdDismissRewardsBox(AgentConn* c, const char* id, const char*) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    Il2CppObject* panelTransform = nullptr;
+    char error[128] = {};
+    UiPanelLookupResult r = FindVisiblePanelTransform("RewardsBox", nullptr, &panelTransform, error, sizeof(error));
+    if (r == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (r != UI_PANEL_FOUND) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"RewardsBox not visible\"}");
+        return;
+    }
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(panelTransform, "bg", UI_PATH_EXACT, 1, &matches);
+    if (matches.empty()) { SendResponse(c, id, false, "bg not found"); return; }
+
+    UiNodeSnapshot& node = matches[0];
+    if (!node.active)           { SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"bg inactive\"}"); return; }
+    if (!node.components.button) { SendResponse(c, id, false, "bg: no Button component"); return; }
+
+    if (!PerformButtonClick(node.components.button)) { SendResponse(c, id, false, "click failed"); return; }
+    SendResponse(c, id, true, "{\"clicked\":true}");
+}
+
+// DismissCollectAward: click the background of CollectAward_Main to close the cabinet reward list.
+// Precondition: CollectAward_Main must be visible.
+// Returns {"clicked":true} on success, {"clicked":false,"reason":"..."} otherwise.
+void CmdDismissCollectAward(AgentConn* c, const char* id, const char*) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    Il2CppObject* panelTransform = nullptr;
+    char error[128] = {};
+    UiPanelLookupResult r = FindVisiblePanelTransform("CollectAward_Main", nullptr, &panelTransform, error, sizeof(error));
+    if (r == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (r != UI_PANEL_FOUND) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"CollectAward_Main not visible\"}");
+        return;
+    }
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(panelTransform, "bg", UI_PATH_EXACT, 1, &matches);
+    if (matches.empty()) { SendResponse(c, id, false, "bg not found"); return; }
+
+    UiNodeSnapshot& node = matches[0];
+    if (!node.active)           { SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"bg inactive\"}"); return; }
+    if (!node.components.button) { SendResponse(c, id, false, "bg: no Button component"); return; }
+
+    if (!PerformButtonClick(node.components.button)) { SendResponse(c, id, false, "click failed"); return; }
+    SendResponse(c, id, true, "{\"clicked\":true}");
+}
+
+// ConfirmBid: click the confirm (chujia) button inside the InputDevice bid dialog.
+// Must be called after SetBidAmount has set the desired price.
+// Returns {"clicked":true} on success, {"clicked":false,"reason":"..."} otherwise.
+void CmdConfirmBid(AgentConn* c, const char* id, const char*) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    Il2CppObject* panelTransform = nullptr;
+    if (!GetBattleMainPanel(c, id, &panelTransform)) return;
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(panelTransform, "InputDevice/Panel1/chujia", UI_PATH_EXACT, 2, &matches);
+    if (matches.empty()) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"confirm button not found — bid dialog not open\"}");
+        return;
+    }
+
+    UiNodeSnapshot& node = matches[0];
+    if (!node.active) { SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"confirm button inactive\"}"); return; }
+    if (!node.components.button) { SendResponse(c, id, false, "confirm button: no Button component"); return; }
 
     if (!PerformButtonClick(node.components.button)) {
         SendResponse(c, id, false, "click failed");

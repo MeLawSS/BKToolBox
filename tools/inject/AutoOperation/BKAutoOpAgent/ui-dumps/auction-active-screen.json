@@ -1,0 +1,15 @@
+{
+  "screen": "竞拍 (Battle_Main)",
+  "currentUI": "UIMain",
+  "visiblePanels": ["UIMain", "BattlePrevPanel_Main", "Battle_Main", "ItemDetail_Main", "InvitePanel"],
+  "notes": "BattlePrevPanel_Main 和 Battle_Main 同时存在。判断时 Battle_Main 优先级高于 BattlePrevPanel_Main",
+  "subStates": {
+    "auctionInProgress": {
+      "indicator": "Battle_Main/Gaming active"
+    },
+    "auctionEnded": {
+      "indicator": "Battle_Main/EndPanel active",
+      "endPanel_depth2_active": ["bg", "mapName", "ui_battleending", "Line", "Player", "tuichu", "GameObject"]
+    }
+  }
+}

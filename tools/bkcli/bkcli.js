@@ -65,6 +65,15 @@ async function main() {
         } else if (subcmd === 'get-visible-panels') {
             ok(await runCmd('GetVisiblePanels', {}));
 
+        } else if (subcmd === 'get-current-screen') {
+            ok(await runCmd('GetCurrentScreen', {}));
+
+        } else if (subcmd === 'dismiss-rewards-box') {
+            ok(await runCmd('DismissRewardsBox', {}));
+
+        } else if (subcmd === 'dismiss-collect-award') {
+            ok(await runCmd('DismissCollectAward', {}));
+
         } else if (subcmd === 'dump') {
             const { flags, pos } = parseFlags(rest);
             const panel = pos[0];

@@ -1,0 +1,7 @@
+{
+  "screen": "通行证 (Battle Pass)",
+  "currentUI": "UIMain",
+  "visiblePanels": ["UIMain", "BattlePass_Main", "ItemDetail_Main", "InvitePanel"],
+  "uiMainDepth1ActiveNodes": ["Bg", "Cabinet", "MainPanel", "WareHousePanel", "AssetItem_1", "AssetItem_2"],
+  "notes": "从主界面大厅打开（MainPanel active）"
+}

@@ -1,0 +1,7 @@
+{
+  "screen": "邮箱 (Mailbox)",
+  "currentUI": "UIMain",
+  "visiblePanels": ["UIMain", "Mail_Main", "ItemDetail_Main", "InvitePanel"],
+  "uiMainDepth1ActiveNodes": ["Bg", "Cabinet", "MainPanel", "WareHousePanel", "AssetItem_1", "AssetItem_2"],
+  "notes": "Mail_Main 作为 overlay 叠在 UIMain 上，UIMain 子节点与主界面大厅完全相同"
+}

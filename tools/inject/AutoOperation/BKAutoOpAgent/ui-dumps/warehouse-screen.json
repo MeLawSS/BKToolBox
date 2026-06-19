@@ -1,0 +1,7 @@
+{
+  "screen": "仓库 (Warehouse)",
+  "currentUI": "UIMain",
+  "visiblePanels": ["UIMain", "ItemDetail_Main", "InvitePanel"],
+  "uiMainDepth1ActiveNodes": ["Bg", "Cabinet", "WareHousePanel", "AssetItem_1", "AssetItem_2"],
+  "notes": "与主界面 currentUI/visiblePanels 相同，区分靠 UIMain 子节点：WareHousePanel + Cabinet active"
+}

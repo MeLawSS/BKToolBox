@@ -77,6 +77,7 @@ bool                ResolveUiNodeMatches(Il2CppObject* anchor, const char* path,
                                          UiPathMode pathMode, int maxMatches,
                                          std::vector<UiNodeSnapshot>* matches);
 bool                PerformButtonClick(Il2CppObject* buttonComponent);
+bool                PerformSetInputText(const UiNodeSnapshot& node, const char* text, bool submit, std::string* componentName);
 bool                ReadNodeTextValue(const UiComponentRefs& refs, std::string* out);
 
 // --------------------------------------------------------------------------
@@ -90,3 +91,8 @@ void CmdSelectRole(AgentConn* c, const char* id, const char* json);
 void CmdStartAction(AgentConn* c, const char* id, const char* json);
 void CmdGetBidState(AgentConn* c, const char* id, const char* json);
 void CmdPlaceBid(AgentConn* c, const char* id, const char* json);
+void CmdSetBidAmount(AgentConn* c, const char* id, const char* json);
+void CmdConfirmBid(AgentConn* c, const char* id, const char* json);
+void CmdDismissRewardsBox(AgentConn* c, const char* id, const char* json);
+void CmdDismissCollectAward(AgentConn* c, const char* id, const char* json);
+void CmdGetCurrentScreen(AgentConn* c, const char* id, const char* json);

@@ -1,0 +1,18 @@
+{
+  "screens": [
+    {
+      "screen": "展柜奖励列表 (Cabinet Reward List)",
+      "currentUI": "UIMain",
+      "visiblePanels": ["UIMain", "CollectAward_Main", "ItemDetail_Main", "InvitePanel"],
+      "uiMainDepth1ActiveNodes": ["Bg", "Cabinet", "WareHousePanel", "AssetItem_1", "AssetItem_2"],
+      "notes": "点击展柜获取奖励后的奖励列表页"
+    },
+    {
+      "screen": "银币数弹窗 (Reward Silver Popup)",
+      "currentUI": "UIMain",
+      "visiblePanels": ["UIMain", "CollectAward_Main", "RewardsBox", "ItemDetail_Main", "InvitePanel"],
+      "uiMainDepth1ActiveNodes": ["Bg", "Cabinet", "WareHousePanel", "AssetItem_1", "AssetItem_2"],
+      "notes": "在 CollectAward_Main 上再叠一层 RewardsBox，显示具体银币数量"
+    }
+  ]
+}

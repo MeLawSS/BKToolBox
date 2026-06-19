@@ -41,6 +41,22 @@ const ZERO_ARG_ACTIONS = [
     command: 'PlaceBid',
     titleKey: 'inject.metaOperationPlaceBid',
   },
+  {
+    command: 'ConfirmBid',
+    titleKey: 'inject.metaOperationConfirmBid',
+  },
+  {
+    command: 'DismissRewardsBox',
+    titleKey: 'inject.metaOperationDismissRewardsBox',
+  },
+  {
+    command: 'DismissCollectAward',
+    titleKey: 'inject.metaOperationDismissCollectAward',
+  },
+  {
+    command: 'GetCurrentScreen',
+    titleKey: 'inject.metaOperationGetCurrentScreen',
+  },
 ];
 
 const META_OPERATION_LABEL_KEYS = {
@@ -51,6 +67,11 @@ const META_OPERATION_LABEL_KEYS = {
   StartAction: 'inject.metaOperationStartAction',
   GetBidState: 'inject.metaOperationGetBidState',
   PlaceBid: 'inject.metaOperationPlaceBid',
+  SetBidAmount: 'inject.metaOperationSetBidAmount',
+  ConfirmBid: 'inject.metaOperationConfirmBid',
+  DismissRewardsBox: 'inject.metaOperationDismissRewardsBox',
+  DismissCollectAward: 'inject.metaOperationDismissCollectAward',
+  GetCurrentScreen: 'inject.metaOperationGetCurrentScreen',
 };
 
 const props = defineProps({
@@ -66,6 +87,7 @@ const { t } = useI18n();
 const agent = useAutoOperationAgentRuntimeState();
 
 const selectedRoomId = ref('101');
+const bidAmount = ref(100);
 const localCommandLoading = ref('');
 const panelError = ref('');
 const latestCommand = ref('');
@@ -153,6 +175,12 @@ async function submitEnterRoom() {
     roomId: Number(selectedRoomId.value),
   });
 }
+
+async function submitSetBidAmount() {
+  await runMetaOperationCommand('SetBidAmount', {
+    amount: Number(bidAmount.value),
+  });
+}
 </script>
 
 <template>
@@ -199,6 +227,31 @@ async function submitEnterRoom() {
           @click="runMetaOperationCommand(action.command)"
         >
           {{ getActionButtonText(action.command) }}
+        </button>
+      </article>
+
+      <article class="meta-operation-action-card meta-operation-room-card">
+        <h3>{{ t('inject.metaOperationSetBidAmount') }}</h3>
+        <label class="meta-operation-room-field">
+          <span>{{ t('inject.metaOperationBidAmount') }}</span>
+          <input
+            v-model.number="bidAmount"
+            type="number"
+            min="0"
+            step="1"
+            class="meta-operation-room-select"
+            :disabled="!canRunMetaOperation"
+            data-testid="meta-operation-bid-amount-input"
+          />
+        </label>
+        <button
+          class="command-button"
+          type="button"
+          :disabled="!canRunMetaOperation"
+          data-testid="meta-operation-command-SetBidAmount"
+          @click="submitSetBidAmount"
+        >
+          {{ getActionButtonText('SetBidAmount') }}
         </button>
       </article>
 

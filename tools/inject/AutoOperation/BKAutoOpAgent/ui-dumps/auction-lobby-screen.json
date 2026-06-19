@@ -1,0 +1,18 @@
+{
+  "screen": "竞拍大厅 (Auction Lobby)",
+  "currentUI": "UIMain",
+  "visiblePanels": ["UIMain", "BattlePrevPanel_Main", "ItemDetail_Main", "InvitePanel"],
+  "subStates": {
+    "mapView": {
+      "indicator": "Panel_1/MapPanel 不存在或 inactive",
+      "panel_1_depth2_active": ["bg", "Button_r"],
+      "also_active": ["MapLeftTop"]
+    },
+    "roomDetailView": {
+      "indicator": "Panel_1/MapPanel active",
+      "panel_1_depth2_active": ["bg", "Button_r", "MapImage", "MapPanel"],
+      "also_active": ["Top"],
+      "notes": "MapLeftTop 不再 active"
+    }
+  }
+}

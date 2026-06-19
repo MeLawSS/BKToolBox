@@ -1979,7 +1979,7 @@ static bool PerformToggleClick(Il2CppObject* toggleComponent) {
     return InvokeBoolSetterByNames(toggleComponent, setNames, !isOn);
 }
 
-static bool PerformSetInputText(const UiNodeSnapshot& node, const char* text, bool submit, std::string* componentName) {
+bool PerformSetInputText(const UiNodeSnapshot& node, const char* text, bool submit, std::string* componentName) {
     if (!text || !componentName) return false;
     componentName->clear();
 
@@ -3916,6 +3916,11 @@ static const CmdEntry kCommands[] = {
     { "StartAction",      CmdStartAction      },
     { "GetBidState",      CmdGetBidState      },
     { "PlaceBid",         CmdPlaceBid         },
+    { "SetBidAmount",       CmdSetBidAmount       },
+    { "ConfirmBid",         CmdConfirmBid         },
+    { "DismissRewardsBox",  CmdDismissRewardsBox  },
+    { "DismissCollectAward", CmdDismissCollectAward },
+    { "GetCurrentScreen",   CmdGetCurrentScreen   },
     { "UnloadAgent",      CmdUnloadAgent      },
     { nullptr,            nullptr             },
 };
