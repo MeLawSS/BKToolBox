@@ -109,7 +109,7 @@ Chosen for this round.
 Let:
 
 - `originalBid` be the amount produced by the existing strategy
-- `currentRoundNumber` be the in-game round number parsed from `roundTxt`
+- `currentRoundNumber` be the current in-battle round ordinal already tracked by the existing `roundsEncountered` / `lastRoundSeen` flow
 - `opponentPreviousBid` be the opponent's bid value from `currentRoundNumber - 1`
 
 Then:
@@ -135,14 +135,14 @@ This is a price-cap / do-not-overpay guard, not a general "safe ceiling" inferre
 
 The strategy must fall back to `originalBid` when any of the following is true:
 
-- the current round number cannot be parsed as a positive integer
 - the current round is not in `2..5`
 - neither visible player name can be read
 - both visible player names equal `selfName`
 - the non-`selfName` player cannot be determined uniquely
 - the opponent previous-round row cannot be resolved
+- multiple active history rows ambiguously claim the same previous round number
 - the opponent previous-round price text is empty
-- the opponent previous-round price text cannot be parsed into a positive integer
+- the opponent previous-round price text cannot be parsed into a positive integer, including `0`
 - the computed `opponentCap` is non-positive
 
 This fallback is deliberate. The rule is an opportunistic limiter, not a hard dependency for bidding.
@@ -185,9 +185,7 @@ So this feature requires a small shared API expansion rather than assuming `Meta
 
 Required shared-surface changes:
 
-- make `Logf(const char* fmt, ...)` callable from `MetaOperations.cpp`
-  - either by removing `static` and declaring it in `MetaOperations.h`
-  - or by introducing a tiny non-static wrapper with an equivalent signature
+- remove `static` from `Logf(const char* fmt, ...)` in `BKAutoOpAgent.cpp` and declare it in `MetaOperations.h`
 - add one exported helper in `BKAutoOpAgent.cpp`, declared in `MetaOperations.h`, that returns active direct child node snapshots for a given parent
 
 Recommended helper shape:
@@ -206,17 +204,18 @@ Behavior:
 - inspect each child into a `UiNodeSnapshot`
 - exclude inactive children (`snapshot.active == false`)
 - return snapshots whose `transform` can then be used by `MetaOperations.cpp` for row-local exact lookups
+- `UiNodeSnapshot.transform` values in this returned vector are borrowed IL2CPP pointers owned by the live Unity object graph; callers may use them only within the current synchronous worker-thread pass and must not stash them across `SleepInterruptibly`, scene transitions, or unload/shutdown boundaries
 
 This keeps the static low-level transform helpers private while exporting only the minimal surface needed by the new strategy.
 
 Inside `MetaOperations.cpp`, add small local helpers for:
 
-- parsing round text like `第4轮` or `4` into an integer round number
+- parsing history-row round text like `第4轮` or `4` into an integer round number
 - reading player name text for `Player_1` and `Player_2`
 - selecting the opponent slot as the player whose name is not `selfName`
 - locating the opponent previous-round row by matching row-local `roundTxt`, not by assuming child index
 - parsing formatted price text like `17,986`, `17，986`, or `17986` into integer `17986`
-- returning the round-specific opponent-cap multiplier for rounds 2 through 5
+- returning the round-specific opponent-cap multiplier for rounds 2 through 5 only; caller-side round gating remains responsible for unsupported rounds instead of encoding a sentinel multiplier
 
 These helpers stay file-local and are used only by `CmdAutoAuction`.
 
@@ -226,9 +225,9 @@ Threading note:
 - this is consistent with current agent behavior, but still depends on the present IL2CPP/Unity runtime tolerating these reads from the attached worker thread
 - this spec does not attempt to redesign that threading model
 
-### 3.1 Round Number Parsing Contract
+### 3.1 History-Row Round Number Parsing Contract
 
-The round parser must not depend on one exact string format.
+The history-row round parser must not depend on one exact string format.
 
 Accepted inputs:
 
@@ -238,9 +237,13 @@ Accepted inputs:
 
 Recommended rule:
 
-- scan the string for the first contiguous ASCII digit run
+- treat the input as ordinary UTF-8 text and scan for the first contiguous ASCII digit run
 - parse it as a base-10 positive integer
 - if no positive integer can be extracted, parsing fails
+
+Implementation note:
+
+- byte-wise scanning for ASCII `0..9` is acceptable here; UTF-8 multibyte non-ASCII characters do not alias ASCII digit bytes
 
 Examples:
 
@@ -273,8 +276,10 @@ Important clarifications:
 - the current-round label and the row label are different paths:
   - current-round label: `Gaming/Center/RoundBg/roundTxt`
   - history-row label: `.../RoundUnit.../roundTxt`
+- the current-round label continues to drive the existing `lastRoundSeen` -> `roundsEncountered` state exactly as it does today; this feature does not introduce a second current-round parser
 - the spec must not assume that `priceTxt` is implemented as a raw sibling pointer walk; only that it is resolved as a row-local exact child path from the selected row root
 - inactive rows must be ignored explicitly; either the exported child helper filters them out, or `MetaOperations.cpp` must reject `snapshot.active == false`
+- round 2 is the most likely live-timing case where the previous-round row is still absent or not yet populated; that still falls back immediately rather than adding waits
 
 This avoids depending on whether the UI uses:
 
@@ -289,12 +294,14 @@ There are two separate `roundTxt` usages in this strategy:
 
 - current round source:
   - `Gaming/Center/RoundBg/roundTxt`
-  - used to determine `currentRoundNumber`
+  - already read by `ReadBidState(...)`
+  - only used to advance `lastRoundSeen` and `roundsEncountered` exactly as the current `AutoAuction` loop already does
+  - `currentRoundNumber` for this new limiter is `roundsEncountered`, not a second independent parse of the center label
 - previous-round history rows:
   - row-local `roundTxt` under each `RoundUnit...`
-  - used only to match the row whose round number equals `currentRoundNumber - 1`
+  - parsed only to match the row whose round number equals `currentRoundNumber - 1`
 
-The implementation must not mix these two roles.
+The implementation must not create two independent current-round sources that can drift. The limiter deliberately shares the same round progression state that already feeds `ComputeBidAmount(...)`.
 
 ### 4. Bid Flow Integration
 
@@ -309,7 +316,7 @@ The integration point is the existing branch where `CmdAutoAuction` currently do
 The new flow becomes:
 
 1. compute `originalBid` exactly as today
-2. parse `currentRoundNumber`
+2. use the existing `roundsEncountered` value as `currentRoundNumber`
 3. if round is `2..5`, resolve `selfName` and try to identify the opponent slot
 4. if opponent slot is known, locate the previous-round row by `roundTxt`
 5. if successful, read and parse `opponentPreviousBid`
@@ -374,11 +381,12 @@ At minimum cover:
 - round 3 multiplier = `1.4`
 - round 4 multiplier = `1.23`
 - round 5 multiplier = `1.1`
-- unsupported rounds return "no cap" behavior
+- caller-side round gating preserves "no cap" behavior for unsupported rounds
 - `17,986` parses to `17986`
 - `17，986` parses to `17986`
 - `17986` parses to `17986`
 - empty or malformed price text fails parsing
+- `0` fails price parsing because non-positive values do not activate the limiter
 - `第4轮` parses to `4`
 - `4` parses to `4`
 - final bid chooses the smaller of `originalBid` and `opponentCap`
