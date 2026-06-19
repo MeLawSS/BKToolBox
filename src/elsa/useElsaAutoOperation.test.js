@@ -96,6 +96,7 @@ describe('useElsaAutoOperation', () => {
   it('enable() succeeds when monitor running and agent starts', async () => {
     monitorRunning = true;
     mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
     const { result, wrapper } = withSetup(() => useElsaAutoOperation());
     await result.enable();
     await flushPromises();
@@ -144,7 +145,6 @@ describe('useElsaAutoOperation', () => {
 
   it('caps log at 200 entries', async () => {
     const { result, wrapper } = withSetup(() => useElsaAutoOperation());
-    // Access internal addLog by triggering enable() 201 times with monitor off
     for (let i = 0; i < 201; i++) {
       await result.enable();
       await flushPromises();
@@ -181,21 +181,27 @@ describe('useElsaAutoOperation', () => {
     removeSpy.mockRestore();
   });
 
-  it('runScript() skips SetExpectedPrice and calls AutoAuction when elsaExpectedPrice is 0', async () => {
+  it('skips SetExpectedPrice and calls AutoAuction when price stays 0 after timeout', async () => {
     monitorRunning = true;
     mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
     elsaExpectedPrice.value = 0;
+    vi.useFakeTimers();
     const { result, wrapper } = withSetup(() => useElsaAutoOperation());
-    await result.enable();
+    const enablePromise = result.enable();
+    await flushPromises();
+    vi.advanceTimersByTime(10000); // exhaust waitForPrice timeout
+    await flushPromises();
+    await enablePromise;
     await flushPromises();
     const calls = window.bidkingDesktop.runAutoOperationCommand.mock.calls;
-    expect(calls.some(([name]) => name === 'SetExpectedPrice')).toBe(false); // no initial price sync
-    expect(calls.some(([name]) => name === 'AutoAuction')).toBe(true);       // auction still runs
-    expect(result.isEnabled.value).toBe(false); // auto-disabled after success
+    expect(calls.some(([name]) => name === 'SetExpectedPrice')).toBe(false);
+    expect(calls.some(([name]) => name === 'AutoAuction')).toBe(true);
+    expect(result.isEnabled.value).toBe(false);
+    vi.useRealTimers();
     wrapper.unmount();
   });
 
-  it('runScript() calls SetExpectedPrice then AutoAuction when price is set', async () => {
+  it('calls SetExpectedPrice then AutoAuction when price is already set', async () => {
     monitorRunning = true;
     mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
     elsaExpectedPrice.value = 50000;
@@ -212,6 +218,27 @@ describe('useElsaAutoOperation', () => {
     wrapper.unmount();
   });
 
+  it('waits for price to appear then calls SetExpectedPrice before AutoAuction', async () => {
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 0;
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
+    const enablePromise = result.enable();
+    await flushPromises();
+    // Simulate price arriving after enable starts
+    elsaExpectedPrice.value = 60000;
+    await flushPromises();
+    await enablePromise;
+    await flushPromises();
+    const calls = window.bidkingDesktop.runAutoOperationCommand.mock.calls;
+    const priceIdx = calls.findIndex(([name]) => name === 'SetExpectedPrice');
+    const auctionIdx = calls.findIndex(([name]) => name === 'AutoAuction');
+    expect(priceIdx).toBeGreaterThanOrEqual(0);
+    expect(calls[priceIdx][1]).toEqual({ price: 60000 });
+    expect(auctionIdx).toBeGreaterThan(priceIdx);
+    wrapper.unmount();
+  });
+
   it('disable() is called automatically after runScript completes', async () => {
     monitorRunning = true;
     mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
@@ -219,54 +246,8 @@ describe('useElsaAutoOperation', () => {
     const { result, wrapper } = withSetup(() => useElsaAutoOperation());
     await result.enable();
     await flushPromises();
-    expect(result.isEnabled.value).toBe(false); // auto-disabled after script
+    expect(result.isEnabled.value).toBe(false);
     expect(result.log.value.some(e => e.message.includes('竞拍完成'))).toBe(true);
-    wrapper.unmount();
-  });
-
-  it('price watcher calls SetExpectedPrice when elsaExpectedPrice changes while enabled', async () => {
-    monitorRunning = true;
-    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
-    elsaExpectedPrice.value = 50000;
-    // Prevent AutoAuction from resolving so we can change the price while "running"
-    let resolveAuction;
-    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
-      if (name === 'AutoAuction') return new Promise(r => { resolveAuction = r; });
-      return Promise.resolve({ ok: true, value: {}, response: {} });
-    });
-    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
-    await result.enable();
-    await flushPromises();
-    const callsBefore = window.bidkingDesktop.runAutoOperationCommand.mock.calls.length;
-    elsaExpectedPrice.value = 60000;
-    await flushPromises();
-    const newCalls = window.bidkingDesktop.runAutoOperationCommand.mock.calls.slice(callsBefore);
-    expect(newCalls.some(([name, args]) => name === 'SetExpectedPrice' && args.price === 60000)).toBe(true);
-    resolveAuction({ ok: true, value: { rounds: 1, expectedPrice: 60000 }, response: {} });
-    await flushPromises();
-    wrapper.unmount();
-  });
-
-  it('price watcher stops after disable()', async () => {
-    monitorRunning = true;
-    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
-    elsaExpectedPrice.value = 50000;
-    let resolveAuction;
-    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
-      if (name === 'AutoAuction') return new Promise(r => { resolveAuction = r; });
-      return Promise.resolve({ ok: true, value: {}, response: {} });
-    });
-    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
-    await result.enable();
-    await flushPromises();
-    await result.disable();
-    await flushPromises();
-    const callsAfterDisable = window.bidkingDesktop.runAutoOperationCommand.mock.calls.length;
-    elsaExpectedPrice.value = 99999;
-    await flushPromises();
-    const newCalls = window.bidkingDesktop.runAutoOperationCommand.mock.calls.length;
-    expect(newCalls).toBe(callsAfterDisable); // no new SetExpectedPrice calls
-    resolveAuction?.({ ok: true, value: { rounds: 0, expectedPrice: 0 }, response: {} });
     wrapper.unmount();
   });
 });
