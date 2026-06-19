@@ -4046,6 +4046,42 @@ static void CmdEnterRoom(AgentConn* c, const char* id, const char* json) {
     SendResponse(c, id, true, result);
 }
 
+// OpenSkillConfig: click the 配置技能 button inside a BattlePrevPanel_Main room detail view.
+// Precondition: BattlePrevPanel_Main must be visible AND in room detail view
+//               (Panel_1/MapPanel/battleSet/Hero/Button must exist).
+// Returns {"clicked":true} on success,
+//         {"clicked":false,"reason":"..."} as no-op when not in room detail view.
+static void CmdOpenSkillConfig(AgentConn* c, const char* id, const char*) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    Il2CppObject* panelTransform = nullptr;
+    char error[128] = {};
+    UiPanelLookupResult panelResult = FindVisiblePanelTransform("BattlePrevPanel_Main", nullptr, &panelTransform, error, sizeof(error));
+    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (panelResult != UI_PANEL_FOUND) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"BattlePrevPanel_Main not visible\"}");
+        return;
+    }
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(panelTransform, "Panel_1/MapPanel/battleSet/Hero/Button", UI_PATH_EXACT, 2, &matches);
+    if (matches.empty()) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"skill config button not found — not in room detail view\"}");
+        return;
+    }
+
+    UiNodeSnapshot& node = matches[0];
+    if (!node.active) { SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"skill config button inactive\"}"); return; }
+    if (!node.components.button) { SendResponse(c, id, false, "skill config button: no Button component"); return; }
+
+    if (!PerformButtonClick(node.components.button)) {
+        SendResponse(c, id, false, "click failed");
+        return;
+    }
+
+    SendResponse(c, id, true, "{\"clicked\":true}");
+}
+
 // ==========================================================================
 // Dispatch table
 // ==========================================================================
@@ -4078,6 +4114,7 @@ static const CmdEntry kCommands[] = {
     { "LoadProbe",        CmdLoadProbe        },
     { "GoToBattlePrev",   CmdGoToBattlePrev   },
     { "EnterRoom",        CmdEnterRoom        },
+    { "OpenSkillConfig",  CmdOpenSkillConfig  },
     { "UnloadAgent",      CmdUnloadAgent      },
     { nullptr,            nullptr             },
 };
