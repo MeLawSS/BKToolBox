@@ -1760,12 +1760,9 @@ export function useHeroEstimatorPanel(profile) {
 
   if (profile.id === 'elsa') {
     watch(
-      () => tableRows.value,
-      (rows) => {
-        if (!rows.length) return;
-        const prices = rows.map(r => r.mean).filter(p => p != null && isFinite(p));
-        const minPrice = prices.length ? Math.min(...prices) : 0;
-        elsaExpectedPrice.value = Math.round(minPrice) || 0;
+      () => summary.total,
+      (total) => {
+        elsaExpectedPrice.value = Number.isFinite(total) ? Math.round(total) : 0;
       },
     );
     onUnmounted(() => { elsaExpectedPrice.value = 0; });

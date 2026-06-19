@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import HeroEstimatorPanel from './HeroEstimatorPanel.vue';
 import { elsaProfile, ethanProfile } from './hero-profiles.js';
+import { elsaExpectedPrice } from '../elsa/elsaEstimateState.js';
 import { __resetMonitorSwitchRuntimeForTest } from '../shared/useMonitorSwitch.js';
 import {
   appendStreamRunSource,
@@ -217,6 +218,7 @@ describe('HeroEstimatorPanel', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     window.localStorage.clear();
+    elsaExpectedPrice.value = 0;
     FakeEventSource.reset();
     FakeEstimationWorker.reset();
     mockFetch();
@@ -1707,6 +1709,30 @@ describe('HeroEstimatorPanel', () => {
 
     expect(wrapper.find('#elsa-result-meta').text()).not.toContain('当前环境不支持流式搜索');
     expect(wrapper.find('#elsa-total-estimate').text()).toBe('26,619');
+  });
+
+  it('keeps Elsa shared expected price aligned with the visible total estimate', async () => {
+    vi.stubGlobal('EventSource', undefined);
+
+    const wrapper = mount(HeroEstimatorPanel, {
+      props: { profile: elsaProfile, embedded: true },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    await wrapper.find('#elsa-total-cells-all').setValue('10');
+    await wrapper.find('#elsa-cells-orange').setValue('4');
+    await wrapper.find('#elsa-total-price-orange').setValue('25875');
+    await wrapper.find('#elsa-estimate-form').trigger('submit');
+    await flushPromises();
+    await nextTick();
+
+    const visibleTotal = parseInt(wrapper.find('#elsa-total-estimate').text().replace(/,/g, ''), 10);
+
+    expect(visibleTotal).toBe(26619);
+    expect(elsaExpectedPrice.value).toBe(visibleTotal);
   });
 
   it('applies price-match-update delta to direct result row and summary', async () => {
