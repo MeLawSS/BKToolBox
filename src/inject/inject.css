@@ -599,6 +599,132 @@ a { color: inherit; text-decoration: none; }
   white-space: pre-wrap;
 }
 
+.meta-operation-panel {
+  gap: 14px;
+}
+
+.meta-operation-head {
+  margin-bottom: 0;
+}
+
+.meta-operation-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.meta-operation-status-item,
+.meta-operation-action-card,
+.meta-operation-result-panel {
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.meta-operation-status-item {
+  display: grid;
+  gap: 5px;
+  min-height: 78px;
+  padding: 12px 14px;
+}
+
+.meta-operation-status-item span,
+.meta-operation-room-field span,
+.meta-operation-result-head span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.meta-operation-status-item strong {
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.meta-operation-transport-hint {
+  margin-bottom: 0;
+}
+
+.meta-operation-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.meta-operation-action-card,
+.meta-operation-room-card,
+.meta-operation-result-panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.meta-operation-action-card h3,
+.meta-operation-result-head h3 {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.meta-operation-action-card .command-button,
+.meta-operation-room-card .command-button {
+  min-width: 96px;
+  justify-self: start;
+  padding: 0 14px;
+}
+
+.meta-operation-room-card {
+  align-content: start;
+}
+
+.meta-operation-room-field {
+  display: grid;
+  gap: 6px;
+}
+
+.meta-operation-room-select {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  appearance: none;
+  background-color: var(--surface-2);
+  background-image:
+    linear-gradient(to right, transparent calc(100% - 34px), var(--line-soft) calc(100% - 34px), var(--line-soft) calc(100% - 33px), transparent calc(100% - 33px)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%239aa8b1' d='M1.41.59 6 5.17 10.59.59 12 2l-6 6-6-6z'/%3E%3C/svg%3E");
+  background-position: right 0 top 0, right 11px center;
+  background-repeat: no-repeat;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 0 42px 0 10px;
+}
+
+.meta-operation-room-select:hover {
+  border-color: rgba(57, 168, 149, 0.45);
+}
+
+.meta-operation-room-select:focus {
+  outline: none;
+  border-color: rgba(57, 168, 149, 0.68);
+  box-shadow: 0 0 0 3px rgba(47, 143, 131, 0.14);
+}
+
+.meta-operation-result-panel {
+  gap: 12px;
+}
+
+.meta-operation-result-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.meta-operation-result-json {
+  margin: 0;
+}
+
 .controller-panel {
   display: grid;
   gap: 16px;
@@ -859,6 +985,8 @@ a { color: inherit; text-decoration: none; }
   }
 
   .auto-op-fields,
+  .meta-operation-status-grid,
+  .meta-operation-action-grid,
   .collection-scan-fields,
   .command-grid,
   .advisor-grid {
