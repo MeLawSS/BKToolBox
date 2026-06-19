@@ -34,7 +34,6 @@ export function useElsaAutoOperation() {
   async function enable() {
     if (isEnabled.value || isBusy.value) return;
     isBusy.value = true;
-    clearLog();
     try {
       if (!monitor.status.value?.running) {
         addLog('Monitor 未运行，请先在 Monitor 页启动监控', 'error');
