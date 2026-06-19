@@ -3980,14 +3980,29 @@ static void CmdGoToBattlePrev(AgentConn* c, const char* id, const char*) {
     SendResponse(c, id, true, "{\"clicked\":true,\"panel\":\"UIMain\"}");
 }
 
-// EnterBlindBoxRoom: if BattlePrevPanel_Main is open in map view,
-// click into the 快递盲盒堆 room (MapItem_101).
-// Returns {"clicked":true,"room":101} on success,
+// EnterRoom: if BattlePrevPanel_Main is open in map view, click the specified room.
+// Param: {"roomId": <int>}
+//   Valid roomId values (101=快递盲盒堆 102=废弃仓库 103=航运集装箱 104=空置别墅
+//                        105=沉船密封仓 106=隐秘拍卖会 304=幽静别墅 305=深海沉船)
+// Returns {"clicked":true,"room":<id>} on success,
 //         {"clicked":false,"reason":"..."} as no-op when preconditions unmet.
-// Entering the room stays within BattlePrevPanel_Main (no scene transition).
+// Entering a room stays within BattlePrevPanel_Main (no scene transition).
 // Only 开始竞拍 inside the room causes DLL unload.
-static void CmdEnterBlindBoxRoom(AgentConn* c, const char* id, const char*) {
+static void CmdEnterRoom(AgentConn* c, const char* id, const char* json) {
     if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    int roomId = JsonGetInt(json, "roomId");
+    if (roomId == INT_MIN) { SendResponse(c, id, false, "missing roomId"); return; }
+
+    static const int kValidRoomIds[] = {101, 102, 103, 104, 105, 106, 304, 305, 0};
+    bool valid = false;
+    for (int i = 0; kValidRoomIds[i]; i++) {
+        if (kValidRoomIds[i] == roomId) { valid = true; break; }
+    }
+    if (!valid) {
+        SendResponse(c, id, false, "invalid roomId: must be one of 101,102,103,104,105,106,304,305");
+        return;
+    }
 
     Il2CppObject* panelTransform = nullptr;
     char error[128] = {};
@@ -3998,58 +4013,37 @@ static void CmdEnterBlindBoxRoom(AgentConn* c, const char* id, const char*) {
         return;
     }
 
+    char nodePath[128];
+    snprintf(nodePath, sizeof(nodePath), "Panel_1/bg/MapContainer/MapItem_%d/Image (1)", roomId);
+
     std::vector<UiNodeSnapshot> matches;
-    ResolveUiNodeMatches(panelTransform, "Panel_1/bg/MapContainer/MapItem_101/Image (1)", UI_PATH_EXACT, 2, &matches);
+    ResolveUiNodeMatches(panelTransform, nodePath, UI_PATH_EXACT, 2, &matches);
     if (matches.empty()) {
-        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"MapItem_101 not found — not in map view or room unavailable\"}");
+        char reason[256];
+        snprintf(reason, sizeof(reason),
+                 "{\"clicked\":false,\"reason\":\"MapItem_%d not found — not in map view or room unavailable\"}",
+                 roomId);
+        SendResponse(c, id, true, reason);
         return;
     }
 
     UiNodeSnapshot& node = matches[0];
-    if (!node.active) { SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"MapItem_101 inactive\"}"); return; }
-    if (!node.components.button) { SendResponse(c, id, false, "MapItem_101: no Button component"); return; }
+    if (!node.active) {
+        char reason[128];
+        snprintf(reason, sizeof(reason), "{\"clicked\":false,\"reason\":\"MapItem_%d inactive\"}", roomId);
+        SendResponse(c, id, true, reason);
+        return;
+    }
+    if (!node.components.button) { SendResponse(c, id, false, "no Button component"); return; }
 
     if (!PerformButtonClick(node.components.button)) {
         SendResponse(c, id, false, "click failed");
         return;
     }
 
-    SendResponse(c, id, true, "{\"clicked\":true,\"room\":101}");
-}
-
-// EnterAbandonedWarehouse: if BattlePrevPanel_Main is open in map view,
-// click into the 废弃仓库 room (MapItem_102).
-// Returns {"clicked":true,"room":102} on success,
-//         {"clicked":false,"reason":"..."} as no-op when preconditions unmet.
-static void CmdEnterAbandonedWarehouse(AgentConn* c, const char* id, const char*) {
-    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
-
-    Il2CppObject* panelTransform = nullptr;
-    char error[128] = {};
-    UiPanelLookupResult panelResult = FindVisiblePanelTransform("BattlePrevPanel_Main", nullptr, &panelTransform, error, sizeof(error));
-    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
-    if (panelResult != UI_PANEL_FOUND) {
-        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"BattlePrevPanel_Main not visible\"}");
-        return;
-    }
-
-    std::vector<UiNodeSnapshot> matches;
-    ResolveUiNodeMatches(panelTransform, "Panel_1/bg/MapContainer/MapItem_102/Image (1)", UI_PATH_EXACT, 2, &matches);
-    if (matches.empty()) {
-        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"MapItem_102 not found — not in map view or room unavailable\"}");
-        return;
-    }
-
-    UiNodeSnapshot& node = matches[0];
-    if (!node.active) { SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"MapItem_102 inactive\"}"); return; }
-    if (!node.components.button) { SendResponse(c, id, false, "MapItem_102: no Button component"); return; }
-
-    if (!PerformButtonClick(node.components.button)) {
-        SendResponse(c, id, false, "click failed");
-        return;
-    }
-
-    SendResponse(c, id, true, "{\"clicked\":true,\"room\":102}");
+    char result[64];
+    snprintf(result, sizeof(result), "{\"clicked\":true,\"room\":%d}", roomId);
+    SendResponse(c, id, true, result);
 }
 
 // ==========================================================================
@@ -4083,9 +4077,8 @@ static const CmdEntry kCommands[] = {
     { "InvokeMethod",     CmdInvokeMethod     },
     { "LoadProbe",        CmdLoadProbe        },
     { "GoToBattlePrev",   CmdGoToBattlePrev   },
-    { "EnterBlindBoxRoom",       CmdEnterBlindBoxRoom       },
-    { "EnterAbandonedWarehouse", CmdEnterAbandonedWarehouse },
-    { "UnloadAgent",             CmdUnloadAgent             },
+    { "EnterRoom",        CmdEnterRoom        },
+    { "UnloadAgent",      CmdUnloadAgent      },
     { nullptr,            nullptr             },
 };
 
