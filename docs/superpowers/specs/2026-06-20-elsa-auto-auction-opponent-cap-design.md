@@ -5,7 +5,7 @@ Status: Draft for review
 
 ## Goal
 
-Refine Elsa `AutoAuction` bidding for rounds 2 through 5 so the script does not blindly follow the existing expected-price multiplier strategy when the opponent's previous-round bid implies a lower safe ceiling.
+Refine Elsa `AutoAuction` bidding for rounds 2 through 5 so the script does not blindly follow the existing expected-price multiplier strategy when the opponent's previous-round bid implies a lower overpay cap.
 
 The new rule is:
 
@@ -30,15 +30,22 @@ Current strategy when `useExpectedPrice = true`:
 - round 2: `expectedPrice * 1.7`
 - round 3 and later: `expectedPrice * 1.0`
 
-Current runtime evidence from the live `Battle_Main` playback/battle UI:
+Current runtime evidence comes from a live `bkcli` probe against the running game session on 2026-06-20, not from static source grep:
 
-- player names are readable at:
+- player names were readable at:
   - `Gaming/PlayerContainer/Player_1/NameUnit/NameLayout/nameTxt`
   - `Gaming/PlayerContainer/Player_2/NameUnit/NameLayout/nameTxt`
-- per-round bid history is readable at:
-  - `Gaming/PlayerContainer/Player_X/containers/RoundUnit.../priceTxt`
-- the current user's in-game name is `melo`
-- the opponent is therefore defined as the player whose visible name is not `melo`
+- per-round bid history rows were readable under:
+  - `Gaming/PlayerContainer/Player_X/containers/RoundUnit...`
+- previous-round bid text was readable from row-local `priceTxt`
+- the current user's in-game name during the probe was `melo`
+- `GetNodeState` on these paths returned readable `text` values for both player names and round-price rows
+
+Important clarification:
+
+- these paths are runtime Unity UI node paths observed from the current game build
+- they are not expected to appear as string literals inside the repository source tree
+- implementation must treat them as runtime-observed UI structure, not as codebase-defined constants
 
 This means the new strategy can be implemented entirely inside the native `AutoAuction` flow without adding any new IPC command or renderer-side logic.
 
@@ -47,7 +54,7 @@ This means the new strategy can be implemented entirely inside the native `AutoA
 - implement this as a native `AutoAuction` strategy change, not an app-side post-processing rule
 - keep the current first-round strategy unchanged
 - apply the new limit only for rounds 2 through 5
-- identify the opponent as the visible player whose name is not `melo`
+- identify the opponent using an optional `selfName` command argument, defaulting to `melo`
 - if opponent name or previous-round bid is missing or unparsable, fall back to the original strategy
 - implement the first version directly inside `CmdAutoAuction`, not as a new standalone strategy module
 
@@ -122,6 +129,8 @@ Round-specific cap multipliers:
 - round 4: `1.23`
 - round 5: `1.1`
 
+This is a price-cap / do-not-overpay guard, not a general "safe ceiling" inferred from opponent strength. It only constrains bids downward when the opponent's previous-round bid implies a lower acceptable cap than the current original strategy.
+
 ### 2. Fallback Rules
 
 The strategy must fall back to `originalBid` when any of the following is true:
@@ -129,14 +138,19 @@ The strategy must fall back to `originalBid` when any of the following is true:
 - the current round number cannot be parsed as a positive integer
 - the current round is not in `2..5`
 - neither visible player name can be read
-- both visible player names equal `melo`
-- the non-`melo` player cannot be determined uniquely
-- the opponent previous-round price node is missing
+- both visible player names equal `selfName`
+- the non-`selfName` player cannot be determined uniquely
+- the opponent previous-round row cannot be resolved
 - the opponent previous-round price text is empty
 - the opponent previous-round price text cannot be parsed into a positive integer
 - the computed `opponentCap` is non-positive
 
 This fallback is deliberate. The rule is an opportunistic limiter, not a hard dependency for bidding.
+
+An additional live-timing fallback also applies:
+
+- if our bid window opens before the opponent previous-round `priceTxt` has been populated in the visible UI, the limiter is skipped and the script uses `originalBid`
+- this round does not add waiting or polling for late UI population
 
 ### 3. Native Implementation Shape
 
@@ -144,16 +158,84 @@ Only `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.cpp` changes for t
 
 `AggregateOperationSemantics.h` keeps the existing `ComputeBidAmount()` behavior unchanged. It remains the source of the original expected-price strategy.
 
+`AutoAuction` gains one optional request argument:
+
+```json
+{
+  "roomId": 101,
+  "useExpectedPrice": true,
+  "selfName": "melo"
+}
+```
+
+Rules:
+
+- `selfName` is optional
+- when omitted or empty, native defaults it to `melo`
+- existing callers remain valid without modification
+
 Inside `MetaOperations.cpp`, add small local helpers for:
 
 - parsing round text like `第4轮` or `4` into an integer round number
 - reading player name text for `Player_1` and `Player_2`
-- selecting the opponent slot as the player whose name is not `melo`
-- mapping current round number to previous-round `priceTxt` path
-- parsing formatted price text like `17,986` into integer `17986`
+- selecting the opponent slot as the player whose name is not `selfName`
+- locating the opponent previous-round row by matching `roundTxt`, not by assuming child index
+- parsing formatted price text like `17,986`, `17，986`, or `17986` into integer `17986`
 - returning the round-specific opponent-cap multiplier for rounds 2 through 5
 
 These helpers stay file-local and are used only by `CmdAutoAuction`.
+
+Threading note:
+
+- all these UI reads happen on the same native agent worker thread that already performs `DetectScreenState`, `ResolveUiNodeMatches`, and `ClickNode`
+- this is consistent with current agent behavior, but still depends on the present IL2CPP/Unity runtime tolerating these reads from the attached worker thread
+- this spec does not attempt to redesign that threading model
+
+### 3.1 Round Number Parsing Contract
+
+The round parser must not depend on one exact string format.
+
+Accepted inputs:
+
+- `第4轮`
+- `4`
+- any trimmed string containing exactly one positive decimal digit run that represents the round number
+
+Recommended rule:
+
+- scan the string for the first contiguous ASCII digit run
+- parse it as a base-10 positive integer
+- if no positive integer can be extracted, parsing fails
+
+Examples:
+
+- `第4轮` -> `4`
+- `4` -> `4`
+- `Round 5` -> `5`
+- `` or `--` -> parse failure
+
+### 3.2 Previous-Round Row Resolution
+
+The implementation must not map round history rows by raw child index alone.
+
+For the selected opponent slot:
+
+1. inspect `Gaming/PlayerContainer/Player_X/containers`
+2. enumerate active direct children whose names are `RoundUnit` or start with `RoundUnit(`
+3. for each candidate row:
+   - read its child `roundTxt`
+   - parse that row round number using the same round parser contract
+4. choose the row whose parsed round number equals `currentRoundNumber - 1`
+5. read that row's sibling `priceTxt`
+
+If no matching row is found, the limiter is skipped.
+
+This avoids depending on whether the UI uses:
+
+- `RoundUnit`, `RoundUnit(Clone)[0]`, ...
+- insertion order
+- hidden template rows
+- non-stable child indexing
 
 ### 4. Bid Flow Integration
 
@@ -169,17 +251,33 @@ The new flow becomes:
 
 1. compute `originalBid` exactly as today
 2. parse `currentRoundNumber`
-3. if round is `2..5`, try to read `opponentPreviousBid`
-4. if successful, compute `opponentCap`
-5. set `amount = min(originalBid, opponentCap)`
-6. otherwise set `amount = originalBid`
-7. continue with the existing bid input/confirm flow
+3. if round is `2..5`, resolve `selfName` and try to identify the opponent slot
+4. if opponent slot is known, locate the previous-round row by `roundTxt`
+5. if successful, read and parse `opponentPreviousBid`
+6. if successful, compute `opponentCap`
+7. set `amount = min(originalBid, opponentCap)`
+8. otherwise set `amount = originalBid`
+9. continue with the existing bid input/confirm flow
 
 No other part of the `AutoAuction` navigation, cleanup, cancelation, or pipe protocol changes.
+
+### 4.1 Runtime Safety Notes
+
+The implementation must preserve current behavior in these edge cases:
+
+- if the opponent row exists but its `priceTxt` is still empty, do not wait; fall back immediately
+- if multiple rows claim the same previous round number, treat the result as ambiguous and fall back
+- if `selfName` does not match either visible player, the limiter is skipped
+- if both visible names equal `selfName`, the limiter is skipped
+- if `selfName` matching fails because the user renamed themselves and did not pass the new value, the script still bids using the original strategy
 
 ### 5. Logging
 
 Add one high-signal native log line per attempted constrained bid for rounds 2 through 5.
+
+Use the existing thread-safe native logger:
+
+- `Logf(...)`
 
 The log should include:
 
@@ -203,7 +301,14 @@ The goal is to make live strategy verification possible from logs without adding
 
 ### 1. Native Pure/Semi-Pure Tests
 
-Add focused tests for the new helper logic in `AggregateOperationSemantics.test.cpp` or a small adjacent native test file if needed.
+Do not claim coverage for file-local `MetaOperations.cpp` helpers from `AggregateOperationSemantics.test.cpp`.
+
+Default testing plan:
+
+- keep existing original-strategy tests in `AggregateOperationSemantics.test.cpp`
+- add a new adjacent native test file, `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.test.cpp`, for the new parser/cap-selection helper logic
+
+If implementation ends up moving pure helper code into a tiny shared header for test visibility, that is acceptable, but the orchestration and UI traversal stay in `MetaOperations.cpp`.
 
 At minimum cover:
 
@@ -213,7 +318,11 @@ At minimum cover:
 - round 5 multiplier = `1.1`
 - unsupported rounds return "no cap" behavior
 - `17,986` parses to `17986`
+- `17，986` parses to `17986`
+- `17986` parses to `17986`
 - empty or malformed price text fails parsing
+- `第4轮` parses to `4`
+- `4` parses to `4`
 - final bid chooses the smaller of `originalBid` and `opponentCap`
 - fallback path preserves `originalBid`
 
@@ -230,6 +339,8 @@ Use the real game process to confirm:
 - both player names can still be read from `Battle_Main`
 - both players' previous-round bid texts can still be read from `Battle_Main`
 - on a round in `2..5`, the script computes a constrained final bid when opponent data is available
+- when `selfName` is omitted, default matching to `melo` still works
+- when `selfName` is passed explicitly, opponent detection uses it
 - when opponent data is unavailable, the script still bids using the original strategy
 - the new rule does not break `AutoAuction` cancelation or cleanup behavior
 
@@ -237,7 +348,6 @@ Use the real game process to confirm:
 
 - no change to the round-1 strategy
 - no change to rounds 6+
-- no support for configurable self-name in this round; `melo` is hardcoded
 - no new app-side controls or Elsa UI changes
 - no new preload API or pipe command
 - no protocol response shape change for `AutoAuction`
@@ -245,6 +355,7 @@ Use the real game process to confirm:
 ## Files Expected To Change
 
 - `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.cpp`
+- `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.test.cpp`
 - `tools/inject/AutoOperation/BKAutoOpAgent/AggregateOperationSemantics.test.cpp`
 
 `AggregateOperationSemantics.h` may stay unchanged unless a tiny helper is clearly better placed there, but the default plan is to keep the new strategy-specific logic inside `MetaOperations.cpp`.
