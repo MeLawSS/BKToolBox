@@ -154,7 +154,7 @@ An additional live-timing fallback also applies:
 
 ### 3. Native Implementation Shape
 
-Only `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.cpp` changes for the runtime logic.
+The core bidding logic changes live in `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.cpp`, with a small supporting shared-surface expansion in `BKAutoOpAgent.cpp` and `MetaOperations.h`.
 
 `AggregateOperationSemantics.h` keeps the existing `ComputeBidAmount()` behavior unchanged. It remains the source of the original expected-price strategy.
 
@@ -174,12 +174,47 @@ Rules:
 - when omitted or empty, native defaults it to `melo`
 - existing callers remain valid without modification
 
+### 3.0 Shared API Surface Changes
+
+Two existing `BKAutoOpAgent.cpp` internals are not currently reachable from `MetaOperations.cpp`:
+
+- `Logf(...)` is currently `static`
+- direct-child enumeration helpers (`GetTransformChildCount`, `GetTransformChild`, `CollectNamedChildTransforms`, `InspectUiNode`) are also currently `static`
+
+So this feature requires a small shared API expansion rather than assuming `MetaOperations.cpp` can call those internals directly.
+
+Required shared-surface changes:
+
+- make `Logf(const char* fmt, ...)` callable from `MetaOperations.cpp`
+  - either by removing `static` and declaring it in `MetaOperations.h`
+  - or by introducing a tiny non-static wrapper with an equivalent signature
+- add one exported helper in `BKAutoOpAgent.cpp`, declared in `MetaOperations.h`, that returns active direct child node snapshots for a given parent
+
+Recommended helper shape:
+
+```cpp
+bool CollectActiveDirectChildSnapshots(
+    Il2CppObject* parent,
+    std::vector<UiNodeSnapshot>* children
+);
+```
+
+Behavior:
+
+- enumerate direct children of `parent`
+- internally reuse the existing static child-enumeration code
+- inspect each child into a `UiNodeSnapshot`
+- exclude inactive children (`snapshot.active == false`)
+- return snapshots whose `transform` can then be used by `MetaOperations.cpp` for row-local exact lookups
+
+This keeps the static low-level transform helpers private while exporting only the minimal surface needed by the new strategy.
+
 Inside `MetaOperations.cpp`, add small local helpers for:
 
 - parsing round text like `第4轮` or `4` into an integer round number
 - reading player name text for `Player_1` and `Player_2`
 - selecting the opponent slot as the player whose name is not `selfName`
-- locating the opponent previous-round row by matching `roundTxt`, not by assuming child index
+- locating the opponent previous-round row by matching row-local `roundTxt`, not by assuming child index
 - parsing formatted price text like `17,986`, `17，986`, or `17986` into integer `17986`
 - returning the round-specific opponent-cap multiplier for rounds 2 through 5
 
@@ -221,14 +256,25 @@ The implementation must not map round history rows by raw child index alone.
 For the selected opponent slot:
 
 1. inspect `Gaming/PlayerContainer/Player_X/containers`
-2. enumerate active direct children whose names are `RoundUnit` or start with `RoundUnit(`
-3. for each candidate row:
-   - read its child `roundTxt`
+2. call the exported shared helper to collect active direct child snapshots
+3. filter those snapshots to rows whose names are `RoundUnit` or start with `RoundUnit(`
+4. for each candidate row:
+   - run `ResolveUiNodeMatches(row.transform, "roundTxt", UI_PATH_EXACT, 1, ...)`
    - parse that row round number using the same round parser contract
-4. choose the row whose parsed round number equals `currentRoundNumber - 1`
-5. read that row's sibling `priceTxt`
+5. choose the row whose parsed round number equals `currentRoundNumber - 1`
+6. read its price with a row-local exact lookup:
+   - `ResolveUiNodeMatches(row.transform, "priceTxt", UI_PATH_EXACT, 1, ...)`
+7. extract the text value from that `priceTxt` node
 
 If no matching row is found, the limiter is skipped.
+
+Important clarifications:
+
+- the current-round label and the row label are different paths:
+  - current-round label: `Gaming/Center/RoundBg/roundTxt`
+  - history-row label: `.../RoundUnit.../roundTxt`
+- the spec must not assume that `priceTxt` is implemented as a raw sibling pointer walk; only that it is resolved as a row-local exact child path from the selected row root
+- inactive rows must be ignored explicitly; either the exported child helper filters them out, or `MetaOperations.cpp` must reject `snapshot.active == false`
 
 This avoids depending on whether the UI uses:
 
@@ -236,6 +282,19 @@ This avoids depending on whether the UI uses:
 - insertion order
 - hidden template rows
 - non-stable child indexing
+
+### 3.3 Current Round vs Row Round
+
+There are two separate `roundTxt` usages in this strategy:
+
+- current round source:
+  - `Gaming/Center/RoundBg/roundTxt`
+  - used to determine `currentRoundNumber`
+- previous-round history rows:
+  - row-local `roundTxt` under each `RoundUnit...`
+  - used only to match the row whose round number equals `currentRoundNumber - 1`
+
+The implementation must not mix these two roles.
 
 ### 4. Bid Flow Integration
 
@@ -305,7 +364,6 @@ Do not claim coverage for file-local `MetaOperations.cpp` helpers from `Aggregat
 
 Default testing plan:
 
-- keep existing original-strategy tests in `AggregateOperationSemantics.test.cpp`
 - add a new adjacent native test file, `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.test.cpp`, for the new parser/cap-selection helper logic
 
 If implementation ends up moving pure helper code into a tiny shared header for test visibility, that is acceptable, but the orchestration and UI traversal stay in `MetaOperations.cpp`.
@@ -354,8 +412,9 @@ Use the real game process to confirm:
 
 ## Files Expected To Change
 
+- `tools/inject/AutoOperation/BKAutoOpAgent/BKAutoOpAgent.cpp`
 - `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.cpp`
+- `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.h`
 - `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.test.cpp`
-- `tools/inject/AutoOperation/BKAutoOpAgent/AggregateOperationSemantics.test.cpp`
 
 `AggregateOperationSemantics.h` may stay unchanged unless a tiny helper is clearly better placed there, but the default plan is to keep the new strategy-specific logic inside `MetaOperations.cpp`.
