@@ -85,4 +85,4 @@ bool                PerformButtonClick(Il2CppObject* buttonComponent);
 void CmdGoToBattlePrev(AgentConn* c, const char* id, const char* json);
 void CmdEnterRoom(AgentConn* c, const char* id, const char* json);
 void CmdOpenSkillConfig(AgentConn* c, const char* id, const char* json);
-void CmdSelectElsa(AgentConn* c, const char* id, const char* json);
+void CmdSelectRole(AgentConn* c, const char* id, const char* json);

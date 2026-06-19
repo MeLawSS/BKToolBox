@@ -164,13 +164,13 @@ void CmdOpenSkillConfig(AgentConn* c, const char* id, const char*) {
     SendResponse(c, id, true, "{\"clicked\":true}");
 }
 
-// SelectElsa: inside the skill config character list (MapImage/Left), click 艾莎's SkinItem.
+// SelectRole: inside the skill config character list (MapImage/Left), click 艾莎's SkinItem.
 // Precondition: BattlePrevPanel_Main visible, skill config panel open
 //   (Panel_1/MapImage/Left must be present — it appears only after OpenSkillConfig).
 // 艾莎 is always the first SkinItem (no-Clone) in ScrollView2; the Clone item is locked.
 // Returns {"clicked":true,"selected":"艾莎"} on success,
 //         {"clicked":false,"reason":"..."} as no-op when preconditions unmet.
-void CmdSelectElsa(AgentConn* c, const char* id, const char*) {
+void CmdSelectRole(AgentConn* c, const char* id, const char*) {
     if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
 
     Il2CppObject* panelTransform = nullptr;
