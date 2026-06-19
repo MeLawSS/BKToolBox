@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add an auto-operation mode toggle to the Elsa Expected Value page that automatically starts the monitor and agent, then runs a placeholder bidding script with a live activity log.
+**Goal:** Add an auto-operation mode toggle to the Elsa Expected Value page that automatically starts the agent, verifies the monitor is running, then runs a placeholder bidding script with a live activity log.
 
-**Architecture:** A new Elsa-specific composable (`useElsaAutoOperation.js`) manages the toggle state, monitor/agent lifecycle, script execution, and activity log. A new `ElsaAutoOperationPanel.vue` renders the UI. `ElsaHeroPanel.vue` stacks the new panel below the existing estimator panel.
+**Architecture:** A new Elsa-specific composable (`useElsaAutoOperation.js`) manages the toggle state, agent ownership, script execution, and activity log. A new `ElsaAutoOperationPanel.vue` renders the UI. `ElsaHeroPanel.vue` stacks the new panel below the existing estimator panel.
 
 **Tech Stack:** Vue 3 Composition API, `useMonitorSwitch`, `useAutoOperationAgentSwitch`, `window.bidkingDesktop.runAutoOperationCommand`
 
@@ -16,7 +16,10 @@
 - Follow existing patterns in `src/elsa/` and `src/inject/panels/InjectMetaOperationPanel.vue`
 - Do not modify `HeroEstimatorPanelBody.vue` or `useHeroEstimatorPanel.js`
 - Log entries capped at 200; when exceeded, drop the oldest
-- Monitor start uses `monitor.toggleMonitor()` (not `startMonitor()`) so the options resolver registered by `useHeroEstimatorPanel` is applied; only call it when `monitor.status.value?.running` is false
+- **Monitor ownership:** The monitor (`useMonitorSwitch`) is a shared singleton. The auto-operation mode treats it as a **prerequisite only** — it checks `monitor.status.value?.running` on enable and fails with a log error if the monitor is not already running. It never calls `startMonitor()`, `toggleMonitor()`, or `stopMonitor()`. This avoids both the options-resolver problem (options are only registered in `monitor/App.vue`) and the ownership problem (shutting down a monitor started elsewhere).
+- **Agent ownership:** The agent (`useAutoOperationAgentSwitch`) is also a shared singleton. The composable tracks whether it started the agent via a local `weStartedAgent` flag (reset on disable). On disable, `unloadAgent()` is only called if `weStartedAgent` is true — if the agent was already running before `enable()`, it is left running.
+- **Enable success condition:** Both the monitor prerequisite check AND the agent start must succeed. If either fails, `isEnabled` stays false and the script is not started. "Partial success" (monitor OK, agent fails, or vice versa) is not sufficient to enable the mode.
+- **Lifecycle cleanup:** The composable registers `onBeforeUnmount` to call `disable()`. It also listens to `window` for `'bidking:leave-tools'` (from `src/shared/tools-page-lifecycle.js`) and calls `disable()` on that event. Both listeners are removed in `onBeforeUnmount`.
 - The operation script (`runScript`) is a placeholder in this phase: logs one message and returns; actual bidding logic is out of scope
 - `useElsaAutoOperation()` calls `useAutoOperationAgentSwitch()` internally, which uses `onMounted` — the composable must be called inside a component `setup()` context (not at module level)
 
@@ -28,15 +31,16 @@
 - Create: `src/elsa/useElsaAutoOperation.js`
 
 **Interfaces:**
-- Consumes: `useMonitorSwitch` from `src/shared/useMonitorSwitch.js`, `useAutoOperationAgentSwitch` from `src/shared/useAutoOperationAgentSwitch.js`
+- Consumes: `useMonitorSwitch` from `src/shared/useMonitorSwitch.js`, `useAutoOperationAgentSwitch` from `src/shared/useAutoOperationAgentSwitch.js`, `LEAVE_TOOLS_EVENT` from `src/shared/tools-page-lifecycle.js`
 - Produces: exported `useElsaAutoOperation()` returning `{ isEnabled, isBusy, enable, disable, monitorStatus, agentConnected, log, clearLog }`
 
 - [ ] **Step 1: Write the composable**
 
 ```js
-import { ref, computed } from 'vue';
+import { ref, computed, onBeforeUnmount } from 'vue';
 import { useMonitorSwitch } from '../shared/useMonitorSwitch.js';
 import { useAutoOperationAgentSwitch } from '../shared/useAutoOperationAgentSwitch.js';
+import { LEAVE_TOOLS_EVENT } from '../shared/tools-page-lifecycle.js';
 
 const MAX_LOG = 200;
 
@@ -49,6 +53,7 @@ export function useElsaAutoOperation() {
   const log = ref([]);
 
   let scriptAbort = null;
+  let weStartedAgent = false;
 
   function addLog(message, level = 'info') {
     const entry = { time: new Date().toLocaleTimeString(), level, message };
@@ -70,29 +75,26 @@ export function useElsaAutoOperation() {
     isBusy.value = true;
     clearLog();
     try {
-      addLog('正在启动 Monitor 和 Agent…');
-      let monitorOk = true;
-      let agentOk = true;
-
-      // toggleMonitor() uses the options resolver registered by useHeroEstimatorPanel;
-      // only call it when the monitor is not already running to avoid stopping it.
+      // Monitor is a prerequisite — we do not start it; it must already be running.
       if (!monitor.status.value?.running) {
-        await monitor.toggleMonitor().catch(e => {
-          monitorOk = false;
-          addLog(`Monitor 启动失败: ${e?.message || e}`, 'error');
-        });
-      } else {
-        addLog('Monitor 已在运行');
+        addLog('Monitor 未运行，请先在 Monitor 页启动监控', 'error');
+        return;
       }
-      if (monitorOk) addLog('Monitor 已启动');
+      addLog('Monitor 已在运行');
 
-      await agent.loadAgent().catch(e => {
-        agentOk = false;
-        addLog(`Agent 启动失败: ${e?.message || e}`, 'error');
-      });
-      if (agentOk) addLog('Agent 已连接');
-
-      if (!monitorOk && !agentOk) return; // both failed — stay disabled
+      // Start agent only if not already connected.
+      if (!agent.isConnected.value) {
+        let agentOk = true;
+        await agent.loadAgent().catch(e => {
+          agentOk = false;
+          addLog(`Agent 启动失败: ${e?.message || e}`, 'error');
+        });
+        if (!agentOk) return; // agent failed → stay disabled
+        weStartedAgent = true;
+        addLog('Agent 已连接');
+      } else {
+        addLog('Agent 已在运行');
+      }
 
       isEnabled.value = true;
       const controller = new AbortController();
@@ -108,17 +110,29 @@ export function useElsaAutoOperation() {
     isBusy.value = true;
     if (scriptAbort) { scriptAbort.abort(); scriptAbort = null; }
     try {
-      addLog('正在停止 Monitor 和 Agent…');
-      await Promise.all([
-        monitor.stopMonitor().catch(e => addLog(`Monitor 停止失败: ${e?.message || e}`, 'error')),
-        agent.unloadAgent().catch(e => addLog(`Agent 卸载失败: ${e?.message || e}`, 'error')),
-      ]);
+      addLog('正在停止…');
+      // Only unload agent if this mode started it; never touch the monitor.
+      if (weStartedAgent) {
+        await agent.unloadAgent().catch(e => addLog(`Agent 卸载失败: ${e?.message || e}`, 'error'));
+        weStartedAgent = false;
+      }
       addLog('已停止');
       isEnabled.value = false;
     } finally {
       isBusy.value = false;
     }
   }
+
+  function onLeaveTools() {
+    if (isEnabled.value) disable();
+  }
+
+  window.addEventListener(LEAVE_TOOLS_EVENT, onLeaveTools);
+
+  onBeforeUnmount(() => {
+    window.removeEventListener(LEAVE_TOOLS_EVENT, onLeaveTools);
+    if (isEnabled.value) disable();
+  });
 
   const monitorStatus = computed(() => monitor.status.value?.state ?? 'idle');
   const agentConnected = computed(() => agent.isConnected.value);
@@ -395,27 +409,44 @@ npm run dev
 
 - [ ] **Step 2: Navigate to the Elsa Expected Value page**
 
-Confirm that the "自动操作模式" panel appears below the estimator, with correct translated labels (not raw key strings).
+Confirm the "自动操作模式" panel appears below the estimator with correct translated labels (not raw key strings).
 
-- [ ] **Step 3: Test toggle — without desktop bridge**
+- [ ] **Step 3: Test toggle — monitor not running**
 
-With no Electron desktop bridge available (browser-only), click "开启". Verify:
-- `isBusy` disables the button during startup
-- Log entries appear for monitor/agent start attempts
-- Error entries appear (expected — no bridge in browser)
-- Toggle button stays "开启" (isEnabled remains false because both failed)
+With the monitor stopped, click "开启". Verify:
+- Log shows "Monitor 未运行，请先在 Monitor 页启动监控" (error level)
+- `isEnabled` stays false — button still shows "开启"
 
-- [ ] **Step 4: Test in Electron (if available)**
+- [ ] **Step 4: Test toggle — monitor running, no desktop bridge (browser-only)**
+
+Start the monitor from the Monitor page. Switch to Elsa page and click "开启". Verify:
+- Log shows "Monitor 已在运行"
+- Log shows "Agent 启动失败: …" (expected — no bridge in browser)
+- `isEnabled` stays false — button still shows "开启"
+
+- [ ] **Step 5: Test full enable/disable in Electron**
 
 With Electron running and BidKing process present:
-1. Open Elsa page — confirm monitor status and agent status show correctly
-2. Click "开启" — monitor and agent start
-3. Monitor status updates to "capturing"; agent status shows "已连接"
-4. Log shows startup sequence ending with "自动竞拍脚本已启动"
-5. Click "关闭" — both stop, log shows "已停止"
-6. If Elsa estimator monitor is already running before clicking "开启", confirm the composable logs "Monitor 已在运行" (skips `toggleMonitor`) instead of starting a duplicate
+1. Start the monitor from the Monitor page first
+2. Open Elsa page → click "开启"
+3. Log shows "Monitor 已在运行" then "Agent 已连接" then "自动竞拍脚本已启动"
+4. Agent status shows "已连接"; `isEnabled` is true; button shows "关闭"
+5. Click "关闭" → log shows "正在停止…" then "已停止"; agent unloads (monitor keeps running)
 
-- [ ] **Step 5: Commit any fixes needed**
+- [ ] **Step 6: Test ownership — agent already running**
+
+With agent already connected (e.g., started via Inject panel):
+1. Click "开启" on Elsa page → log shows "Agent 已在运行" (skips loadAgent, `weStartedAgent` stays false)
+2. Click "关闭" → log shows "已停止" but agent is NOT unloaded (still connected)
+
+- [ ] **Step 7: Test LEAVE_TOOLS_EVENT cleanup**
+
+With auto-op mode enabled:
+1. Navigate away from Tools (triggers `bidking:leave-tools` event)
+2. Verify `disable()` was called — agent unloads if owned, `isEnabled` becomes false
+3. Return to Elsa page — button shows "开启"
+
+- [ ] **Step 8: Commit any fixes needed**
 
 ```bash
 git add -p
