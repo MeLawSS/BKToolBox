@@ -16,7 +16,7 @@ function execShellcode(filePath, opts = {}) {
     const spawnSyncImpl = opts.spawnSyncImpl || spawnSync;
     const hex = parseShellcodeFile(filePath);
     const psPath = opts.psPath || path.resolve(
-        __dirname, '../../inject/BKPayload64/inject-shellcode.ps1'
+        __dirname, '../inject/BKPayload64/inject-shellcode.ps1'
     );
     const resultSize = opts.resultSize || 4096;
     const timeoutMs = opts.timeoutMs || 5000;

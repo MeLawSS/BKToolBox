@@ -19,7 +19,7 @@ function compileProbeDll(cppPath, opts = {}) {
         `bkprobe_${hash}.dll`
     );
     const scriptPath = path.resolve(
-        __dirname, '../../inject/AutoOperation/BKProbeTemplate/build_probe.sh'
+        __dirname, '../inject/AutoOperation/BKProbeTemplate/build_probe.sh'
     );
 
     const result = spawnSyncImpl('wsl', [

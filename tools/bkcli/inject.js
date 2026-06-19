@@ -4,8 +4,8 @@ const path = require('path');
 
 function injectAgent(opts = {}) {
     const spawnSyncImpl = opts.spawnSyncImpl || spawnSync;
-    const psPath = opts.psPath || path.resolve(__dirname, '../../inject/BKPayload64/inject.ps1');
-    const dllPath = opts.dllPath || path.resolve(__dirname, '../../inject/AutoOperation/BKAutoOpAgent/BKAutoOpAgent.dll');
+    const psPath = opts.psPath || path.resolve(__dirname, '../inject/BKPayload64/inject.ps1');
+    const dllPath = opts.dllPath || path.resolve(__dirname, '../inject/AutoOperation/BKAutoOpAgent/BKAutoOpAgent.dll');
 
     const result = spawnSyncImpl('pwsh', [
         '-ExecutionPolicy', 'Bypass',
