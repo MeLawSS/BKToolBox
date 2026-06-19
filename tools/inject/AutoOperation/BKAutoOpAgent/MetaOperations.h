@@ -77,6 +77,7 @@ bool                ResolveUiNodeMatches(Il2CppObject* anchor, const char* path,
                                          UiPathMode pathMode, int maxMatches,
                                          std::vector<UiNodeSnapshot>* matches);
 bool                PerformButtonClick(Il2CppObject* buttonComponent);
+bool                ReadNodeTextValue(const UiComponentRefs& refs, std::string* out);
 
 // --------------------------------------------------------------------------
 // Meta-operation commands (defined in MetaOperations.cpp)
@@ -87,3 +88,5 @@ void CmdEnterRoom(AgentConn* c, const char* id, const char* json);
 void CmdOpenSkillConfig(AgentConn* c, const char* id, const char* json);
 void CmdSelectRole(AgentConn* c, const char* id, const char* json);
 void CmdStartAction(AgentConn* c, const char* id, const char* json);
+void CmdGetBidState(AgentConn* c, const char* id, const char* json);
+void CmdPlaceBid(AgentConn* c, const char* id, const char* json);

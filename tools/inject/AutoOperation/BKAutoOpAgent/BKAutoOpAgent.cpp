@@ -1580,7 +1580,7 @@ static bool DetermineUiNodeInteractive(const UiComponentRefs& refs, bool active)
     return interactive;
 }
 
-static bool ReadNodeTextValue(const UiComponentRefs& refs, std::string* out) {
+bool ReadNodeTextValue(const UiComponentRefs& refs, std::string* out) {
     if (!out) return false;
     out->clear();
     const char* const textGetterNames[] = { "get_text", nullptr };
@@ -3914,6 +3914,8 @@ static const CmdEntry kCommands[] = {
     { "OpenSkillConfig",  CmdOpenSkillConfig  },
     { "SelectRole",       CmdSelectRole       },
     { "StartAction",      CmdStartAction      },
+    { "GetBidState",      CmdGetBidState      },
+    { "PlaceBid",         CmdPlaceBid         },
     { "UnloadAgent",      CmdUnloadAgent      },
     { nullptr,            nullptr             },
 };

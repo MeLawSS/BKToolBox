@@ -123,6 +123,21 @@ describe('InjectMetaOperationPanel', () => {
     ).toEqual(response);
   });
 
+  it('dispatches the remaining zero-arg meta-operations with empty args', async () => {
+    const runAutoOperationCommand = setupConnectedDesktop(vi.fn().mockResolvedValue({ ok: true }));
+    const wrapper = await mountPanel();
+
+    await wrapper.get('[data-testid="meta-operation-command-OpenSkillConfig"]').trigger('click');
+    await wrapper.get('[data-testid="meta-operation-command-StartAction"]').trigger('click');
+    await wrapper.get('[data-testid="meta-operation-command-GetBidState"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(runAutoOperationCommand).toHaveBeenNthCalledWith(1, 'OpenSkillConfig', {});
+    expect(runAutoOperationCommand).toHaveBeenNthCalledWith(2, 'StartAction', {});
+    expect(runAutoOperationCommand).toHaveBeenNthCalledWith(3, 'GetBidState', {});
+  });
+
   it('disables the actions and room select when transport is not ready or the shared lock is held', async () => {
     let wrapper = await mountPanel();
 

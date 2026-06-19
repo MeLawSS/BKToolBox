@@ -236,3 +236,74 @@ void CmdStartAction(AgentConn* c, const char* id, const char*) {
     SendResponse(c, id, true, "{\"clicked\":true}");
     PerformButtonClick(node.components.button);
 }
+
+// GetBidState: read current round and remaining time from Battle_Main.
+// Precondition: Battle_Main must be visible (in-game auction screen).
+// Returns {"round":"<text>","timeRemaining":"<text>"} on success,
+//         {"clicked":false,"reason":"..."} as no-op when preconditions unmet.
+void CmdGetBidState(AgentConn* c, const char* id, const char*) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    Il2CppObject* panelTransform = nullptr;
+    char error[128] = {};
+    UiPanelLookupResult panelResult = FindVisiblePanelTransform("Battle_Main", nullptr, &panelTransform, error, sizeof(error));
+    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (panelResult != UI_PANEL_FOUND) {
+        SendResponse(c, id, true, "{\"ok\":false,\"reason\":\"Battle_Main not visible\"}");
+        return;
+    }
+
+    std::string round, timeRemaining;
+
+    {
+        std::vector<UiNodeSnapshot> m;
+        ResolveUiNodeMatches(panelTransform, "Gaming/Center/RoundBg/roundTxt", UI_PATH_EXACT, 2, &m);
+        if (!m.empty()) ReadNodeTextValue(m[0].components, &round);
+    }
+    {
+        std::vector<UiNodeSnapshot> m;
+        ResolveUiNodeMatches(panelTransform, "Gaming/remainBg/remainTxt", UI_PATH_EXACT, 2, &m);
+        if (!m.empty()) ReadNodeTextValue(m[0].components, &timeRemaining);
+    }
+
+    std::string result = "{\"round\":\"";
+    result += round;
+    result += "\",\"timeRemaining\":\"";
+    result += timeRemaining;
+    result += "\"}";
+    SendResponse(c, id, true, result.c_str());
+}
+
+// PlaceBid: click the 出价 (chujia) button in Battle_Main to place the current bid.
+// Precondition: Battle_Main must be visible and the chujia button active.
+// Returns {"clicked":true} on success, {"clicked":false,"reason":"..."} otherwise.
+void CmdPlaceBid(AgentConn* c, const char* id, const char*) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    Il2CppObject* panelTransform = nullptr;
+    char error[128] = {};
+    UiPanelLookupResult panelResult = FindVisiblePanelTransform("Battle_Main", nullptr, &panelTransform, error, sizeof(error));
+    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (panelResult != UI_PANEL_FOUND) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"Battle_Main not visible\"}");
+        return;
+    }
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(panelTransform, "Gaming/chujia", UI_PATH_EXACT, 2, &matches);
+    if (matches.empty()) {
+        SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"chujia button not found\"}");
+        return;
+    }
+
+    UiNodeSnapshot& node = matches[0];
+    if (!node.active) { SendResponse(c, id, true, "{\"clicked\":false,\"reason\":\"chujia button inactive\"}"); return; }
+    if (!node.components.button) { SendResponse(c, id, false, "chujia button: no Button component"); return; }
+
+    if (!PerformButtonClick(node.components.button)) {
+        SendResponse(c, id, false, "click failed");
+        return;
+    }
+
+    SendResponse(c, id, true, "{\"clicked\":true}");
+}
