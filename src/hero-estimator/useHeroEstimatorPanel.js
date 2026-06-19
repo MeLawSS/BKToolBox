@@ -1621,11 +1621,11 @@ export function useHeroEstimatorPanel(profile) {
   }
 
   function refreshEstimateAfterMonitorUpdate() {
-    if (hasCalculated.value && averagePricesByQuality.value) {
+    if ((hasCalculated.value || profile.id === 'elsa') && averagePricesByQuality.value) {
       clearPendingEstimateRefresh();
       pendingEstimateRefreshTimer = window.setTimeout(() => {
         pendingEstimateRefreshTimer = null;
-        if (hasCalculated.value && averagePricesByQuality.value) {
+        if ((hasCalculated.value || profile.id === 'elsa') && averagePricesByQuality.value) {
           handleSubmit();
         }
       }, 0);
@@ -1760,9 +1760,13 @@ export function useHeroEstimatorPanel(profile) {
 
   if (profile.id === 'elsa') {
     watch(
-      () => summary.total,
-      (total) => { elsaExpectedPrice.value = Math.round(total) || 0; },
-      // No immediate: true — restored values from localStorage must not seed the price
+      () => tableRows.value,
+      (rows) => {
+        if (!rows.length) return;
+        const prices = rows.map(r => r.mean).filter(p => p != null && isFinite(p));
+        const minPrice = prices.length ? Math.min(...prices) : 0;
+        elsaExpectedPrice.value = Math.round(minPrice) || 0;
+      },
     );
     onUnmounted(() => { elsaExpectedPrice.value = 0; });
   }
