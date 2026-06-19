@@ -4,7 +4,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const service = await import('./inject-service.js');
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -22,6 +22,10 @@ afterEach(() => {
     fs.rmSync(root, { recursive: true, force: true });
   }
   vi.restoreAllMocks();
+});
+
+beforeEach(() => {
+  vi.useRealTimers();
 });
 
 describe('inject-service cabinet reward', () => {
