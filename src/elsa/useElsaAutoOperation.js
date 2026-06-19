@@ -79,8 +79,8 @@ export function useElsaAutoOperation() {
       const controller = new AbortController();
       scriptAbort = controller;
       runScript(controller.signal)
-        .then(() => disable())
-        .catch(e => addLog(`脚本异常: ${e?.message || e}`, 'error'));
+        .catch(e => addLog(`脚本异常: ${e?.message || e}`, 'error'))
+        .finally(() => disable());
     } finally {
       isBusy.value = false;
     }

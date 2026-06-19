@@ -99,8 +99,8 @@ describe('useElsaAutoOperation', () => {
     const { result, wrapper } = withSetup(() => useElsaAutoOperation());
     await result.enable();
     await flushPromises();
-    expect(result.isEnabled.value).toBe(true);
     expect(result.log.value.some(e => e.message.includes('已连接'))).toBe(true);
+    expect(result.isEnabled.value).toBe(false); // auto-disabled after runScript completes
     wrapper.unmount();
   });
 
@@ -156,13 +156,20 @@ describe('useElsaAutoOperation', () => {
   it('calls disable() when bidking:leave-tools fires', async () => {
     monitorRunning = true;
     mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
+    let resolveAuction;
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
+      if (name === 'AutoAuction') return new Promise(r => { resolveAuction = r; });
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
     const { result, wrapper } = withSetup(() => useElsaAutoOperation());
     await result.enable();
     await flushPromises();
-    expect(result.isEnabled.value).toBe(true);
+    expect(result.isEnabled.value).toBe(true); // still enabled before script completes
     window.dispatchEvent(new CustomEvent('bidking:leave-tools'));
     await flushPromises();
     expect(result.isEnabled.value).toBe(false);
+    resolveAuction?.({ ok: true, value: { rounds: 0, expectedPrice: 0 }, response: {} });
     wrapper.unmount();
   });
 
@@ -174,15 +181,15 @@ describe('useElsaAutoOperation', () => {
     removeSpy.mockRestore();
   });
 
-  it('runScript() logs error and stays enabled when elsaExpectedPrice is 0', async () => {
+  it('runScript() logs error and auto-disables when elsaExpectedPrice is 0', async () => {
     monitorRunning = true;
     mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
     elsaExpectedPrice.value = 0;
     const { result, wrapper } = withSetup(() => useElsaAutoOperation());
     await result.enable();
     await flushPromises();
-    expect(result.isEnabled.value).toBe(true); // enabled before runScript resolves
-    await flushPromises(); // let runScript fire and resolve
+    await flushPromises(); // let runScript fire, error, and .finally() disable
+    expect(result.isEnabled.value).toBe(false); // auto-disabled after script error
     expect(result.log.value.some(e => e.level === 'error' && e.message.includes('请先运行估算'))).toBe(true);
     wrapper.unmount();
   });
