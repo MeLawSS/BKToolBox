@@ -2,20 +2,23 @@
 
 **Goal:** Implement the actual bidding script inside the Elsa auto-operation mode. When enabled, the script syncs the current Elsa expected price to the agent and runs one full automated auction session using per-round bid multipliers. The mode auto-disables after the auction completes.
 
-**Architecture:** Two coordinated changes — DLL side adds `SetExpectedPrice` command and modifies `AutoAuction` to use a stored global price with per-round multipliers when `bidAmount` is absent; app side adds a price watcher that pushes price updates to the agent and triggers automatic re-estimation, then runs `AutoAuction` once.
+**Architecture:** Three coordinated changes:
+1. DLL — new `SetExpectedPrice` command + `AutoAuction` gains a `useExpectedPrice` flag that activates per-round multiplier bidding
+2. Shared price bridge — a small reactive singleton `elsaEstimateState.js` bridges the component tree gap between the estimator and the auto-operation composable
+3. App — `useElsaAutoOperation.js` watches the shared price and drives the auction script
 
-**Tech Stack:** C++ (DLL, `MetaOperations.cpp`, `AggregateOperationSemantics.h`), Vue 3 Composition API (`useHeroEstimatorPanel.js`, `useElsaAutoOperation.js`, `ElsaHeroPanel.vue`)
+**Tech Stack:** C++ (`MetaOperations.cpp`, `AggregateOperationSemantics.h`, `BKAutoOpAgent.cpp`), Vue 3 Composition API (`useHeroEstimatorPanel.js`, `useElsaAutoOperation.js`)
 
 ## Global Constraints
 
-- No TypeScript — plain `.js` / `.vue` files
-- Vue 3 `<script setup>` style throughout
-- Activity log message strings in `useElsaAutoOperation.js` are hardcoded (not i18n'd)
-- `AutoAuction` `bidAmount` parameter is preserved: if provided and non-zero, use it (existing behavior); if absent or zero, use `g_expectedPrice` with per-round multipliers
+- No TypeScript — plain `.js` / `.vue` files; Vue 3 `<script setup>` throughout
+- Activity log strings in `useElsaAutoOperation.js` are hardcoded (not i18n'd)
+- `AutoAuction` backward compatibility: existing `bidAmount` behavior is unchanged. The new `useExpectedPrice` flag is opt-in — absent means false, so bkcli and any other caller without the flag continue to work exactly as before
 - DLL global state uses `std::atomic<int>` for thread safety
-- App-side price watcher is active only while `isEnabled` is true; created in `enable()`, torn down in `disable()`
-- `runScript` runs `AutoAuction` exactly once; when it resolves or rejects, `disable()` is called automatically
-- `cmd` is a composable-level helper: `const cmd = (name, args) => window.bidkingDesktop.runAutoOperationCommand(name, args)` — used by both `runScript` and the price watcher
+- App-side price watcher active only while `isEnabled` is true; torn down in `disable()`
+- `runScript` runs `AutoAuction` exactly once; on resolve or reject, `disable()` is called automatically
+- `const cmd = (name, args) => window.bidkingDesktop.runAutoOperationCommand(name, args)` is declared at composable scope in `useElsaAutoOperation.js` — used by both the price watcher and `runScript`
+- `refreshEstimateAfterMonitorUpdate()` in `useHeroEstimatorPanel.js` already auto-re-estimates when monitor data changes (gated by `hasCalculated.value`). No additional auto-estimation watcher is needed
 
 ---
 
@@ -44,13 +47,13 @@ Parse `price` from JSON, store in `g_expectedPrice`, respond with the stored val
 Add to `AggregateOperationSemantics.h` (inline, no dependencies, unit-testable):
 
 ```cpp
-// roundsPlayed: number of rounds already completed (0 = first round)
+// roundsEncountered: number of distinct auction rounds seen so far (1-indexed, i.e. first round = 1)
 // Returns bid amount as integer (truncated). Returns 0 if expectedPrice <= 0.
-inline int ComputeBidAmount(int expectedPrice, int roundsPlayed) {
+inline int ComputeBidAmount(int expectedPrice, int roundsEncountered) {
     if (expectedPrice <= 0) return 0;
-    double multiplier = (roundsPlayed == 0) ? 2.0
-                      : (roundsPlayed == 1) ? 1.7
-                      :                      1.0;
+    double multiplier = (roundsEncountered == 1) ? 2.0
+                      : (roundsEncountered == 2) ? 1.7
+                      :                            1.0;
     return static_cast<int>(expectedPrice * multiplier);
 }
 ```
@@ -58,114 +61,119 @@ inline int ComputeBidAmount(int expectedPrice, int roundsPlayed) {
 Add test cases to `AggregateOperationSemantics.test.cpp`:
 
 ```cpp
-// expectedPrice=0 → 0 for any round
-assert(ComputeBidAmount(0, 0) == 0);
-assert(ComputeBidAmount(0, 3) == 0);
-// round multipliers
-assert(ComputeBidAmount(10000, 0) == 20000);
-assert(ComputeBidAmount(10000, 1) == 17000);
-assert(ComputeBidAmount(10000, 2) == 10000);
-assert(ComputeBidAmount(10000, 5) == 10000);
-// negative price → 0
-assert(ComputeBidAmount(-1, 0) == 0);
+assert(ComputeBidAmount(0, 1) == 0);   // no price set → skip
+assert(ComputeBidAmount(-1, 1) == 0);  // negative → skip
+assert(ComputeBidAmount(10000, 1) == 20000); // round 1 → 2.0x
+assert(ComputeBidAmount(10000, 2) == 17000); // round 2 → 1.7x
+assert(ComputeBidAmount(10000, 3) == 10000); // round 3 → 1.0x
+assert(ComputeBidAmount(10000, 5) == 10000); // round 5+ → 1.0x
 ```
 
-### 1.4 Modify `CmdAutoAuction`
+### 1.4 Modify `CmdAutoAuction`: add `useExpectedPrice` flag
 
-**Fix default:** Change the fallback from 25000 to 0:
+**Do not change the `bidAmount` default.** Instead, parse a new boolean flag:
 
 ```cpp
-// Before:
-int bidAmount = JsonGetInt(json, "bidAmount");
-if (bidAmount == INT_MIN) bidAmount = 25000;
-
-// After:
-int bidAmount = JsonGetInt(json, "bidAmount");
-if (bidAmount == INT_MIN) bidAmount = 0;
+int bidAmount     = JsonGetInt(json, "bidAmount");     if (bidAmount     == INT_MIN) bidAmount     = 25000;
+int useExpPrice   = JsonGetInt(json, "useExpectedPrice"); // INT_MIN = absent = false
+bool useExpectedPrice = (useExpPrice != INT_MIN && useExpPrice != 0);
 ```
 
-**Per-round bid amount:** In the bid loop, before calling `PlaceBid`, compute the actual amount:
+**Track `roundsEncountered` separately from `roundsPlayed`:**
+
+`roundsEncountered` increments each time a new distinct round string is seen (regardless of bid success or skip), and is used for `ComputeBidAmount`. `roundsPlayed` continues to track only successful bids (for the response field). This ensures that if a round is skipped (e.g., because the price is not yet set), subsequent rounds still get the correct multiplier.
 
 ```cpp
-int amount = (bidAmount != 0) ? bidAmount
-                               : ComputeBidAmount(g_expectedPrice.load(), roundsPlayed);
-if (amount == 0) {
-    // expected price not set and no fixed amount — skip this round
-    continue;
+std::string lastBidRound;
+std::string lastRoundSeen;
+int roundsEncountered = 0;
+int roundsPlayed = 0;
+int lastExpectedPrice = 0;
+```
+
+In the bid loop, before attempting to bid:
+
+```cpp
+// Track round progression regardless of bid outcome
+if (!round.empty() && round != lastRoundSeen) {
+    lastRoundSeen = round;
+    roundsEncountered++;
 }
-// use amount for SetBidAmount call
+
+if (secs < 30 && !round.empty() && round != lastBidRound) {
+    int amount = useExpectedPrice
+        ? ComputeBidAmount(g_expectedPrice.load(), roundsEncountered)
+        : bidAmount;
+    lastExpectedPrice = g_expectedPrice.load();
+
+    if (amount == 0) continue; // skip — price not set yet
+
+    // existing PlaceBid / SetBidAmount / ConfirmBid flow using `amount`
+    // ...
+    if (ShouldCountAutoAuctionRound(...)) {
+        lastBidRound = round;
+        roundsPlayed++;
+    }
+}
 ```
 
-The per-round amount reads `g_expectedPrice` fresh each round, so `SetExpectedPrice` updates mid-auction take effect on subsequent rounds.
-
-**Update response** to include the last-read expected price:
+**Update success response** to include the last-read expected price:
 
 ```json
-{ "result": "auction_ended", "rounds": <n>, "expectedPrice": <last g_expectedPrice read> }
+{ "result": "auction_ended", "rounds": <n>, "expectedPrice": <lastExpectedPrice> }
 ```
 
 ---
 
-## Part 2: App Side
+## Part 2: Shared Price Bridge
 
-### 2.1 Expose `expectedTotalPrice` from `useHeroEstimatorPanel`
+### 2.1 New file: `src/elsa/elsaEstimateState.js`
 
-`useHeroEstimatorPanel.js` has an internal `summary` reactive object with `summary.total` (a number or null). Add to its `return` block:
-
-```javascript
-expectedTotalPrice: computed(() => summary.total ?? 0),
-```
-
-This is the only change to `useHeroEstimatorPanel.js`. Do not modify `HeroEstimatorPanelBody.vue`.
-
-### 2.2 Pass `expectedTotalPrice` into `useElsaAutoOperation`
-
-In `ElsaHeroPanel.vue`, the panel already calls both composables. Pass the estimator's price as a parameter:
+A tiny module-level reactive singleton. Both `useHeroEstimatorPanel.js` and `useElsaAutoOperation.js` import from it — no component prop-passing needed.
 
 ```javascript
-const estimator = useHeroEstimatorPanel(profile);
-const autoOp = useElsaAutoOperation(estimator.expectedTotalPrice);
+import { ref } from 'vue';
+export const elsaExpectedPrice = ref(0);
 ```
 
-`useElsaAutoOperation` signature changes to:
+### 2.2 Write to `elsaExpectedPrice` from `useHeroEstimatorPanel.js`
+
+Inside `useHeroEstimatorPanel`, after `summary` is defined, add a watcher:
 
 ```javascript
-export function useElsaAutoOperation(expectedTotalPrice) { ... }
+import { elsaExpectedPrice } from '../elsa/elsaEstimateState.js';
+
+// near the end of the composable, before the return:
+watch(
+  () => summary.total,
+  (total) => { elsaExpectedPrice.value = Math.round(total) || 0; },
+  { immediate: true },
+);
 ```
 
-### 2.3 Auto-estimation on data change
+This writes to the singleton whenever the estimator recalculates (including the existing `refreshEstimateAfterMonitorUpdate` auto-refresh path).
 
-`useHeroEstimatorPanel` exposes `handleSubmit` which triggers estimation. It also exposes `monitorGridState` — a reactive ref that updates when the monitor captures new data.
+---
 
-In `useElsaAutoOperation`, when `isEnabled` becomes true, watch `monitorGridState` (passed in from the parent or read from the shared monitor composable) and call `handleSubmit()` on change to trigger re-estimation automatically. Since `useElsaAutoOperation` only receives `expectedTotalPrice`, the auto-estimation trigger must be wired in `ElsaHeroPanel.vue` instead:
+## Part 3: App Side — `useElsaAutoOperation.js`
 
-```javascript
-// In ElsaHeroPanel.vue setup():
-watch(isEnabled, (enabled) => {
-  if (!enabled) return;
-  // When auto-op is enabled, re-estimate whenever monitor data changes
-  stopAutoEstimate = watch(estimator.monitorGridState, () => {
-    estimator.handleSubmit();
-  });
-});
-watch(isEnabled, (enabled) => {
-  if (enabled) return;
-  stopAutoEstimate?.();
-  stopAutoEstimate = null;
-});
-```
+### 3.1 Composable-scope `cmd`
 
-If `handleSubmit` is a no-op when inputs are empty or invalid, no guard is needed.
-
-### 2.4 Price watcher in `useElsaAutoOperation`
-
-Define `cmd` at composable scope (accessible to both the watcher and `runScript`):
+Add at the top of `useElsaAutoOperation()` function body (before any async functions):
 
 ```javascript
 const cmd = (name, args) => window.bidkingDesktop.runAutoOperationCommand(name, args);
 ```
 
-Add a watcher stop handle:
+### 3.2 Price watcher
+
+Import `elsaExpectedPrice` from the shared bridge:
+
+```javascript
+import { elsaExpectedPrice } from './elsaEstimateState.js';
+```
+
+Add a stop-handle variable at composable scope:
 
 ```javascript
 let stopPriceWatcher = null;
@@ -174,15 +182,14 @@ let stopPriceWatcher = null;
 In `enable()`, after `isEnabled.value = true`, start the watcher:
 
 ```javascript
-stopPriceWatcher = watch(expectedTotalPrice, (price) => {
-  const amount = Math.round(price) || 0;
-  cmd('SetExpectedPrice', { price: amount })
-    .then(() => addLog(`估价已更新: ${amount}`))
+stopPriceWatcher = watch(elsaExpectedPrice, (price) => {
+  cmd('SetExpectedPrice', { price })
+    .then(() => addLog(`估价已更新: ${price}`))
     .catch(e => addLog(`价格同步失败: ${e?.message || e}`, 'warn'));
-}, { immediate: true });
+});
 ```
 
-`{ immediate: true }` ensures the current price is pushed to the agent before `AutoAuction` starts.
+No `{ immediate: true }` — the initial sync is done explicitly at the start of `runScript` (see 3.3).
 
 In `disable()`, before the existing cleanup:
 
@@ -190,30 +197,31 @@ In `disable()`, before the existing cleanup:
 if (stopPriceWatcher) { stopPriceWatcher(); stopPriceWatcher = null; }
 ```
 
-### 2.5 `runScript()` implementation
+### 3.3 `runScript()` implementation
 
 ```javascript
 async function runScript(signal) {
   if (signal.aborted) throw new Error('操作已取消');
   addLog('开始自动竞拍…');
 
-  const result = await cmd('AutoAuction', { roomId: 101 });
+  // Explicit initial sync — must await before AutoAuction starts
+  const initialPrice = elsaExpectedPrice.value;
+  await cmd('SetExpectedPrice', { price: initialPrice });
+  addLog(`估价已更新: ${initialPrice}`);
 
-  if (result?.ok === false) {
-    throw new Error(result.error || '竞拍失败');
-  }
+  if (signal.aborted) throw new Error('操作已取消');
 
-  const rounds = result?.rounds ?? 0;
-  const price  = result?.expectedPrice ?? 0;
+  const result = await cmd('AutoAuction', { roomId: 101, useExpectedPrice: true });
+  // runAutoOperationCommand throws on failure; result is { ok: true, value: {...}, response }
+  const rounds = result?.value?.rounds ?? 0;
+  const price  = result?.value?.expectedPrice ?? 0;
   addLog(`竞拍完成，共出价 ${rounds} 轮，使用估价 ${price}`);
 }
 ```
 
-`signal.aborted` check at the top handles the case where stop is pressed before `AutoAuction` is even called (the IPC call itself is not cancellable mid-flight).
+### 3.4 Auto-disable after script completes
 
-### 2.6 Auto-disable after script completes
-
-Change the `runScript` invocation in `enable()` from fire-and-forget to auto-disable on completion:
+Change the `runScript` invocation in `enable()`:
 
 ```javascript
 // Before:
@@ -225,17 +233,17 @@ runScript(controller.signal)
   .finally(() => disable());
 ```
 
-This ensures `isEnabled` returns to false and the price watcher is torn down after the auction ends (success, error, or abort).
-
-### 2.7 Log messages (hardcoded, not i18n'd)
+### 3.5 Log messages (hardcoded, not i18n'd)
 
 | Situation | Level | Message |
 |-----------|-------|---------|
 | Script starts | info | `'开始自动竞拍…'` |
-| Price synced to agent | info | `'估价已更新: {amount}'` |
+| Initial price synced | info | `'估价已更新: {price}'` |
+| Price updated mid-auction | info | `'估价已更新: {price}'` |
 | Price sync failed | warn | `'价格同步失败: {error}'` |
 | Auction complete | info | `'竞拍完成，共出价 N 轮，使用估价 P'` |
-| Script error (caught by finally) | error | `'脚本异常: {error}'` |
+| Aborted | error | `'脚本异常: 操作已取消'` |
+| Other error | error | `'脚本异常: {error}'` |
 
 ---
 
@@ -245,4 +253,5 @@ This ensures `isEnabled` returns to false and the price watcher is torn down aft
 - Looping across multiple auctions
 - UI changes to `ElsaAutoOperationPanel.vue`
 - i18n for any of the new log strings
-- Cancelling an in-flight `AutoAuction` IPC call (stop button aborts before the call or after it returns)
+- Cancelling an in-flight `AutoAuction` IPC call (stop only takes effect before the call or after it returns)
+- Modifying `HeroEstimatorPanelBody.vue` or `ElsaHeroPanel.vue`
