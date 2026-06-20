@@ -1,6 +1,19 @@
 #include "AggregateOperationSemantics.h"
 
 #include <assert.h>
+#include <fstream>
+#include <sstream>
+
+static std::string ReadTextFile(const char* path) {
+    std::ifstream input(path, std::ios::in | std::ios::binary);
+    std::ostringstream buffer;
+    buffer << input.rdbuf();
+    return buffer.str();
+}
+
+static bool ContainsText(const std::string& haystack, const char* needle) {
+    return haystack.find(needle) != std::string::npos;
+}
 
 int main() {
     assert(IsStableCabinetRewardEntryScreen("main_lobby"));
@@ -58,6 +71,20 @@ int main() {
 
     assert(ResolveAutoAuctionReportedExpectedPrice(80000, 11119) == 80000);
     assert(ResolveAutoAuctionReportedExpectedPrice(0, 11119) == 11119);
+
+    const std::string metaOperationsSource =
+        ReadTextFile("tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.cpp");
+    assert(ContainsText(metaOperationsSource, "static std::atomic<int> g_notifiedExpectedPrice{0};"));
+    assert(!ContainsText(metaOperationsSource, "static std::atomic<int> g_expectedPrice{0};"));
+    assert(!ContainsText(metaOperationsSource, "PriceReaderThreadProc"));
+    assert(!ContainsText(metaOperationsSource, "StartPriceReaderThread"));
+    assert(!ContainsText(metaOperationsSource, "StopPriceReaderThread"));
+    assert(ContainsText(metaOperationsSource, "g_notifiedExpectedPrice.store(price);"));
+    assert(ContainsText(metaOperationsSource, "ResolveAutoAuctionReportedExpectedPrice("));
+    assert(ContainsText(metaOperationsSource, "ShouldRecordAutoAuctionRoundSeen("));
+    assert(ContainsText(metaOperationsSource, "ShouldAttemptExpectedPriceAutoBid("));
+    assert(ContainsText(metaOperationsSource, "ShouldAttemptLegacyAutoBid("));
+    assert(ContainsText(metaOperationsSource, "currentPrice = g_notifiedExpectedPrice.load();"));
 
     return 0;
 }

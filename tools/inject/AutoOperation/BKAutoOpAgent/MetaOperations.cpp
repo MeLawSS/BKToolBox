@@ -4,65 +4,9 @@
 #include "AutoAuctionResponseFormatting.h"
 #include <atomic>
 
-static std::atomic<int> g_expectedPrice{0};
+static std::atomic<int> g_notifiedExpectedPrice{0};
 static std::atomic<bool> g_autoAuctionRunning{false};
 static std::atomic<bool> g_autoAuctionCancelRequested{false};
-
-static HANDLE g_priceReaderThread = NULL;
-static HANDLE g_priceReaderStopEvent = NULL;
-
-static DWORD WINAPI PriceReaderThreadProc(LPVOID) {
-    wchar_t userProfile[MAX_PATH] = {};
-    GetEnvironmentVariableW(L"USERPROFILE", userProfile, MAX_PATH);
-    wchar_t pricePath[MAX_PATH];
-    swprintf_s(pricePath, MAX_PATH, L"%s\\Documents\\BidKing\\Price", userProfile);
-    while (WaitForSingleObject(g_priceReaderStopEvent, 2000) == WAIT_TIMEOUT) {
-        FILE* f = nullptr;
-        if (_wfopen_s(&f, pricePath, L"r") == 0 && f) {
-            char buf[32] = {};
-            if (fgets(buf, sizeof(buf), f)) {
-                int price = atoi(buf);
-                if (price > 0) g_expectedPrice.store(price);
-            }
-            fclose(f);
-        }
-    }
-    return 0;
-}
-
-static void StartPriceReaderThread() {
-    // Stop any existing thread first
-    if (g_priceReaderStopEvent) {
-        SetEvent(g_priceReaderStopEvent);
-        if (g_priceReaderThread) {
-            WaitForSingleObject(g_priceReaderThread, 3000);
-            CloseHandle(g_priceReaderThread);
-            g_priceReaderThread = NULL;
-        }
-        CloseHandle(g_priceReaderStopEvent);
-        g_priceReaderStopEvent = NULL;
-    }
-    g_priceReaderStopEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
-    if (!g_priceReaderStopEvent) return;
-    g_priceReaderThread = CreateThread(NULL, 0, PriceReaderThreadProc, NULL, 0, NULL);
-    if (!g_priceReaderThread) {
-        CloseHandle(g_priceReaderStopEvent);
-        g_priceReaderStopEvent = NULL;
-    }
-}
-
-static void StopPriceReaderThread() {
-    if (g_priceReaderStopEvent) SetEvent(g_priceReaderStopEvent);
-    if (g_priceReaderThread) {
-        WaitForSingleObject(g_priceReaderThread, 5000);
-        CloseHandle(g_priceReaderThread);
-        g_priceReaderThread = NULL;
-    }
-    if (g_priceReaderStopEvent) {
-        CloseHandle(g_priceReaderStopEvent);
-        g_priceReaderStopEvent = NULL;
-    }
-}
 
 static bool IsAutoAuctionStopRequested() {
     const bool shuttingDown = InterlockedCompareExchange(&g_shuttingDown, 0, 0) != 0;
@@ -773,7 +717,7 @@ void CmdSetExpectedPrice(AgentConn* c, const char* id, const char* json) {
     int price = JsonGetInt(json, "price");
     if (price == INT_MIN) price = 0;
     if (price < 0) price = 0;
-    g_expectedPrice.store(price);
+    g_notifiedExpectedPrice.store(price);
     char buf[64];
     snprintf(buf, sizeof(buf), "{\"price\":%d}", price);
     SendResponse(c, id, true, buf);
@@ -979,9 +923,6 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         }
     } _autoAuctionStateGuard;
 
-    StartPriceReaderThread();
-    struct PriceReaderGuard { ~PriceReaderGuard() { StopPriceReaderThread(); } } _priceGuard;
-
     char errBuf[256] = {};
     int roundsPlayed = 0;
     int lastExpectedPrice = 0;
@@ -1005,7 +946,10 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
     };
 
     auto sendAuthCodeRequired = [&]() -> bool {
-        const int reportedExpectedPrice = lastExpectedPrice > 0 ? lastExpectedPrice : g_expectedPrice.load();
+        const int reportedExpectedPrice = ResolveAutoAuctionReportedExpectedPrice(
+            lastExpectedPrice,
+            g_notifiedExpectedPrice.load()
+        );
         const std::string result = BuildAutoAuctionAuthCodeRequiredResult(roundsPlayed, reportedExpectedPrice);
         SendResponse(c, id, true, result.c_str());
         return true;
@@ -1110,7 +1054,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                 char earlyResult[128];
                 snprintf(earlyResult, sizeof(earlyResult),
                     "{\"result\":\"auction_ended\",\"rounds\":0,\"expectedPrice\":%d}",
-                    g_expectedPrice.load());
+                    ResolveAutoAuctionReportedExpectedPrice(lastExpectedPrice, g_notifiedExpectedPrice.load()));
                 SendResponse(c, id, true, earlyResult); return;
             }
             if (IsAutoAuctionVerificationScreen(sc)) {
@@ -1145,24 +1089,36 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         ReadBidState(s.battleMainTransform, &round, &secs);
 
         // Advance round counter on every new distinct in-game round
-        if (!round.empty() && round != lastRoundSeen) {
+        if (ShouldRecordAutoAuctionRoundSeen(round, lastRoundSeen)) {
             lastRoundSeen = round;
             roundsEncountered++;
         }
 
-        if (secs < 15 && !round.empty() && round != lastBidRound) {
+        int amount = 0;
+        int currentPrice = 0;
+        if (useExpectedPrice) {
             static const int FLOOR_PRICE = 11119;
-            int currentPrice = g_expectedPrice.load();
-            if (useExpectedPrice && currentPrice <= 0) currentPrice = FLOOR_PRICE;
-            int amount = useExpectedPrice
-                ? currentPrice
-                : bidAmount;
-            const int originalBid = amount;
-            lastExpectedPrice = useExpectedPrice ? currentPrice : 0;
+            currentPrice = g_notifiedExpectedPrice.load();
+            if (currentPrice <= 0) currentPrice = FLOOR_PRICE;
+            amount = currentPrice;
+            lastExpectedPrice = currentPrice;
+            if (!ShouldAttemptExpectedPriceAutoBid(amount, round, lastBidRound)) {
+                continue;
+            }
+        } else {
+            if (!ShouldAttemptLegacyAutoBid(secs, round, lastBidRound)) {
+                continue;
+            }
+            amount = bidAmount;
+        }
 
-            if (amount == 0) continue; // skip — price not set yet
+        if (amount == 0) {
+            continue;
+        }
 
-            if (useExpectedPrice && roundsEncountered >= 2 && roundsEncountered <= 5) {
+        const int originalBid = amount;
+
+        if (useExpectedPrice && roundsEncountered >= 2 && roundsEncountered <= 5) {
                 std::string fallbackReason;
                 std::string opponentName;
 
@@ -1239,48 +1195,47 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                         );
                     }
                 }
-            }
+        }
 
-            std::string clickErr;
-            bool placeBidClicked = ClickNode(s.battleMainTransform, "Gaming/chujia", 0, &clickErr);
-            if (placeBidClicked && !SleepInterruptibly(1500)) { stopIfRequested(); return; }
-            bool hasBattleMainAfterClick = false;
-            bool hasActiveBidInput = false;
-            bool setBidAmountSucceeded = false;
-            bool confirmBidClicked = false;
+        std::string clickErr;
+        bool placeBidClicked = ClickNode(s.battleMainTransform, "Gaming/chujia", 0, &clickErr);
+        if (placeBidClicked && !SleepInterruptibly(1500)) { stopIfRequested(); return; }
+        bool hasBattleMainAfterClick = false;
+        bool hasActiveBidInput = false;
+        bool setBidAmountSucceeded = false;
+        bool confirmBidClicked = false;
 
-            if (placeBidClicked) {
-                ScreenState s2 = DetectScreenState();
-                hasBattleMainAfterClick = s2.battleMainTransform != nullptr;
-                if (s2.battleMainTransform) {
-                    std::vector<UiNodeSnapshot> inputM;
-                    ResolveUiNodeMatches(s2.battleMainTransform,
-                        "InputDevice/Panel1/InputField (TMP)", UI_PATH_EXACT, 1, &inputM);
-                    hasActiveBidInput = !inputM.empty() && inputM[0].active;
-                    if (hasActiveBidInput) {
-                        char amountStr[32];
-                        snprintf(amountStr, sizeof(amountStr), "%d", amount);
-                        std::string compName;
-                        setBidAmountSucceeded = PerformSetInputText(inputM[0], amountStr, false, &compName);
-                        if (setBidAmountSucceeded) {
-                            if (!SleepInterruptibly(500)) { stopIfRequested(); return; }
-                            confirmBidClicked = ClickNode(s2.battleMainTransform, "InputDevice/Panel1/chujia", 0, &clickErr);
-                            if (confirmBidClicked && !SleepInterruptibly(1500)) { stopIfRequested(); return; }
-                        }
+        if (placeBidClicked) {
+            ScreenState s2 = DetectScreenState();
+            hasBattleMainAfterClick = s2.battleMainTransform != nullptr;
+            if (s2.battleMainTransform) {
+                std::vector<UiNodeSnapshot> inputM;
+                ResolveUiNodeMatches(s2.battleMainTransform,
+                    "InputDevice/Panel1/InputField (TMP)", UI_PATH_EXACT, 1, &inputM);
+                hasActiveBidInput = !inputM.empty() && inputM[0].active;
+                if (hasActiveBidInput) {
+                    char amountStr[32];
+                    snprintf(amountStr, sizeof(amountStr), "%d", amount);
+                    std::string compName;
+                    setBidAmountSucceeded = PerformSetInputText(inputM[0], amountStr, false, &compName);
+                    if (setBidAmountSucceeded) {
+                        if (!SleepInterruptibly(500)) { stopIfRequested(); return; }
+                        confirmBidClicked = ClickNode(s2.battleMainTransform, "InputDevice/Panel1/chujia", 0, &clickErr);
+                        if (confirmBidClicked && !SleepInterruptibly(1500)) { stopIfRequested(); return; }
                     }
                 }
             }
+        }
 
-            if (ShouldCountAutoAuctionRound(
-                placeBidClicked,
-                hasBattleMainAfterClick,
-                hasActiveBidInput,
-                setBidAmountSucceeded,
-                confirmBidClicked
-            )) {
-                lastBidRound = round;
-                roundsPlayed++;
-            }
+        if (ShouldCountAutoAuctionRound(
+            placeBidClicked,
+            hasBattleMainAfterClick,
+            hasActiveBidInput,
+            setBidAmountSucceeded,
+            confirmBidClicked
+        )) {
+            lastBidRound = round;
+            roundsPlayed++;
         }
     }
 
