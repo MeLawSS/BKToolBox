@@ -1216,8 +1216,12 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     "InputDevice/Panel1/InputField (TMP)", UI_PATH_EXACT, 1, &inputM);
                 hasActiveBidInput = !inputM.empty() && inputM[0].active;
                 if (hasActiveBidInput) {
+                    const int finalAmount = ClampAutoAuctionBidAmount(amount, 150000);
+                    if (finalAmount != amount) {
+                        Logf("AutoAuction amount capped: %d -> %d", amount, finalAmount);
+                    }
                     char amountStr[32];
-                    snprintf(amountStr, sizeof(amountStr), "%d", amount);
+                    snprintf(amountStr, sizeof(amountStr), "%d", finalAmount);
                     std::string compName;
                     setBidAmountSucceeded = PerformSetInputText(inputM[0], amountStr, false, &compName);
                     if (setBidAmountSucceeded) {
