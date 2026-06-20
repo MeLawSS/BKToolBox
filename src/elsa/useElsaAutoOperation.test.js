@@ -399,4 +399,25 @@ describe('useElsaAutoOperation', () => {
     expect(result.log.value.some(e => e.message.includes('验证'))).toBe(true);
     wrapper.unmount();
   });
+
+  it('logs a warning when the desktop notification request returns a non-ok result', async () => {
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
+    window.bidkingDesktop.showNotification.mockResolvedValue({ ok: false, error: 'missing title' });
+    window.bidkingDesktop.runAutoOperationCommand.mockResolvedValue({
+      ok: true,
+      value: { result: 'authcode_required', rounds: 0, expectedPrice: 50000 },
+      response: {},
+    });
+
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
+    await result.enable();
+    await flushPromises();
+
+    expect(result.log.value.some(
+      e => e.level === 'warn' && e.message.includes('Windows 通知发送失败')
+    )).toBe(true);
+    wrapper.unmount();
+  });
 });

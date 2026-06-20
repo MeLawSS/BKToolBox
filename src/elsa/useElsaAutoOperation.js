@@ -48,7 +48,10 @@ export function useElsaAutoOperation() {
     const notify = window.bidkingDesktop?.showNotification;
     if (typeof notify !== 'function') return;
     try {
-      await notify(title, body);
+      const result = await notify(title, body);
+      if (!result?.ok) {
+        addLog(`Windows 通知发送失败: ${result?.error || 'unknown error'}`, 'warn');
+      }
     } catch (e) {
       addLog(`Windows 通知发送失败: ${e?.message || e}`, 'warn');
     }

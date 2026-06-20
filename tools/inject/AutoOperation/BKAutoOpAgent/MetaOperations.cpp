@@ -1,6 +1,7 @@
 #include "MetaOperations.h"
 #include "AggregateOperationSemantics.h"
 #include "AutoAuctionOpponentCap.h"
+#include "AutoAuctionResponseFormatting.h"
 #include <atomic>
 
 static std::atomic<int> g_expectedPrice{0};
@@ -1005,15 +1006,8 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
 
     auto sendAuthCodeRequired = [&]() -> bool {
         const int reportedExpectedPrice = lastExpectedPrice > 0 ? lastExpectedPrice : g_expectedPrice.load();
-        char result[160];
-        snprintf(
-            result,
-            sizeof(result),
-            "{\"result\":\"authcode_required\",\"rounds\":%d,\"expectedPrice\":%d}",
-            roundsPlayed,
-            reportedExpectedPrice
-        );
-        SendResponse(c, id, true, result);
+        const std::string result = BuildAutoAuctionAuthCodeRequiredResult(roundsPlayed, reportedExpectedPrice);
+        SendResponse(c, id, true, result.c_str());
         return true;
     };
 

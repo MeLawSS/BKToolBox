@@ -38,4 +38,26 @@ describe('desktop notification', () => {
       { Notification: FakeNotification },
     )).toEqual({ ok: true, shown: false, reason: 'unsupported' });
   });
+
+  it('returns an error result when the title is missing', () => {
+    class FakeNotification {
+      static isSupported() {
+        return true;
+      }
+
+      show() {}
+    }
+
+    expect(showDesktopNotification(
+      { title: '   ', body: '需要验证' },
+      { Notification: FakeNotification },
+    )).toEqual({ ok: false, error: 'missing title' });
+  });
+
+  it('returns an unavailable result when Notification is null', () => {
+    expect(showDesktopNotification(
+      { title: 'BKToolBox', body: '需要验证' },
+      { Notification: null },
+    )).toEqual({ ok: true, shown: false, reason: 'unavailable' });
+  });
 });

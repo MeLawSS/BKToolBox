@@ -1,4 +1,5 @@
 #include "AutoAuctionOpponentCap.h"
+#include "AutoAuctionResponseFormatting.h"
 
 #include <assert.h>
 
@@ -41,5 +42,7 @@ int main() {
 
     assert(ComputeOpponentCappedBid(50000, 44444, 1.4) == 50000);
     assert(ComputeOpponentCappedBid(90000, 44444, 1.4) == 62221);
+    assert(BuildAutoAuctionAuthCodeRequiredResult(2, 60000)
+           == "{\"result\":\"authcode_required\",\"reason\":\"authcode_detected\",\"rounds\":2,\"expectedPrice\":60000}");
     return 0;
 }
