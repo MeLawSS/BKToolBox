@@ -186,10 +186,19 @@ await cmd('SetExpectedPrice', { price: latestPrice })
 实现草图必须满足下面这个时序：
 
 1. `enable()` 先把 `isEnabled.value = true`
-2. 再注册 `watch(autoBidPrice, ..., { immediate: true })`
-3. `immediate: true` 同步触发 watcher callback，启动首次 4 秒 timer
-4. `enable()` 随后调用 `waitForInitialExpectedPriceSync(controller.signal)`
-5. 只有这个 Promise resolve 后，才进入 `runScript()` 内真正的 `AutoAuction`
+2. `enable()` 创建本次 session 的 `AbortController`
+3. `enable()` 创建本次 session 的 `initialExpectedPriceSync` Promise
+4. 再注册 `watch(autoBidPrice, ..., { immediate: true })`
+5. `immediate: true` 同步触发 watcher callback，启动首次 4 秒 timer
+6. `enable()` 立即启动 `runScript(controller.signal)`，但**不在 `enable()` 自己内部 await 首次同步**
+7. `runScript()` 顶部先 `await waitForInitialExpectedPriceSync(signal)`
+8. 只有这个 Promise resolve 后，`runScript()` 才真正发送 `AutoAuction`
+
+关键约束：
+
+- `enable()` 启动 `runScript()` 后必须立即释放 `isBusy`
+- 因此首次 4 秒等待期间，UI 的 stop / disable 仍然可用
+- `disable()` 通过 abort `signal` 打断 `waitForInitialExpectedPriceSync(signal)`，从而阻止本次 `AutoAuction` 启动
 
 推荐最小状态：
 
@@ -234,7 +243,8 @@ function settleInitialExpectedPriceSync(kind, value) {
 如果 `signal` 在 timer 触发前或请求途中被 abort：
 
 - `waitForInitialExpectedPriceSync(signal)` 必须 reject 一个 abort error
-- `enable()` / `runScript()` 必须把这条 abort 视为干净退出，不继续发送 `AutoAuction`
+- `runScript()` 必须把这条 abort 视为干净退出，不继续发送 `AutoAuction`
+- `enable()` 自身不等待这条 Promise，因此不会把 `isBusy` 卡在 `true`
 
 ### 1.4 Disable/unmount must cancel pending sync
 
@@ -425,8 +435,8 @@ if (amount == 0) {
 这会带来以下明确行为：
 
 - 如果进入某轮时 notified price 已经就绪，则该轮会尽早出价
-- 如果进入某轮时 notified price 还是 `0`，则按既有 `FLOOR_PRICE` 规则继续解析 amount
-- 一旦该轮期间 price 通知补到、且还没出过价，该轮会在下一次 loop 立即出价
+- 如果 notified price 是 `0`，则按既有 `FLOOR_PRICE` 规则在该轮首次 eligible pass 上直接解析出 `amount`
+- 不存在“price 还是 0，于是本轮先 continue，等下一次 loop 再吃到新价”的专门分支；因为在当前 spec 中，`0` 会直接走 `FLOOR_PRICE` fallback
 - 如果该轮已经成功写入 `lastBidRound`，后续新通知不会触发二次出价
 
 这正是本轮要的“由 app 侧 debounce 通知决定最早出价时机，而不是固定拖到 15 秒”。
@@ -458,10 +468,10 @@ if (amount == 0) {
 2. 首次 `SetExpectedPrice` 成功前，不会调用 `AutoAuction`
 3. 4 秒后发送一次 `SetExpectedPrice`
 4. 4 秒内连续两次价格变化，只发送最后一次价格
-5. `disable()` 发生在 timer 触发前时，不会再发送 `SetExpectedPrice`
-6. 首次 `SetExpectedPrice` 失败时，不会启动 `AutoAuction`，且 Elsa 会回到 disabled
-7. AutoAuction 运行中的后续 `SetExpectedPrice` 发送失败时写一条 `warn` log，但 Elsa 不会自动停掉
-8. `AutoAuction` 运行期间，即使去掉了 `secs < 15`，`roundsEncountered` 仍然按“观察到新 round 文本”继续递增，不会因为更早出价而少记轮次
+5. 首次 4 秒等待期间 `isBusy` 已释放，`disable()` 可用
+6. `disable()` 发生在 timer 触发前时，不会再发送 `SetExpectedPrice`，也不会启动 `AutoAuction`
+7. 首次 `SetExpectedPrice` 失败时，不会启动 `AutoAuction`，且 Elsa 会回到 disabled
+8. AutoAuction 运行中的后续 `SetExpectedPrice` 发送失败时写一条 `warn` log，但 Elsa 不会自动停掉
 
 实现要求：
 
@@ -497,6 +507,7 @@ inline bool ShouldAttemptExpectedPriceAutoBid(
 
 - 去掉 `secs < 15` 后，round counter 仍由 `round != lastRoundSeen` 驱动
 - 不会因为出价更早而跳过 round 2/3/4/5 的 `roundsEncountered` 递增语义
+- legacy `bidAmount` 模式仍然保留 `secs < 15` 门槛，不会因为本轮改动而提前在每次 loop 都尝试出价
 
 ### 3.3 Regression verification
 
