@@ -24,6 +24,12 @@ export function useElsaAutoOperation() {
   let scriptAbort = null;
   let weStartedAgent = false;
   let stopPriceWatcher = null;
+  let pendingExpectedPriceTimer = null;
+  let pendingExpectedPriceValue = 0;
+  let initialExpectedPriceSync = null;
+  let resolveInitialExpectedPriceSync = null;
+  let rejectInitialExpectedPriceSync = null;
+  let hasSettledInitialExpectedPriceSync = false;
   const cmd = (name, args) => window.bidkingDesktop.runAutoOperationCommand(name, args);
   const autoBidPrice = computed(() =>
     computeElsaAutoBidPrice(elsaExpectedPrice.value, elsaAutoBidKnownQualityKeys.value)
@@ -44,6 +50,84 @@ export function useElsaAutoOperation() {
       .catch(e => addLog(`价格文件写入失败: ${e?.message || e}`, 'warn'));
   }
 
+  function clearPendingExpectedPriceTimer() {
+    if (pendingExpectedPriceTimer) {
+      clearTimeout(pendingExpectedPriceTimer);
+      pendingExpectedPriceTimer = null;
+    }
+  }
+
+  function resetInitialExpectedPriceSync() {
+    initialExpectedPriceSync = null;
+    resolveInitialExpectedPriceSync = null;
+    rejectInitialExpectedPriceSync = null;
+    hasSettledInitialExpectedPriceSync = false;
+  }
+
+  function createInitialExpectedPriceSyncPromise() {
+    hasSettledInitialExpectedPriceSync = false;
+    initialExpectedPriceSync = new Promise((resolve, reject) => {
+      resolveInitialExpectedPriceSync = resolve;
+      rejectInitialExpectedPriceSync = reject;
+    });
+  }
+
+  function settleInitialExpectedPriceSync(kind, value) {
+    if (hasSettledInitialExpectedPriceSync) return;
+    hasSettledInitialExpectedPriceSync = true;
+    if (kind === 'resolve') {
+      resolveInitialExpectedPriceSync?.(value);
+    } else {
+      rejectInitialExpectedPriceSync?.(value);
+    }
+  }
+
+  async function syncExpectedPrice(price, { isInitial } = {}) {
+    await cmd('SetExpectedPrice', { price });
+    if (isInitial) {
+      settleInitialExpectedPriceSync('resolve');
+    }
+  }
+
+  function scheduleExpectedPriceSync(price, { isInitial } = {}) {
+    pendingExpectedPriceValue = Number(price) || 0;
+    clearPendingExpectedPriceTimer();
+    pendingExpectedPriceTimer = setTimeout(async () => {
+      pendingExpectedPriceTimer = null;
+      if (!isEnabled.value) return;
+      try {
+        await syncExpectedPrice(pendingExpectedPriceValue, { isInitial });
+      } catch (error) {
+        if (isInitial) {
+          settleInitialExpectedPriceSync('reject', error);
+        } else {
+          addLog(`同步自动竞拍价格失败: ${error?.message || error}`, 'warn');
+        }
+      }
+    }, 4000);
+  }
+
+  async function waitForInitialExpectedPriceSync(signal) {
+    if (!initialExpectedPriceSync) {
+      throw new Error('initial expected price sync not initialized');
+    }
+    if (signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+    let abortHandler = null;
+    const abortPromise = new Promise((_, reject) => {
+      abortHandler = () => reject(new DOMException('Aborted', 'AbortError'));
+      signal?.addEventListener('abort', abortHandler, { once: true });
+    });
+    try {
+      await Promise.race([initialExpectedPriceSync, abortPromise]);
+    } finally {
+      if (abortHandler) {
+        signal?.removeEventListener('abort', abortHandler);
+      }
+    }
+  }
+
   async function showDesktopNotification(title, body) {
     const notify = window.bidkingDesktop?.showNotification;
     if (typeof notify !== 'function') return;
@@ -62,6 +146,8 @@ export function useElsaAutoOperation() {
     if (!isEnabled.value || isBusy.value) return;
     isBusy.value = true;
     if (stopPriceWatcher) { stopPriceWatcher(); stopPriceWatcher = null; }
+    clearPendingExpectedPriceTimer();
+    resetInitialExpectedPriceSync();
     if (scriptAbort) { scriptAbort.abort(); scriptAbort = null; }
     try {
       if (requestCancel) {
@@ -80,6 +166,17 @@ export function useElsaAutoOperation() {
   }
 
   async function runScript(signal) {
+    try {
+      await waitForInitialExpectedPriceSync(signal);
+    } catch (error) {
+      if (signal.aborted || error?.name === 'AbortError') {
+        return;
+      }
+      addLog(`初始化自动竞拍价格同步失败: ${error?.message || error}`, 'error');
+      await stopAutomation({ requestCancel: false });
+      return;
+    }
+
     while (!signal.aborted) {
       addLog('开始自动竞拍…');
       addLog(`当前估价: ${elsaExpectedPrice.value || '无，将使用底价'}`);
@@ -127,11 +224,19 @@ export function useElsaAutoOperation() {
       }
 
       isEnabled.value = true;
-      // Write the app-computed bid immediately, then keep syncing on every change.
-      stopPriceWatcher = watch(autoBidPrice, writePriceFile, { immediate: true });
-
       const controller = new AbortController();
       scriptAbort = controller;
+      createInitialExpectedPriceSyncPromise();
+
+      stopPriceWatcher = watch(
+        autoBidPrice,
+        (price) => {
+          writePriceFile(price);
+          scheduleExpectedPriceSync(price, { isInitial: !hasSettledInitialExpectedPriceSync });
+        },
+        { immediate: true },
+      );
+
       runScript(controller.signal)
         .catch(e => addLog(`脚本异常: ${e?.message || e}`, 'error'))
         .finally(() => {
