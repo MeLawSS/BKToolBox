@@ -14,7 +14,7 @@ Examples:
 This round only changes **auto-derived** all-item total cells on the hero estimator page:
 
 - applies when `globalInputs.totalCells` is empty
-- applies when the page is using a monitor-derived or placeholder-derived total-cells value
+- applies when the page is using the monitor-derived `monitorEstimatedTotalCells` value
 - must affect both:
   - the visible `totalCells` placeholder
   - the effective total-cells value used for estimation
@@ -35,10 +35,11 @@ Current shared estimator behavior is split:
    - group-level `avg + cells` normalization already uses this helper
 
 2. `src/hero-estimator/useHeroEstimatorPanel.js`
-   - `monitorEstimatedTotalCells` currently exposes the raw outline-derived `minTotalCells`
-   - `totalCellsPlaceholder` displays that raw value directly
-   - `getEffectiveGlobalInputs()` also uses that raw value when the user did not manually enter total cells
+   - `monitorEstimatedTotalCells` currently exposes the raw outline-derived `minTotalCells` as a **string** via `formatMonitorInputNumber(...)`
+   - `totalCellsPlaceholder` is a `computed(...)`, so it cannot be directly assigned; it currently displays that raw monitor string or the fallback translation text
+   - `getEffectiveGlobalInputs()` also uses that raw monitor string when the user did not manually enter total cells
    - `refreshTotalCellOptions()` still generates only exact feasible totals from the average
+   - `refreshTotalCellOptions()` only clears non-matching **manual** `globalInputs.totalCells`; it does not own the monitor-derived path because that path keeps `globalInputs.totalCells` empty
 
 Because of that split, the page can show or internally consume an auto-derived total-cells value that is incompatible with the current average-cells value, even though the shared estimator already has a nearest-feasible normalization primitive.
 
@@ -56,7 +57,7 @@ Add one shared normalization entry point for **auto-derived all-item total cells
   - otherwise the nearest feasible total
   - if two feasible totals are equally close, choose the smaller one
 
-The normalization must only run for **non-manual** total-cells sources.
+The normalization must only run for **non-manual** monitor-derived total-cells sources.
 
 ## Behavior Rules
 
@@ -67,6 +68,7 @@ If `globalInputs.totalCells` is non-empty:
 - do not normalize it
 - keep existing strict validation
 - keep existing select-based exact-match behavior when `totalAverage` is present
+- this manual path includes values like `"0"`; they remain part of strict validation rather than the auto-derived fallback path
 
 ### 2. Auto-derived total cells without average
 
@@ -80,8 +82,9 @@ If no all-item average is available:
 If:
 
 - `globalInputs.totalCells` is empty
-- an auto-derived total-cells source exists
-- an all-item average-cells value exists
+- a monitor-derived total-cells source exists
+- an all-item average-cells value exists from the same source used by `getEffectiveGlobalInputs()` / `refreshTotalCellOptions()`:
+  - `String(globalInputs.totalAverage).trim() || globalPlaceholders.totalAverage`
 
 Then:
 
@@ -112,18 +115,54 @@ Recommended implementation:
 
 That helper should remain pure and reusable by any hero-estimator page that later wants the same behavior.
 
+Guard rules for that helper:
+
+- if `avg === null`, return `preferredCells`
+- if `preferredCells === null`, return `null`
+- tie-break remains downward via the existing nearest-cells rule
+- the helper should operate on **numbers**, not UI strings
+
 ### Hero estimator page
 
 Touch `src/hero-estimator/useHeroEstimatorPanel.js`.
 
-Apply the new shared helper to the non-manual all-item total-cells flow:
+Apply the new shared helper through one shared computed named `normalizedAutoTotalCells`, so placeholder display and effective estimation input cannot diverge.
 
-- normalize the monitor/placeholder total before assigning `totalCellsPlaceholder`
-- normalize the same value before `getEffectiveGlobalInputs()` feeds estimation
+That computed should:
+
+- read the raw monitor string from `monitorEstimatedTotalCells.value`
+- parse it to a number before calling `resolveAutoTotalCellsFromAverage(...)`
+- read the effective all-item average from:
+  - `String(globalInputs.totalAverage).trim() || globalPlaceholders.totalAverage`
+- parse that average to a number before calling the helper
+- short-circuit without normalization when:
+  - there is no monitor-derived total-cells string
+  - there is no average source
+  - the source is the fallback translation like `可选`
+
+Consumption rules:
+
+- `totalCellsPlaceholder` should become:
+  - normalized auto total when `normalizedAutoTotalCells` exists
+  - otherwise raw `monitorEstimatedTotalCells`
+  - otherwise the existing translated optional placeholder
+- `getEffectiveGlobalInputs()` should use the same `normalizedAutoTotalCells` value before falling back to the raw monitor string
 
 Do not mutate `globalInputs.totalCells` itself for this feature.
 
 The field should still behave like a placeholder-backed autofill source, not like an implicit user edit.
+
+### `refreshTotalCellOptions()` interaction
+
+`refreshTotalCellOptions()` should stay manual-input-focused:
+
+- it should continue generating only exact feasible total options from the effective average
+- it should continue clearing `globalInputs.totalCells` only when a **manual** current value is not in that feasible list
+- it should **not** copy the normalized auto total into `globalInputs.totalCells`
+
+This keeps the current select behavior intact while ensuring `collectEstimationInputs()` only sees an auto-derived total through `getEffectiveGlobalInputs()`, where that total is already normalized and therefore no longer triggers the existing throw path:
+
+- `所有藏品平均格数无法对应到可行总格数`
 
 ## Testing Requirements
 
@@ -135,6 +174,7 @@ Add or extend `src/ethan/estimator.test.js` to cover:
 - `2 + 19 -> 18`
 - already-feasible value remains unchanged
 - no average returns the original preferred total
+- `preferredCells === null` returns `null`
 
 ### Hero estimator page tests
 
@@ -142,6 +182,8 @@ Add or extend `src/hero-estimator/HeroEstimatorPanel.test.js` to cover:
 
 - when monitor-derived `minTotalCells` is not feasible for the current average, the total-cells placeholder shows the normalized feasible value
 - when the user leaves total cells empty, estimation uses that normalized feasible value rather than the raw inferred value
+- when no monitor-derived total exists, the placeholder still falls back to the translated optional text
+- `refreshTotalCellOptions()` continues clearing only manual non-feasible values and does not materialize the normalized auto total into `globalInputs.totalCells`
 - manual total-cells input behavior remains unchanged
 
 ## Non-Goals
