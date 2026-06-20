@@ -113,7 +113,11 @@ Recommended implementation:
 - keep `deriveNearestCellsFromAverage()` as the underlying numeric rule
 - add `resolveAutoTotalCellsFromAverage(avg, preferredCells)` as the explicit shared entry point for non-manual all-item total-cells normalization
 
-That helper should remain pure and reusable by any hero-estimator page that later wants the same behavior.
+That helper is a **semantic alias** over the existing nearest-cells rule, not a second algorithm:
+
+- it should remain pure and reusable by any hero-estimator page that later wants the same behavior
+- its body may simply delegate to `deriveNearestCellsFromAverage(avg, preferredCells)`
+- the reason to add it is naming clarity at the page integration point, not changed numeric behavior
 
 Guard rules for that helper:
 
@@ -131,14 +135,17 @@ Apply the new shared helper through one shared computed named `normalizedAutoTot
 That computed should:
 
 - read the raw monitor string from `monitorEstimatedTotalCells.value`
-- parse it to a number before calling `resolveAutoTotalCellsFromAverage(...)`
+- short-circuit immediately when that raw monitor string is empty
+- parse the non-empty monitor string to a number before calling `resolveAutoTotalCellsFromAverage(...)`
 - read the effective all-item average from:
   - `String(globalInputs.totalAverage).trim() || globalPlaceholders.totalAverage`
-- parse that average to a number before calling the helper
+- parse that average source with `parseOptionalNumber(...)`, following the same numeric gate already used by `refreshTotalCellOptions()`
 - short-circuit without normalization when:
   - there is no monitor-derived total-cells string
-  - there is no average source
-  - the source is the fallback translation like `可选`
+  - the average source is empty
+  - `parseOptionalNumber(...)` returns `null` for the average source
+
+This avoids any dependency on comparing against translated placeholder text such as `可选`.
 
 Consumption rules:
 
@@ -146,7 +153,13 @@ Consumption rules:
   - normalized auto total when `normalizedAutoTotalCells` exists
   - otherwise raw `monitorEstimatedTotalCells`
   - otherwise the existing translated optional placeholder
-- `getEffectiveGlobalInputs()` should use the same `normalizedAutoTotalCells` value before falling back to the raw monitor string
+- `getEffectiveGlobalInputs()` should use the same `normalizedAutoTotalCells` value before falling back to the raw monitor string, in this exact order:
+
+```javascript
+totalCells: String(globalInputs.totalCells).trim()
+  || normalizedAutoTotalCells.value
+  || monitorEstimatedTotalCells.value
+```
 
 Do not mutate `globalInputs.totalCells` itself for this feature.
 
@@ -182,7 +195,9 @@ Add or extend `src/hero-estimator/HeroEstimatorPanel.test.js` to cover:
 
 - when monitor-derived `minTotalCells` is not feasible for the current average, the total-cells placeholder shows the normalized feasible value
 - when the user leaves total cells empty, estimation uses that normalized feasible value rather than the raw inferred value
+- when the monitor-derived total is already feasible for the current average, the placeholder and effective estimation input keep that exact value
 - when no monitor-derived total exists, the placeholder still falls back to the translated optional text
+- when no monitor-derived total exists, `normalizedAutoTotalCells` resolves empty / null rather than materializing `0`
 - `refreshTotalCellOptions()` continues clearing only manual non-feasible values and does not materialize the normalized auto total into `globalInputs.totalCells`
 - manual total-cells input behavior remains unchanged
 
