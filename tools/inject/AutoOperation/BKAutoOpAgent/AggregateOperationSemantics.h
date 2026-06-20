@@ -89,6 +89,14 @@ inline bool ShouldAttemptLegacyAutoBid(
     return secs < 15 && !round.empty() && round != lastBidRound;
 }
 
+inline int ClampAutoAuctionBidAmount(
+    int computedAmount,
+    int maxAmount
+) {
+    if (computedAmount <= 0) return computedAmount;
+    return computedAmount > maxAmount ? maxAmount : computedAmount;
+}
+
 inline int ResolveAutoAuctionReportedExpectedPrice(
     int lastExpectedPrice,
     int notifiedExpectedPrice

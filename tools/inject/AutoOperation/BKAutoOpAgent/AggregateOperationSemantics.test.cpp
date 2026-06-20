@@ -58,6 +58,10 @@ int main() {
 
     assert(ResolveAutoAuctionReportedExpectedPrice(80000, 11119) == 80000);
     assert(ResolveAutoAuctionReportedExpectedPrice(0, 11119) == 11119);
+    assert(ClampAutoAuctionBidAmount(149999, 150000) == 149999);
+    assert(ClampAutoAuctionBidAmount(150000, 150000) == 150000);
+    assert(ClampAutoAuctionBidAmount(150001, 150000) == 150000);
+    assert(ClampAutoAuctionBidAmount(0, 150000) == 0);
 
     return 0;
 }
