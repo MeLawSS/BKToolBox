@@ -712,4 +712,83 @@ describe('useElsaAutoOperation', () => {
       vi.useRealTimers();
     }
   });
+
+  it('ignores a late session-A SetExpectedPrice completion while session-B is waiting for its own initial sync', async () => {
+    vi.useFakeTimers();
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
+    elsaAutoBidKnownQualityKeys.value = [];
+
+    let resolveSessionASetExpectedPrice;
+    let resolveSessionBSetExpectedPrice;
+    let setExpectedPriceCallCount = 0;
+    let autoAuctionCalls = 0;
+    const sessionBSetExpectedPricePromise = new Promise((resolve) => {
+      resolveSessionBSetExpectedPrice = resolve;
+    });
+
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name, args) => {
+      if (name === 'SetExpectedPrice') {
+        setExpectedPriceCallCount += 1;
+        if (setExpectedPriceCallCount === 1) {
+          return new Promise((resolve) => {
+            resolveSessionASetExpectedPrice = resolve;
+          });
+        }
+        if (setExpectedPriceCallCount === 2) {
+          return sessionBSetExpectedPricePromise;
+        }
+      }
+      if (name === 'AutoAuction') {
+        autoAuctionCalls += 1;
+        return Promise.resolve({
+          ok: true,
+          value: { result: 'canceled', rounds: 0, expectedPrice: args?.price ?? 100000 },
+          response: {},
+        });
+      }
+      if (name === 'CancelAutoAuction') {
+        return Promise.resolve({ ok: true, value: { canceled: true }, response: {} });
+      }
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
+
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
+    try {
+      await result.enable();
+      await flushPromises();
+      await advanceInitialExpectedPriceSync();
+
+      expect(setExpectedPriceCallCount).toBe(1);
+      expect(autoAuctionCalls).toBe(0);
+
+      await result.disable();
+      await flushPromises();
+
+      await result.enable();
+      await flushPromises();
+
+      await resolveSessionASetExpectedPrice?.({ ok: true, value: { price: 100000 }, response: {} });
+      await flushPromises();
+
+      expect(result.isEnabled.value).toBe(true);
+      expect(autoAuctionCalls).toBe(0);
+      expect(result.log.value.some(
+        e => e.level === 'error' && e.message.includes('初始化自动竞拍价格同步失败')
+      )).toBe(false);
+
+      await advanceInitialExpectedPriceSync();
+      expect(setExpectedPriceCallCount).toBe(2);
+      expect(autoAuctionCalls).toBe(0);
+
+      resolveSessionBSetExpectedPrice?.({ ok: true, value: { price: 100000 }, response: {} });
+      await flushPromises();
+
+      expect(autoAuctionCalls).toBe(1);
+    } finally {
+      wrapper.unmount();
+      vi.useRealTimers();
+    }
+  });
 });
