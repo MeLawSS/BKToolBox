@@ -43,5 +43,21 @@ int main() {
     assert(ShouldAbortAutoAuction(false, true));
     assert(!ShouldAbortAutoAuction(false, false));
 
+    assert(ShouldRecordAutoAuctionRoundSeen("第1轮", ""));
+    assert(!ShouldRecordAutoAuctionRoundSeen("", ""));
+    assert(!ShouldRecordAutoAuctionRoundSeen("第1轮", "第1轮"));
+
+    assert(!ShouldAttemptExpectedPriceAutoBid(11119, "", ""));
+    assert(!ShouldAttemptExpectedPriceAutoBid(11119, "第1轮", "第1轮"));
+    assert(!ShouldAttemptExpectedPriceAutoBid(0, "第1轮", ""));
+    assert(ShouldAttemptExpectedPriceAutoBid(11119, "第1轮", ""));
+
+    assert(!ShouldAttemptLegacyAutoBid(15, "第1轮", ""));
+    assert(ShouldAttemptLegacyAutoBid(14, "第1轮", ""));
+    assert(!ShouldAttemptLegacyAutoBid(14, "第1轮", "第1轮"));
+
+    assert(ResolveAutoAuctionReportedExpectedPrice(80000, 11119) == 80000);
+    assert(ResolveAutoAuctionReportedExpectedPrice(0, 11119) == 11119);
+
     return 0;
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string.h>
+#include <string>
 
 inline bool IsStableCabinetRewardEntryScreen(const char* screen) {
     return screen &&
@@ -63,4 +64,34 @@ inline const char* PickAutoAuctionEndedPrimaryActionPath(
 
 inline bool ShouldAbortAutoAuction(bool cancelRequested, bool shuttingDown) {
     return cancelRequested || shuttingDown;
+}
+
+inline bool ShouldRecordAutoAuctionRoundSeen(
+    const std::string& round,
+    const std::string& lastRoundSeen
+) {
+    return !round.empty() && round != lastRoundSeen;
+}
+
+inline bool ShouldAttemptExpectedPriceAutoBid(
+    int resolvedAmount,
+    const std::string& round,
+    const std::string& lastBidRound
+) {
+    return resolvedAmount > 0 && !round.empty() && round != lastBidRound;
+}
+
+inline bool ShouldAttemptLegacyAutoBid(
+    int secs,
+    const std::string& round,
+    const std::string& lastBidRound
+) {
+    return secs < 15 && !round.empty() && round != lastBidRound;
+}
+
+inline int ResolveAutoAuctionReportedExpectedPrice(
+    int lastExpectedPrice,
+    int notifiedExpectedPrice
+) {
+    return lastExpectedPrice > 0 ? lastExpectedPrice : notifiedExpectedPrice;
 }
