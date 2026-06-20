@@ -676,6 +676,34 @@ describe('HeroEstimatorPanel', () => {
     expect(wrapper.find('#elsa-cells-orange').attributes('placeholder')).toBe('6');
   });
 
+  it('shows a zero white placeholder when Elsa white complete reveal hits an empty result set', async () => {
+    const wrapper = mount(HeroEstimatorPanel, {
+      props: { profile: elsaProfile, embedded: true },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    const monitorSource = FakeEventSource.instances.find((source) => source.url === '/api/bidking-monitor/events');
+
+    monitorSource.emitEvent('event', {
+      key: 'elsa-empty-white-complete-reveal',
+      gameUid: 'game-1',
+      group: 'hero',
+      skill: {
+        uid: 'elsa-empty-white-complete-reveal-skill',
+        heroCid: 103,
+        skillCid: 1001034,
+        hitBoxList: [],
+      },
+    });
+    await nextTick();
+
+    expect(wrapper.find('#elsa-cells-white').attributes('placeholder')).toBe('0');
+    expect(wrapper.findAll('.monitor-outline')).toHaveLength(0);
+  });
+
   it('does not restore Elsa results derived from monitor total-cells placeholder after remount without fresh monitor context', async () => {
     const wrapper = mount(HeroEstimatorPanel, {
       props: { profile: elsaProfile, embedded: true },
