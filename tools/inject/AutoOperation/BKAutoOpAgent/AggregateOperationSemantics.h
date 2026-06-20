@@ -44,6 +44,10 @@ inline bool IsAutoAuctionCleanupRecoverableScreen(const char* screen) {
         IsAutoAuctionCleanupEndedScreen(screen);
 }
 
+inline int GetAutoAuctionCleanupMaxAttempts() {
+    return 40;
+}
+
 inline bool ShouldAbortAutoAuction(bool cancelRequested, bool shuttingDown) {
     return cancelRequested || shuttingDown;
 }

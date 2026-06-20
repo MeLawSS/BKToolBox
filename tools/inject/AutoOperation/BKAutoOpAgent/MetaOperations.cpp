@@ -855,6 +855,14 @@ static bool TryReadVisiblePlayerName(Il2CppObject* battleTransform, int slot, st
     return ReadExactNodeText(battleTransform, path, out);
 }
 
+static bool TryReadAutoAuctionEndedWinnerName(Il2CppObject* battleTransform, std::string* out) {
+    return ReadExactNodeText(
+        battleTransform,
+        "EndPanel/Player/NameUnit/Root/TxtName",
+        out
+    );
+}
+
 static bool TryReadOpponentPreviousRoundBid(
     Il2CppObject* battleTransform,
     int opponentSlot,
@@ -1231,22 +1239,52 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         }
     }
 
-    // Step 7: 快捷回收 (if available on the visible end screen)
+    // Step 7: on the visible end screen, detect the winner and wait for
+    // 快捷回收 only when self won the item.
     {
-        for (int attempt = 0; attempt < 3; ++attempt) {
+        bool shouldWaitForQuickRecycle = false;
+        bool winnerResolved = false;
+        std::string resolvedWinnerName;
+        for (int attempt = 0; attempt < 30; ++attempt) {
             if (stopIfRequested()) return;
             ScreenState se = DetectScreenState();
             if (!IsAutoAuctionCleanupEndedScreen(se.screen) || !se.battleMainTransform) break;
 
+            std::string winnerName;
+            if (TryReadAutoAuctionEndedWinnerName(se.battleMainTransform, &winnerName) &&
+                !winnerName.empty()) {
+                const bool winnerChanged = !winnerResolved || winnerName != resolvedWinnerName;
+                winnerResolved = true;
+                resolvedWinnerName = winnerName;
+                shouldWaitForQuickRecycle = ShouldWaitForQuickRecycle(selfName, winnerName);
+                if (winnerChanged) {
+                    Logf(
+                        "AutoAuction cleanup winner=%s selfWin=%s",
+                        winnerName.c_str(),
+                        shouldWaitForQuickRecycle ? "true" : "false"
+                    );
+                }
+                if (!shouldWaitForQuickRecycle) break;
+            }
+
+            if (!winnerResolved) {
+                if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
+                continue;
+            }
+
             std::vector<UiNodeSnapshot> huishouM;
             ResolveUiNodeMatches(se.battleMainTransform,
                 "PanelBattleHuiShouTran/huishou", UI_PATH_EXACT, 1, &huishouM);
-            if (huishouM.empty() || !huishouM[0].active) break;
+            if (huishouM.empty() || !huishouM[0].active) {
+                if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
+                continue;
+            }
             if (!huishouM[0].components.button) {
                 SendResponse(c, id, false, "快捷回收按钮缺少 Button 组件");
                 return;
             }
             if (PerformButtonClick(huishouM[0].components.button)) {
+                Logf("AutoAuction cleanup clicked quick recycle");
                 if (!SleepInterruptibly(1500)) { stopIfRequested(); return; }
                 break;
             }
@@ -1260,7 +1298,9 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
     // underlying lobby first and strand the user on EndPanel.
     {
         bool cleanupComplete = false;
-        for (int attempt = 0; attempt < 12; ++attempt) {
+        const int cleanupMaxAttempts = GetAutoAuctionCleanupMaxAttempts();
+        for (int attempt = 0; attempt < cleanupMaxAttempts; ++attempt) {
+            const int attemptNumber = attempt + 1;
             if (stopIfRequested()) return;
             ScreenState se = DetectScreenState();
             if (IsAutoAuctionCleanupCompleteScreen(se.screen)) {
@@ -1275,7 +1315,12 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                 }
                 std::string e;
                 if (!ClickNode(se.battleMainTransform, "EndPanel/tuichu/continueBtn", 0, &e)) {
-                    if (attempt == 11) {
+                    Logf(
+                        "AutoAuction cleanup continue attempt=%d click failed: %s",
+                        attemptNumber,
+                        e.c_str()
+                    );
+                    if (attempt == cleanupMaxAttempts - 1) {
                         if (stopIfRequested()) return;
                         SendResponse(c, id, false, e.c_str());
                         return;
@@ -1283,7 +1328,14 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
                     continue;
                 }
+                Logf("AutoAuction cleanup continue attempt=%d clicked", attemptNumber);
                 if (!SleepInterruptibly(1500)) { stopIfRequested(); return; }
+                ScreenState afterContinue = DetectScreenState();
+                Logf(
+                    "AutoAuction cleanup continue attempt=%d post-screen=%s",
+                    attemptNumber,
+                    afterContinue.screen ? afterContinue.screen : "null"
+                );
                 continue;
             }
 

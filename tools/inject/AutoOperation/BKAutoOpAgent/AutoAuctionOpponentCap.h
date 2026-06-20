@@ -112,6 +112,20 @@ inline bool TryResolveOpponentSlot(
     return true;
 }
 
+inline bool IsAutoAuctionWinnerSelf(
+    const std::string& selfName,
+    const std::string& winnerName
+) {
+    return !selfName.empty() && !winnerName.empty() && selfName == winnerName;
+}
+
+inline bool ShouldWaitForQuickRecycle(
+    const std::string& selfName,
+    const std::string& winnerName
+) {
+    return IsAutoAuctionWinnerSelf(selfName, winnerName);
+}
+
 inline int ComputeOpponentCappedBid(int originalBid, int opponentPreviousBid, double multiplier) {
     if (originalBid <= 0 || opponentPreviousBid <= 0 || multiplier <= 0.0) return originalBid;
     const int opponentCap = static_cast<int>(floor(opponentPreviousBid * multiplier));

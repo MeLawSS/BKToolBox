@@ -31,6 +31,7 @@ int main() {
     assert(IsAutoAuctionCleanupRecoverableScreen("auction_lobby_map"));
     assert(IsAutoAuctionCleanupRecoverableScreen("main_lobby"));
     assert(!IsAutoAuctionCleanupRecoverableScreen("warehouse"));
+    assert(GetAutoAuctionCleanupMaxAttempts() == 40);
 
     assert(ShouldAbortAutoAuction(true, false));
     assert(ShouldAbortAutoAuction(false, true));

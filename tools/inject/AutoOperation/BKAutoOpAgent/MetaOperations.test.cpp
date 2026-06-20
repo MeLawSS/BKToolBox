@@ -33,6 +33,12 @@ int main() {
     assert(!TryResolveOpponentSlot("melo", "澈澈澈", "澈澈澈", &slot));
     assert(!TryResolveOpponentSlot("melo", "巅峰收藏家1", "陌生人", &slot));
 
+    assert(IsAutoAuctionWinnerSelf("melo", "melo"));
+    assert(!IsAutoAuctionWinnerSelf("melo", "对手"));
+    assert(!IsAutoAuctionWinnerSelf("melo", ""));
+    assert(ShouldWaitForQuickRecycle("melo", "melo"));
+    assert(!ShouldWaitForQuickRecycle("melo", "对手"));
+
     assert(ComputeOpponentCappedBid(50000, 44444, 1.4) == 50000);
     assert(ComputeOpponentCappedBid(90000, 44444, 1.4) == 62221);
     return 0;
