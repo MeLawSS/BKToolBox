@@ -80,6 +80,7 @@ describe('useElsaAutoOperation', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it('starts disabled with empty log', () => {
@@ -419,5 +420,233 @@ describe('useElsaAutoOperation', () => {
       e => e.level === 'warn' && e.message.includes('Windows 通知发送失败')
     )).toBe(true);
     wrapper.unmount();
+  });
+
+  it('waits for the first debounced SetExpectedPrice before starting AutoAuction', async () => {
+    vi.useFakeTimers();
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
+    elsaAutoBidKnownQualityKeys.value = [];
+
+    const autoAuctionPromise = new Promise(() => {});
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name, args) => {
+      if (name === 'SetExpectedPrice') {
+        return Promise.resolve({ ok: true, value: { price: args.price }, response: {} });
+      }
+      if (name === 'AutoAuction') {
+        return autoAuctionPromise;
+      }
+      if (name === 'CancelAutoAuction') {
+        return Promise.resolve({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 100000 }, response: {} });
+      }
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
+
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
+    try {
+      await result.enable();
+      await flushPromises();
+
+      expect(result.isEnabled.value).toBe(true);
+      expect(result.isBusy.value).toBe(false);
+      expect(window.bidkingDesktop.writeDataFile).toHaveBeenCalledWith('Price', '100000');
+      expect(window.bidkingDesktop.runAutoOperationCommand).not.toHaveBeenCalledWith(
+        'AutoAuction',
+        expect.anything(),
+      );
+
+      await vi.advanceTimersByTimeAsync(3999);
+      await flushPromises();
+      expect(window.bidkingDesktop.runAutoOperationCommand).not.toHaveBeenCalledWith(
+        'SetExpectedPrice',
+        expect.anything(),
+      );
+
+      await vi.advanceTimersByTimeAsync(1);
+      await flushPromises();
+
+      expect(window.bidkingDesktop.runAutoOperationCommand).toHaveBeenNthCalledWith(
+        1,
+        'SetExpectedPrice',
+        { price: 100000 },
+      );
+      expect(window.bidkingDesktop.runAutoOperationCommand).toHaveBeenNthCalledWith(
+        2,
+        'AutoAuction',
+        { roomId: 101, useExpectedPrice: true },
+      );
+    } finally {
+      wrapper.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it('lets disable cancel the initial debounce before SetExpectedPrice and AutoAuction fire', async () => {
+    vi.useFakeTimers();
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 40000;
+    elsaAutoBidKnownQualityKeys.value = [];
+
+    const autoAuctionPromise = new Promise(() => {});
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
+      if (name === 'AutoAuction') {
+        return autoAuctionPromise;
+      }
+      if (name === 'CancelAutoAuction') {
+        return Promise.resolve({ ok: true, value: { cancelRequested: false, running: false }, response: {} });
+      }
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
+
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
+    try {
+      await result.enable();
+      await flushPromises();
+
+      expect(result.isBusy.value).toBe(false);
+      await result.disable();
+      await flushPromises();
+      await vi.advanceTimersByTimeAsync(4000);
+      await flushPromises();
+
+      const commandNames = window.bidkingDesktop.runAutoOperationCommand.mock.calls.map(([name]) => name);
+      expect(commandNames).not.toContain('SetExpectedPrice');
+      expect(commandNames).not.toContain('AutoAuction');
+      expect(result.isEnabled.value).toBe(false);
+    } finally {
+      wrapper.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it('debounces consecutive price changes and only syncs the last SetExpectedPrice value', async () => {
+    vi.useFakeTimers();
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
+    elsaAutoBidKnownQualityKeys.value = [];
+
+    const autoAuctionPromise = new Promise(() => {});
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name, args) => {
+      if (name === 'SetExpectedPrice') {
+        return Promise.resolve({ ok: true, value: { price: args.price }, response: {} });
+      }
+      if (name === 'AutoAuction') return autoAuctionPromise;
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
+
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
+    try {
+      await result.enable();
+      await flushPromises();
+
+      elsaExpectedPrice.value = 60000;
+      await flushPromises();
+      await vi.advanceTimersByTimeAsync(2000);
+      elsaExpectedPrice.value = 70000;
+      await flushPromises();
+      await vi.advanceTimersByTimeAsync(3999);
+      await flushPromises();
+
+      const setExpectedCallsBeforeFire = window.bidkingDesktop.runAutoOperationCommand.mock.calls
+        .filter(([name]) => name === 'SetExpectedPrice');
+      expect(setExpectedCallsBeforeFire).toHaveLength(0);
+
+      await vi.advanceTimersByTimeAsync(1);
+      await flushPromises();
+
+      const setExpectedCalls = window.bidkingDesktop.runAutoOperationCommand.mock.calls
+        .filter(([name]) => name === 'SetExpectedPrice');
+      expect(setExpectedCalls).toHaveLength(1);
+      expect(setExpectedCalls[0]).toEqual(['SetExpectedPrice', { price: 140000 }]);
+      expect(window.bidkingDesktop.writeDataFile).toHaveBeenLastCalledWith('Price', '140000');
+    } finally {
+      wrapper.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it('stays disabled when the initial SetExpectedPrice sync fails', async () => {
+    vi.useFakeTimers();
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
+    elsaAutoBidKnownQualityKeys.value = [];
+
+    const autoAuctionPromise = new Promise(() => {});
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
+      if (name === 'SetExpectedPrice') {
+        return Promise.reject(new Error('pipe down'));
+      }
+      if (name === 'AutoAuction') {
+        return autoAuctionPromise;
+      }
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
+
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
+    try {
+      await result.enable();
+      await flushPromises();
+      await vi.advanceTimersByTimeAsync(4000);
+      await flushPromises();
+
+      expect(result.isEnabled.value).toBe(false);
+      expect(window.bidkingDesktop.runAutoOperationCommand).not.toHaveBeenCalledWith(
+        'AutoAuction',
+        expect.anything(),
+      );
+      expect(result.log.value.some(
+        e => e.level === 'error' && e.message.includes('初始化自动竞拍价格同步失败')
+      )).toBe(true);
+    } finally {
+      wrapper.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it('logs a warn entry when a live SetExpectedPrice resync fails after AutoAuction has started', async () => {
+    vi.useFakeTimers();
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
+    elsaAutoBidKnownQualityKeys.value = [];
+
+    let setExpectedCount = 0;
+    const autoAuctionPromise = new Promise(() => {});
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name, args) => {
+      if (name === 'SetExpectedPrice') {
+        setExpectedCount += 1;
+        if (setExpectedCount === 1) {
+          return Promise.resolve({ ok: true, value: { price: args.price }, response: {} });
+        }
+        return Promise.reject(new Error('bridge lost'));
+      }
+      if (name === 'AutoAuction') return autoAuctionPromise;
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
+
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
+    try {
+      await result.enable();
+      await flushPromises();
+      await vi.advanceTimersByTimeAsync(4000);
+      await flushPromises();
+
+      elsaExpectedPrice.value = 65000;
+      await flushPromises();
+      await vi.advanceTimersByTimeAsync(4000);
+      await flushPromises();
+
+      expect(result.isEnabled.value).toBe(true);
+      expect(result.log.value.some(
+        e => e.level === 'warn' && e.message.includes('同步自动竞拍价格失败')
+      )).toBe(true);
+    } finally {
+      wrapper.unmount();
+      vi.useRealTimers();
+    }
   });
 });
