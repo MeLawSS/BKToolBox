@@ -58,7 +58,7 @@ function showsGroupTotalPriceField(groupKey) {
               <select
                 v-if="panel.usesTotalCellSelect"
                 :id="domId(panel.globalFields[0].id)"
-                v-model="panel.globalInputs.totalCells"
+                v-model="panel.selectedTotalCellsValue"
               >
                 <option value="">{{ panel.t(panel.heroKey('optional')) }}</option>
                 <option

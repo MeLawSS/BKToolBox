@@ -78,6 +78,10 @@ export function deriveNearestCellsFromAverage(avg, preferredCells) {
   return best ? best.cells : null;
 }
 
+export function resolveAutoTotalCellsFromAverage(avg, preferredCells) {
+  return deriveNearestCellsFromAverage(avg, preferredCells);
+}
+
 export function deriveCountFromCells(avg, cells) {
   if (avg === null || cells === null || avg <= 0) return null;
   const estimate = cells / avg;
@@ -500,14 +504,6 @@ export function filterCandidatesByPrice(groupKey, targetAveragePrice, candidates
 export function collectEstimationInputs(globalInputs, groupInputs, groups = ESTIMATION_GROUPS) {
   const inputTotalCells = parseOptionalInteger(globalInputs.totalCells, '所有藏品总格数');
   const totalAverage = parseOptionalNumber(globalInputs.totalAverage, '所有藏品平均格数');
-  const totalCells = inputTotalCells;
-  if (
-    inputTotalCells !== null &&
-    totalAverage !== null &&
-    !isCellsFeasibleForAverage(totalAverage, inputTotalCells)
-  ) {
-    throw new Error('所有藏品平均格数无法对应到可行总格数');
-  }
 
   const stateGroups = Object.fromEntries(groups.map((group) => {
     const input = groupInputs[group.key];
@@ -528,8 +524,13 @@ export function collectEstimationInputs(globalInputs, groupInputs, groups = ESTI
   }));
 
   const knownCells = groups.reduce((sum, group) => sum + (stateGroups[group.key].cells ?? 0), 0);
-  if (totalCells !== null && knownCells > totalCells) {
-    throw new Error('各品质总格数之和超过所有藏品总格数');
+  const totalCells = inputTotalCells === null ? null : Math.max(inputTotalCells, knownCells);
+  if (
+    totalCells !== null &&
+    totalAverage !== null &&
+    !isCellsFeasibleForAverage(totalAverage, totalCells)
+  ) {
+    throw new Error('所有藏品平均格数无法对应到可行总格数');
   }
 
   return {

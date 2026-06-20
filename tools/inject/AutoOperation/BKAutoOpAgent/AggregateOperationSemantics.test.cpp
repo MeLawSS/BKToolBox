@@ -32,18 +32,14 @@ int main() {
     assert(IsAutoAuctionCleanupRecoverableScreen("main_lobby"));
     assert(!IsAutoAuctionCleanupRecoverableScreen("warehouse"));
     assert(GetAutoAuctionCleanupMaxAttempts() == 40);
+    assert(strcmp(PickAutoAuctionEndedPrimaryActionPath(true, false), "EndPanel/tuichu/receiveBtn") == 0);
+    assert(strcmp(PickAutoAuctionEndedPrimaryActionPath(false, true), "EndPanel/tuichu/continueBtn") == 0);
+    assert(strcmp(PickAutoAuctionEndedPrimaryActionPath(true, true), "EndPanel/tuichu/receiveBtn") == 0);
+    assert(PickAutoAuctionEndedPrimaryActionPath(false, false) == nullptr);
 
     assert(ShouldAbortAutoAuction(true, false));
     assert(ShouldAbortAutoAuction(false, true));
     assert(!ShouldAbortAutoAuction(false, false));
-
-    // ComputeBidAmount
-    assert(ComputeBidAmount(0, 1)     == 0);     // price not set → 0
-    assert(ComputeBidAmount(-1, 1)    == 0);     // negative → 0
-    assert(ComputeBidAmount(10000, 1) == 20000); // round 1 → 2.0x
-    assert(ComputeBidAmount(10000, 2) == 17000); // round 2 → 1.7x
-    assert(ComputeBidAmount(10000, 3) == 10000); // round 3 → 1.0x
-    assert(ComputeBidAmount(10000, 5) == 10000); // round 5+ → 1.0x
 
     return 0;
 }

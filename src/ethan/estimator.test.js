@@ -28,6 +28,7 @@ import {
   parseOptionalInteger,
   parseOptionalNumber,
   prepareCollectibleItemsForGroup,
+  resolveAutoTotalCellsFromAverage,
 } from './estimator.js';
 import {
   DEFAULT_ESTIMATION_OUTPUT_LIMIT,
@@ -166,16 +167,30 @@ describe('Ethan estimator cell derivation', () => {
     expect(state.groups.wg).toBeUndefined();
   });
 
-  it('rejects inconsistent totals', () => {
-    expect(() =>
-      collect(
-        { totalCells: '10', totalAverage: '' },
-        {
-          wg: { cells: '7' },
-          blue: { cells: '6' },
-        }
-      )
-    ).toThrow('各品质总格数之和超过所有藏品总格数');
+  it('uses known cells as the effective total when filled quality cells exceed the entered total', () => {
+    const state = collect(
+      { totalCells: '10', totalAverage: '' },
+      {
+        wg: { cells: '7' },
+        blue: { cells: '6' },
+      }
+    );
+
+    expect(state.totalCells).toBe(13);
+    expect(state.knownCells).toBe(13);
+  });
+
+  it('derives total count from the clamped effective total when total average is present', () => {
+    const state = collect(
+      { totalCells: '10', totalAverage: '1' },
+      {
+        wg: { cells: '7' },
+        blue: { cells: '6' },
+      }
+    );
+
+    expect(state.totalCells).toBe(13);
+    expect(state.totalCount).toBe(13);
   });
 
   it('requires selected total cells to match total average exactly', () => {
@@ -186,6 +201,14 @@ describe('Ethan estimator cell derivation', () => {
       totalCells: 30,
       totalCount: 20,
     });
+  });
+
+  it('normalizes auto-derived total cells with the shared nearest-feasible helper', () => {
+    expect(resolveAutoTotalCellsFromAverage(2.5, 50)).toBe(50);
+    expect(resolveAutoTotalCellsFromAverage(2.5, 48)).toBe(50);
+    expect(resolveAutoTotalCellsFromAverage(2, 19)).toBe(18);
+    expect(resolveAutoTotalCellsFromAverage(null, 48)).toBe(48);
+    expect(resolveAutoTotalCellsFromAverage(2.5, null)).toBeNull();
   });
 });
 

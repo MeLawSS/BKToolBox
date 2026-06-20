@@ -3,7 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, ref } from 'vue';
 import { useElsaAutoOperation } from './useElsaAutoOperation.js';
-import { elsaExpectedPrice } from './elsaEstimateState.js';
+import { elsaAutoBidKnownQualityKeys, elsaExpectedPrice } from './elsaEstimateState.js';
 
 // Mutable monitor/agent state shared across tests
 let monitorRunning = false;
@@ -15,7 +15,23 @@ const mockStopMonitor = vi.fn();
 vi.mock('./elsaEstimateState.js', async () => {
   const { ref } = await import('vue');
   const elsaExpectedPrice = ref(0);
-  return { elsaExpectedPrice };
+  const elsaAutoBidKnownQualityKeys = ref([]);
+  const penalties = {
+    white: 0,
+    green: 0.3,
+    blue: 0.7,
+    purple: 0.7,
+    orange: 0.7,
+    red: 0.7,
+  };
+  function computeElsaAutoBidPrice(expectedPrice, knownQualityKeys) {
+    const price = Number(expectedPrice);
+    if (!Number.isFinite(price) || price <= 0) return 0;
+    const penalty = [...new Set(Array.isArray(knownQualityKeys) ? knownQualityKeys : [])]
+      .reduce((sum, key) => sum + (penalties[key] ?? 0), 0);
+    return Math.floor(price * Math.max(1, 2 - penalty));
+  }
+  return { elsaExpectedPrice, elsaAutoBidKnownQualityKeys, computeElsaAutoBidPrice };
 });
 
 vi.mock('../shared/useMonitorSwitch.js', () => ({
@@ -53,6 +69,7 @@ describe('useElsaAutoOperation', () => {
     mockUnloadAgent.mockResolvedValue(undefined);
     mockStopMonitor.mockResolvedValue(undefined);
     elsaExpectedPrice.value = 0;
+    elsaAutoBidKnownQualityKeys.value = [];
     window.bidkingDesktop = {
       isDesktop: true,
       runAutoOperationCommand: vi.fn().mockResolvedValue({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 0 }, response: {} }),
@@ -208,6 +225,7 @@ describe('useElsaAutoOperation', () => {
     monitorRunning = true;
     mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
     elsaExpectedPrice.value = 55000;
+    elsaAutoBidKnownQualityKeys.value = [];
     let resolveAuction;
     window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
       if (name === 'AutoAuction') return new Promise(r => { resolveAuction = r; });
@@ -216,7 +234,7 @@ describe('useElsaAutoOperation', () => {
     const { result, wrapper } = withSetup(() => useElsaAutoOperation());
     await result.enable();
     await flushPromises();
-    expect(window.bidkingDesktop.writeDataFile).toHaveBeenCalledWith('Price', '55000');
+    expect(window.bidkingDesktop.writeDataFile).toHaveBeenCalledWith('Price', '110000');
     resolveAuction?.({ ok: true, value: { rounds: 0, expectedPrice: 0 }, response: {} });
     wrapper.unmount();
   });
@@ -225,6 +243,7 @@ describe('useElsaAutoOperation', () => {
     monitorRunning = true;
     mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
     elsaExpectedPrice.value = 40000;
+    elsaAutoBidKnownQualityKeys.value = ['green'];
     let resolveAuction;
     window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
       if (name === 'AutoAuction') return new Promise(r => { resolveAuction = r; });
@@ -237,7 +256,30 @@ describe('useElsaAutoOperation', () => {
     // Price updates mid-auction
     elsaExpectedPrice.value = 60000;
     await flushPromises();
-    expect(window.bidkingDesktop.writeDataFile).toHaveBeenCalledWith('Price', '60000');
+    expect(window.bidkingDesktop.writeDataFile).toHaveBeenCalledWith('Price', '102000');
+    resolveAuction?.({ ok: true, value: { rounds: 0, expectedPrice: 0 }, response: {} });
+    wrapper.unmount();
+  });
+
+  it('rewrites the price file when the known-quality penalty changes during auction', async () => {
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
+    elsaAutoBidKnownQualityKeys.value = [];
+    let resolveAuction;
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
+      if (name === 'AutoAuction') return new Promise(r => { resolveAuction = r; });
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
+    await result.enable();
+    await flushPromises();
+
+    elsaAutoBidKnownQualityKeys.value = ['green', 'blue', 'orange'];
+    await flushPromises();
+
+    expect(result.isEnabled.value).toBe(true);
+    expect(window.bidkingDesktop.writeDataFile).toHaveBeenCalledWith('Price', '50000');
     resolveAuction?.({ ok: true, value: { rounds: 0, expectedPrice: 0 }, response: {} });
     wrapper.unmount();
   });

@@ -48,16 +48,15 @@ inline int GetAutoAuctionCleanupMaxAttempts() {
     return 40;
 }
 
-inline bool ShouldAbortAutoAuction(bool cancelRequested, bool shuttingDown) {
-    return cancelRequested || shuttingDown;
+inline const char* PickAutoAuctionEndedPrimaryActionPath(
+    bool hasReceiveButton,
+    bool hasContinueButton
+) {
+    if (hasReceiveButton) return "EndPanel/tuichu/receiveBtn";
+    if (hasContinueButton) return "EndPanel/tuichu/continueBtn";
+    return nullptr;
 }
 
-// roundsEncountered: 1-indexed count of distinct auction rounds seen (first round = 1).
-// Returns bid amount (truncated). Returns 0 if expectedPrice <= 0 — caller must skip bidding.
-inline int ComputeBidAmount(int expectedPrice, int roundsEncountered) {
-    if (expectedPrice <= 0) return 0;
-    double multiplier = (roundsEncountered == 1) ? 2.0
-                      : (roundsEncountered == 2) ? 1.7
-                      :                            1.0;
-    return static_cast<int>(expectedPrice * multiplier);
+inline bool ShouldAbortAutoAuction(bool cancelRequested, bool shuttingDown) {
+    return cancelRequested || shuttingDown;
 }

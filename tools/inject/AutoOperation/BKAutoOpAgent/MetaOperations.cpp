@@ -542,6 +542,12 @@ static bool ClickNode(Il2CppObject* anchor, const char* path,
     return true;
 }
 
+static bool IsButtonNodeReady(Il2CppObject* anchor, const char* path) {
+    std::vector<UiNodeSnapshot> m;
+    ResolveUiNodeMatches(anchor, path, UI_PATH_EXACT, 1, &m);
+    return !m.empty() && m[0].active && m[0].components.button;
+}
+
 // GetCurrentScreen: determine which UI screen is currently shown.
 // Returns {"screen":"<name>"} — see DetectScreenState for values.
 void CmdGetCurrentScreen(AgentConn* c, const char* id, const char*) {
@@ -1025,7 +1031,8 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         bool found = false;
         for (int i = 0; i < 15; i++) {
             if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
-            if (strcmp(DetectScreenState().screen, "auction_lobby_map") == 0) { found = true; break; }
+            ScreenState state = DetectScreenState();
+            if (strcmp(state.screen, "auction_lobby_map") == 0) { found = true; break; }
         }
         if (!found) { SendResponse(c, id, false, "timeout waiting for auction_lobby_map"); return; }
     }
@@ -1043,7 +1050,8 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         bool found = false;
         for (int i = 0; i < 15; i++) {
             if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
-            if (strcmp(DetectScreenState().screen, "auction_lobby_room") == 0) { found = true; break; }
+            ScreenState state = DetectScreenState();
+            if (strcmp(state.screen, "auction_lobby_room") == 0) { found = true; break; }
         }
         if (!found) { SendResponse(c, id, false, "timeout waiting for auction_lobby_room"); return; }
     }
@@ -1069,7 +1077,8 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         bool found = false;
         for (int i = 0; i < 80; i++) {
             if (!SleepInterruptibly(1500)) { stopIfRequested(); return; }
-            const char* sc = DetectScreenState().screen;
+            ScreenState state = DetectScreenState();
+            const char* sc = state.screen;
             if (strcmp(sc, "auction_in_progress") == 0) { found = true; break; }
             if (strcmp(sc, "auction_ended") == 0) {
                 char earlyResult[128];
@@ -1110,7 +1119,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             int currentPrice = g_expectedPrice.load();
             if (useExpectedPrice && currentPrice <= 0) currentPrice = FLOOR_PRICE;
             int amount = useExpectedPrice
-                ? ComputeBidAmount(currentPrice, roundsEncountered)
+                ? currentPrice
                 : bidAmount;
             const int originalBid = amount;
             lastExpectedPrice = useExpectedPrice ? currentPrice : 0;
@@ -1314,10 +1323,28 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     continue;
                 }
                 std::string e;
-                if (!ClickNode(se.battleMainTransform, "EndPanel/tuichu/continueBtn", 0, &e)) {
+                const char* endedActionPath = PickAutoAuctionEndedPrimaryActionPath(
+                    IsButtonNodeReady(se.battleMainTransform, "EndPanel/tuichu/receiveBtn"),
+                    IsButtonNodeReady(se.battleMainTransform, "EndPanel/tuichu/continueBtn")
+                );
+                if (!endedActionPath) {
                     Logf(
-                        "AutoAuction cleanup continue attempt=%d click failed: %s",
+                        "AutoAuction cleanup continue attempt=%d no ended-screen action button ready",
+                        attemptNumber
+                    );
+                    if (attempt == cleanupMaxAttempts - 1) {
+                        if (stopIfRequested()) return;
+                        SendResponse(c, id, false, "no ended-screen action button ready");
+                        return;
+                    }
+                    if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
+                    continue;
+                }
+                if (!ClickNode(se.battleMainTransform, endedActionPath, 0, &e)) {
+                    Logf(
+                        "AutoAuction cleanup continue attempt=%d click failed path=%s: %s",
                         attemptNumber,
+                        endedActionPath,
                         e.c_str()
                     );
                     if (attempt == cleanupMaxAttempts - 1) {
@@ -1328,7 +1355,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
                     continue;
                 }
-                Logf("AutoAuction cleanup continue attempt=%d clicked", attemptNumber);
+                Logf(
+                    "AutoAuction cleanup continue attempt=%d clicked path=%s",
+                    attemptNumber,
+                    endedActionPath
+                );
                 if (!SleepInterruptibly(1500)) { stopIfRequested(); return; }
                 ScreenState afterContinue = DetectScreenState();
                 Logf(

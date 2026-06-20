@@ -2,7 +2,11 @@ import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useMonitorSwitch } from '../shared/useMonitorSwitch.js';
 import { useAutoOperationAgentSwitch } from '../shared/useAutoOperationAgentSwitch.js';
 import { LEAVE_TOOLS_EVENT } from '../shared/tools-page-lifecycle.js';
-import { elsaExpectedPrice } from './elsaEstimateState.js';
+import {
+  computeElsaAutoBidPrice,
+  elsaAutoBidKnownQualityKeys,
+  elsaExpectedPrice,
+} from './elsaEstimateState.js';
 
 const MAX_LOG = 200;
 
@@ -18,6 +22,9 @@ export function useElsaAutoOperation() {
   let weStartedAgent = false;
   let stopPriceWatcher = null;
   const cmd = (name, args) => window.bidkingDesktop.runAutoOperationCommand(name, args);
+  const autoBidPrice = computed(() =>
+    computeElsaAutoBidPrice(elsaExpectedPrice.value, elsaAutoBidKnownQualityKeys.value)
+  );
 
   function addLog(message, level = 'info') {
     const entry = { time: new Date().toLocaleTimeString(), level, message };
@@ -34,20 +41,43 @@ export function useElsaAutoOperation() {
       .catch(e => addLog(`价格文件写入失败: ${e?.message || e}`, 'warn'));
   }
 
+  async function stopAutomation(options = {}) {
+    const { requestCancel = true } = options;
+    if (!isEnabled.value || isBusy.value) return;
+    isBusy.value = true;
+    if (stopPriceWatcher) { stopPriceWatcher(); stopPriceWatcher = null; }
+    if (scriptAbort) { scriptAbort.abort(); scriptAbort = null; }
+    try {
+      if (requestCancel) {
+        addLog('正在停止…');
+        await cmd('CancelAutoAuction', {}).catch(e => addLog(`停止自动竞拍失败: ${e?.message || e}`, 'warn'));
+      }
+      if (weStartedAgent) {
+        await agent.unloadAgent().catch(e => addLog(`Agent 卸载失败: ${e?.message || e}`, 'error'));
+        weStartedAgent = false;
+      }
+      addLog('已停止');
+      isEnabled.value = false;
+    } finally {
+      isBusy.value = false;
+    }
+  }
+
   async function runScript(signal) {
     while (!signal.aborted) {
       addLog('开始自动竞拍…');
       addLog(`当前估价: ${elsaExpectedPrice.value || '无，将使用底价'}`);
+      addLog(`当前自动出价: ${autoBidPrice.value || '无，将使用底价'}`);
 
       const result = await cmd('AutoAuction', { roomId: 101, useExpectedPrice: true });
       const status = result?.value?.result || '';
       const rounds = result?.value?.rounds ?? 0;
       const usedPrice = result?.value?.expectedPrice ?? 0;
       if (signal.aborted || status === 'canceled') {
-        addLog(`自动竞拍已停止，共出价 ${rounds} 轮，最近估价 ${usedPrice}`);
+        addLog(`自动竞拍已停止，共出价 ${rounds} 轮，最近出价 ${usedPrice}`);
         return;
       }
-      addLog(`竞拍完成，共出价 ${rounds} 轮，使用估价 ${usedPrice}`);
+      addLog(`竞拍完成，共出价 ${rounds} 轮，使用出价 ${usedPrice}`);
     }
   }
 
@@ -75,8 +105,8 @@ export function useElsaAutoOperation() {
       }
 
       isEnabled.value = true;
-      // Write current price immediately, then keep syncing on every change
-      stopPriceWatcher = watch(elsaExpectedPrice, writePriceFile, { immediate: true });
+      // Write the app-computed bid immediately, then keep syncing on every change.
+      stopPriceWatcher = watch(autoBidPrice, writePriceFile, { immediate: true });
 
       const controller = new AbortController();
       scriptAbort = controller;
@@ -96,22 +126,7 @@ export function useElsaAutoOperation() {
   }
 
   async function disable() {
-    if (!isEnabled.value || isBusy.value) return;
-    isBusy.value = true;
-    if (stopPriceWatcher) { stopPriceWatcher(); stopPriceWatcher = null; }
-    if (scriptAbort) { scriptAbort.abort(); scriptAbort = null; }
-    try {
-      addLog('正在停止…');
-      await cmd('CancelAutoAuction', {}).catch(e => addLog(`停止自动竞拍失败: ${e?.message || e}`, 'warn'));
-      if (weStartedAgent) {
-        await agent.unloadAgent().catch(e => addLog(`Agent 卸载失败: ${e?.message || e}`, 'error'));
-        weStartedAgent = false;
-      }
-      addLog('已停止');
-      isEnabled.value = false;
-    } finally {
-      isBusy.value = false;
-    }
+    await stopAutomation({ requestCancel: true });
   }
 
   function onLeaveTools() {

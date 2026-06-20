@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import HeroEstimatorPanel from './HeroEstimatorPanel.vue';
 import { elsaProfile, ethanProfile } from './hero-profiles.js';
-import { elsaExpectedPrice } from '../elsa/elsaEstimateState.js';
+import { elsaAutoBidKnownQualityKeys, elsaExpectedPrice } from '../elsa/elsaEstimateState.js';
 import { __resetMonitorSwitchRuntimeForTest } from '../shared/useMonitorSwitch.js';
 import {
   appendStreamRunSource,
@@ -219,6 +219,7 @@ describe('HeroEstimatorPanel', () => {
     document.body.innerHTML = '';
     window.localStorage.clear();
     elsaExpectedPrice.value = 0;
+    elsaAutoBidKnownQualityKeys.value = [];
     FakeEventSource.reset();
     FakeEstimationWorker.reset();
     mockFetch();
@@ -294,6 +295,110 @@ describe('HeroEstimatorPanel', () => {
     expect(slotEl.exists()).toBe(true);
     expect(monitorEl.exists()).toBe(true);
     expect(slotEl.element.compareDocumentPosition(monitorEl.element) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
+
+  it('normalizes Elsa auto-derived total cells to the nearest feasible value and reuses that value for estimation', async () => {
+    vi.stubGlobal('Worker', FakeEstimationWorker);
+
+    const wrapper = mount(HeroEstimatorPanel, {
+      props: { profile: elsaProfile, embedded: true },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    const monitorSource = FakeEventSource.instances.find((source) => source.url === '/api/bidking-monitor/events');
+
+    monitorSource.emitEvent('event', {
+      key: 'elsa-nearest-total-cells-hero',
+      gameUid: 'game-1',
+      group: 'hero',
+      skill: {
+        uid: 'elsa-nearest-total-cells-hero-skill',
+        heroCid: 103,
+        skillCid: 1001034,
+        hitBoxList: [
+          { boxId: 0, itemSlotType: '11', itemQuility: 1, itemQuilityName: '白' },
+          { boxId: 20, itemSlotType: '11', itemQuility: 1, itemQuilityName: '白' },
+          { boxId: 40, itemSlotType: '24', itemQuility: 1, itemQuilityName: '白' },
+        ],
+      },
+    });
+    monitorSource.emitEvent('event', {
+      key: 'elsa-nearest-total-cells-map',
+      gameUid: 'game-1',
+      group: 'map',
+      skill: {
+        uid: 'elsa-nearest-total-cells-map-skill',
+        skillCid: 200014,
+        allHitItemAvgBoxIndex: 2.5,
+      },
+    });
+    await settleWorkerStream();
+
+    expect(wrapper.find('#elsa-total-cells-all').element.value).toBe('50');
+
+    await wrapper.find('#elsa-cells-white').setValue('2');
+    await wrapper.find('#elsa-estimate-form').trigger('submit');
+    await settleWorkerStream();
+
+    const workerStart = FakeEstimationWorker.messages.filter((message) => message.type === 'start').at(-1);
+    expect(workerStart?.state?.totalCells).toBe(50);
+    expect(wrapper.find('#elsa-result-meta').classes()).not.toContain('status-error');
+  });
+
+  it('keeps the translated optional placeholder when Elsa has no monitor-derived total cells', async () => {
+    const wrapper = mount(HeroEstimatorPanel, {
+      props: { profile: elsaProfile, embedded: true },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('#elsa-total-cells-all').attributes('placeholder')).toBe('可选');
+  });
+
+  it('keeps an already feasible Elsa monitor-derived total unchanged', async () => {
+    const wrapper = mount(HeroEstimatorPanel, {
+      props: { profile: elsaProfile, embedded: true },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    const monitorSource = FakeEventSource.instances.find((source) => source.url === '/api/bidking-monitor/events');
+
+    monitorSource.emitEvent('event', {
+      key: 'elsa-feasible-total-cells-hero',
+      gameUid: 'game-1',
+      group: 'hero',
+      skill: {
+        uid: 'elsa-feasible-total-cells-hero-skill',
+        heroCid: 103,
+        skillCid: 1001034,
+        hitBoxList: [
+          { boxId: 0, itemSlotType: '11', itemQuility: 1, itemQuilityName: '白' },
+          { boxId: 20, itemSlotType: '11', itemQuility: 1, itemQuilityName: '白' },
+          { boxId: 40, itemSlotType: '24', itemQuility: 1, itemQuilityName: '白' },
+        ],
+      },
+    });
+    monitorSource.emitEvent('event', {
+      key: 'elsa-feasible-total-cells-map',
+      gameUid: 'game-1',
+      group: 'map',
+      skill: {
+        uid: 'elsa-feasible-total-cells-map-skill',
+        skillCid: 200014,
+        allHitItemAvgBoxIndex: 3,
+      },
+    });
+    await settleWorkerStream();
+
+    expect(wrapper.find('#elsa-total-cells-all').element.value).toBe('48');
   });
 
   it('boots the shared estimation worker for Elsa and keeps Elsa totals correct', async () => {
@@ -1063,7 +1168,7 @@ describe('HeroEstimatorPanel', () => {
     expect(remountedWrapper.find('#elsa-result-meta').classes()).not.toContain('status-error');
   });
 
-  it('does not restore monitor-derived Elsa validation errors after remount without fresh monitor context', async () => {
+  it('does not restore Elsa results that depended on a monitor total-cells placeholder after remount without fresh monitor context', async () => {
     const wrapper = mount(HeroEstimatorPanel, {
       props: { profile: elsaProfile, embedded: true },
       attachTo: document.body,
@@ -1101,8 +1206,9 @@ describe('HeroEstimatorPanel', () => {
 
     const previousMeta = wrapper.find('#elsa-result-meta').text();
 
-    expect(previousMeta).toBe('各品质总格数之和超过所有藏品总格数');
-    expect(wrapper.find('#elsa-result-meta').classes()).toContain('status-error');
+    expect(previousMeta).not.toBe('等待输入');
+    expect(wrapper.find('#elsa-result-meta').classes()).not.toContain('status-error');
+    expect(wrapper.find('#elsa-total-estimate').text()).not.toBe('-');
 
     wrapper.unmount();
     mountedWrappers = mountedWrappers.filter((item) => item !== wrapper);
@@ -1119,6 +1225,8 @@ describe('HeroEstimatorPanel', () => {
     expect(remountedWrapper.find('#elsa-result-meta').text()).not.toBe(previousMeta);
     expect(remountedWrapper.find('#elsa-result-meta').text()).toBe('均价数据已加载');
     expect(remountedWrapper.find('#elsa-result-meta').classes()).not.toContain('status-error');
+    expect(remountedWrapper.find('#elsa-result-body .empty').exists()).toBe(true);
+    expect(remountedWrapper.find('#elsa-total-estimate').text()).toBe('-');
   });
 
   it('restores legacy explicit Elsa validation errors saved before error-kind narrowing', async () => {
@@ -1761,6 +1869,7 @@ describe('HeroEstimatorPanel', () => {
 
     expect(visibleTotal).toBe(26619);
     expect(elsaExpectedPrice.value).toBe(visibleTotal);
+    expect(elsaAutoBidKnownQualityKeys.value).toEqual(['orange']);
   });
 
   it('applies price-match-update delta to direct result row and summary', async () => {

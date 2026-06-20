@@ -10,6 +10,7 @@ import {
   getFeasibleCellsFromAverage,
   parseOptionalNumber,
   prepareCollectibleItemsForGroup,
+  resolveAutoTotalCellsFromAverage,
 } from '../ethan/estimator.js';
 import {
   createMonitorCells,
@@ -28,7 +29,7 @@ import {
   resolveGroupKeyFromQuality,
 } from './hero-profiles.js';
 import { useMonitorSwitch } from '../shared/useMonitorSwitch.js';
-import { elsaExpectedPrice } from '../elsa/elsaEstimateState.js';
+import { resetElsaEstimateState, syncElsaEstimateState } from '../elsa/elsaEstimateState.js';
 
 const PREDICTION_OUTPUT_LIMIT = 30;
 const PRICE_COMBO_MIN_CELL_SPACING = 4;
@@ -137,7 +138,38 @@ export function useHeroEstimatorPanel(profile) {
   const monitorErrorText = computed(() => monitorRuntime.errorText.value || monitorStatus.value.lastError?.message || monitorStatus.value.lastError || '');
   const monitorMinimumOccupied = computed(() => monitorGridState.value.minimumOccupied);
   const monitorEstimatedTotalCells = computed(() => formatMonitorInputNumber(monitorMinimumOccupied.value?.minTotalCells));
-  const totalCellsPlaceholder = computed(() => monitorEstimatedTotalCells.value || t(globalFields[0].placeholderKey));
+  const normalizedAutoTotalCells = computed(() => {
+    const rawCells = monitorEstimatedTotalCells.value;
+    if (!rawCells) return '';
+
+    const averageSource = String(globalInputs.totalAverage).trim() || globalPlaceholders.totalAverage;
+    if (!averageSource) return '';
+
+    let average = null;
+    try {
+      average = parseOptionalNumber(averageSource, t(heroKey('fields.totalAverage')));
+    } catch (_error) {
+      return '';
+    }
+    if (average === null) return '';
+
+    const preferredCells = Number(rawCells);
+    if (!Number.isFinite(preferredCells)) return '';
+
+    const normalizedCells = resolveAutoTotalCellsFromAverage(average, preferredCells);
+    return normalizedCells === null ? '' : String(normalizedCells);
+  });
+  const selectedTotalCellsValue = computed({
+    get() {
+      return String(globalInputs.totalCells).trim() || normalizedAutoTotalCells.value;
+    },
+    set(value) {
+      globalInputs.totalCells = value;
+    },
+  });
+  const totalCellsPlaceholder = computed(() =>
+    normalizedAutoTotalCells.value || monitorEstimatedTotalCells.value || t(globalFields[0].placeholderKey)
+  );
   const totalAveragePlaceholder = computed(() => globalPlaceholders.totalAverage || t(globalFields[1].placeholderKey));
   const monitorOutlineDetail = computed(() => selectedMonitorOutline.value
     ? buildMonitorOutlineDetail(selectedMonitorOutline.value)
@@ -729,7 +761,9 @@ export function useHeroEstimatorPanel(profile) {
   function getEffectiveGlobalInputs() {
     return {
       ...globalInputs,
-      totalCells: String(globalInputs.totalCells).trim() || monitorEstimatedTotalCells.value,
+      totalCells: String(globalInputs.totalCells).trim()
+        || normalizedAutoTotalCells.value
+        || monitorEstimatedTotalCells.value,
       totalAverage: String(globalInputs.totalAverage).trim() || globalPlaceholders.totalAverage,
     };
   }
@@ -1760,12 +1794,12 @@ export function useHeroEstimatorPanel(profile) {
 
   if (profile.id === 'elsa') {
     watch(
-      () => summary.total,
-      (total) => {
-        elsaExpectedPrice.value = Number.isFinite(total) ? Math.round(total) : 0;
+      [() => summary.total, () => lastState.value],
+      ([total, state]) => {
+        syncElsaEstimateState(total, state);
       },
     );
-    onUnmounted(() => { elsaExpectedPrice.value = 0; });
+    onUnmounted(() => { resetElsaEstimateState(); });
   }
 
   return {
@@ -1779,6 +1813,7 @@ export function useHeroEstimatorPanel(profile) {
     groupInputs,
     groupPlaceholders,
     usesTotalCellSelect,
+    selectedTotalCellsValue,
     totalCellOptions,
     totalCellsPlaceholder,
     totalAveragePlaceholder,

@@ -32,6 +32,9 @@ typedef void Il2CppType;
 
 #define FIELDINFO_OBJECT_OFFSET(f) (*(int32_t*)((char*)(f) + 24))
 #define UNBOX_INT32(obj)  (*(int32_t*)((char*)(obj) + 16))
+#define UNBOX_UINT32(obj) (*(uint32_t*)((char*)(obj) + 16))
+#define UNBOX_INT64(obj)  (*(int64_t*)((char*)(obj) + 16))
+#define UNBOX_FLOAT(obj)  (*(float*)((char*)(obj) + 16))
 #define UNBOX_BOOL(obj)   (*(uint8_t*)((char*)(obj) + 16) != 0)
 
 typedef Il2CppDomain*         (*fn_domain_get)();
@@ -51,9 +54,14 @@ typedef const Il2CppMethod*   (*fn_class_get_methods)(Il2CppClass*, void**);
 typedef const char*           (*fn_method_get_name)(const Il2CppMethod*);
 typedef uint32_t              (*fn_method_get_param_count)(const Il2CppMethod*);
 typedef const Il2CppType*     (*fn_method_get_param)(const Il2CppMethod*, uint32_t);
+typedef Il2CppFieldInfo*      (*fn_class_get_fields)(Il2CppClass*, void**);
+typedef const char*           (*fn_field_get_name)(Il2CppFieldInfo*);
+typedef const Il2CppType*     (*fn_field_get_type)(Il2CppFieldInfo*);
+typedef uint32_t              (*fn_field_get_flags)(Il2CppFieldInfo*);
 typedef char*                 (*fn_type_get_name)(const Il2CppType*);
 typedef const Il2CppType*     (*fn_class_get_type)(Il2CppClass*);
 typedef Il2CppObject*         (*fn_type_get_object)(const Il2CppType*);
+typedef Il2CppObject*         (*fn_object_new)(Il2CppClass*);
 typedef void                  (*fn_free)(void*);
 
 static fn_domain_get                 g_domain_get;
@@ -73,9 +81,14 @@ static fn_class_get_methods          g_class_get_methods;
 static fn_method_get_name            g_method_get_name;
 static fn_method_get_param_count     g_method_get_param_count;
 static fn_method_get_param           g_method_get_param;
+static fn_class_get_fields           g_class_get_fields;
+static fn_field_get_name             g_field_get_name;
+static fn_field_get_type             g_field_get_type;
+static fn_field_get_flags            g_field_get_flags;
 static fn_type_get_name              g_type_get_name;
 static fn_class_get_type             g_class_get_type;
 static fn_type_get_object            g_type_get_object;
+static fn_object_new                 g_object_new;
 static fn_free                       g_il2cpp_free;
 
 static Il2CppDomain* g_domain    = nullptr;
@@ -226,6 +239,16 @@ static Il2CppObject* ReadListItem(Il2CppObject* list, int index) {
     Il2CppObject* arr = *(Il2CppObject**)((char*)list + 16);
     if (!arr) return nullptr;
     return ((Il2CppObject**)((char*)arr + 32))[index];
+}
+
+static int ReadArrayLength(Il2CppObject* arrayObj) {
+    if (!arrayObj) return 0;
+    return *(int32_t*)((char*)arrayObj + 24);
+}
+
+static Il2CppObject* ReadArrayItem(Il2CppObject* arrayObj, int index) {
+    if (!arrayObj || index < 0 || index >= ReadArrayLength(arrayObj)) return nullptr;
+    return ((Il2CppObject**)((char*)arrayObj + 32))[index];
 }
 
 static bool ReadIntFieldByNames(Il2CppObject* obj, const char* const* names, int32_t* out) {
@@ -1539,6 +1562,324 @@ static Il2CppObject* GetComponentByTypeOrName(Il2CppObject* target, Il2CppObject
     return nullptr;
 }
 
+static std::string GetQualifiedTypeName(Il2CppObject* obj) {
+    if (!obj || !g_object_get_class || !g_class_get_type || !g_type_get_name) {
+        return ObjClassName(obj);
+    }
+
+    Il2CppClass* klass = g_object_get_class(obj);
+    if (!klass) return "unknown";
+    const Il2CppType* type = g_class_get_type(klass);
+    if (!type) return ObjClassName(obj);
+
+    char* typeName = g_type_get_name(type);
+    if (!typeName) return ObjClassName(obj);
+
+    std::string result(typeName);
+    if (g_il2cpp_free) g_il2cpp_free(typeName);
+    return result.empty() ? ObjClassName(obj) : result;
+}
+
+static void PushUniqueString(std::vector<std::string>* values, const std::string& value) {
+    if (!values || value.empty()) return;
+    for (const std::string& existing : *values) {
+        if (existing == value) return;
+    }
+    values->push_back(value);
+}
+
+static bool CollectNodeComponentTypeNames(Il2CppObject* target, std::vector<std::string>* out) {
+    if (!target || !out) return false;
+    out->clear();
+
+    const char* const unityNamespaces[] = { "UnityEngine", nullptr };
+    Il2CppClass* componentClass = FindClassInNamespaces("Component", unityNamespaces);
+    Il2CppObject* componentType = GetTypeObjectForClass(componentClass);
+    if (!componentType) return false;
+
+    const char* const getComponentsNames[] = { "GetComponents", nullptr };
+    Il2CppObject* componentArray = InvokeTypeArgObjectMethodByNames(target, getComponentsNames, componentType);
+    if (!componentArray) return false;
+
+    int count = ReadArrayLength(componentArray);
+    for (int i = 0; i < count; i++) {
+        Il2CppObject* component = ReadArrayItem(componentArray, i);
+        if (!component) continue;
+        PushUniqueString(out, GetQualifiedTypeName(component));
+    }
+
+    return true;
+}
+
+static bool CollectNodeComponents(Il2CppObject* target, std::vector<Il2CppObject*>* out) {
+    if (!target || !out) return false;
+    out->clear();
+
+    const char* const unityNamespaces[] = { "UnityEngine", nullptr };
+    Il2CppClass* componentClass = FindClassInNamespaces("Component", unityNamespaces);
+    Il2CppObject* componentType = GetTypeObjectForClass(componentClass);
+    if (!componentType) return false;
+
+    const char* const getComponentsNames[] = { "GetComponents", nullptr };
+    Il2CppObject* componentArray = InvokeTypeArgObjectMethodByNames(target, getComponentsNames, componentType);
+    if (!componentArray) return false;
+
+    int count = ReadArrayLength(componentArray);
+    for (int i = 0; i < count; i++) {
+        Il2CppObject* component = ReadArrayItem(componentArray, i);
+        if (component) out->push_back(component);
+    }
+
+    return true;
+}
+
+static bool ComponentMatchesClassName(Il2CppObject* component, const char* className) {
+    if (!component || !className || !className[0]) return false;
+    std::string qualifiedName = GetQualifiedTypeName(component);
+    if (_stricmp(qualifiedName.c_str(), className) == 0) return true;
+    return _stricmp(ObjClassName(component), className) == 0;
+}
+
+static Il2CppObject* FindNodeComponentByClassName(Il2CppObject* target, const char* className) {
+    if (!target || !className || !className[0]) return nullptr;
+    std::vector<Il2CppObject*> components;
+    if (!CollectNodeComponents(target, &components)) return nullptr;
+    for (Il2CppObject* component : components) {
+        if (ComponentMatchesClassName(component, className)) return component;
+    }
+    return nullptr;
+}
+
+static void CollectZeroArgMethodNames(Il2CppObject* component, std::vector<std::string>* out) {
+    if (!component || !out || !g_object_get_class || !g_class_get_methods || !g_method_get_name || !g_method_get_param_count) {
+        return;
+    }
+
+    out->clear();
+    Il2CppClass* klass = g_object_get_class(component);
+    if (!klass) return;
+
+    void* iter = nullptr;
+    const Il2CppMethod* method = nullptr;
+    while ((method = g_class_get_methods(klass, &iter)) != nullptr) {
+        if (g_method_get_param_count(method) != 0) continue;
+        const char* methodName = g_method_get_name(method);
+        if (!methodName || !methodName[0]) continue;
+        PushUniqueString(out, methodName);
+    }
+}
+
+static std::string GetTypeNameFromMethodParam(const Il2CppType* type) {
+    if (!type || !g_type_get_name) return "unknown";
+    char* typeName = g_type_get_name(type);
+    if (!typeName) return "unknown";
+    std::string result(typeName);
+    if (g_il2cpp_free) g_il2cpp_free(typeName);
+    return result.empty() ? "unknown" : result;
+}
+
+static bool TrySerializeFieldValue(
+    Il2CppObject* owner,
+    Il2CppFieldInfo* field,
+    const std::string& fieldTypeName,
+    std::string* outJson
+) {
+    if (!owner || !field || !outJson) return false;
+    char* base = (char*)owner + FIELDINFO_OBJECT_OFFSET(field);
+
+    if (fieldTypeName == "System.Boolean") {
+        *outJson = std::string("{\"resultKind\":\"bool\",\"boolValue\":") + ((*(uint8_t*)base) != 0 ? "true" : "false") + "}";
+        return true;
+    }
+
+    if (fieldTypeName == "System.Int32") {
+        char buf[96];
+        snprintf(buf, sizeof(buf), "{\"resultKind\":\"int\",\"intValue\":%d}", *(int32_t*)base);
+        *outJson = buf;
+        return true;
+    }
+
+    if (fieldTypeName == "System.UInt32") {
+        char buf[96];
+        snprintf(buf, sizeof(buf), "{\"resultKind\":\"uint32\",\"uint32Value\":%u}", (unsigned int)(*(uint32_t*)base));
+        *outJson = buf;
+        return true;
+    }
+
+    if (fieldTypeName == "System.Int64") {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "{\"resultKind\":\"int64\",\"int64Value\":%lld}", (long long)(*(int64_t*)base));
+        *outJson = buf;
+        return true;
+    }
+
+    if (fieldTypeName == "System.Single") {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "{\"resultKind\":\"float\",\"floatValue\":%.6f}", (double)(*(float*)base));
+        *outJson = buf;
+        return true;
+    }
+
+    if (fieldTypeName == "UnityEngine.Vector2") {
+        const float* value = (const float*)base;
+        char buf[160];
+        snprintf(buf, sizeof(buf), "{\"resultKind\":\"vector2\",\"x\":%.6f,\"y\":%.6f}", (double)value[0], (double)value[1]);
+        *outJson = buf;
+        return true;
+    }
+
+    if (fieldTypeName == "UnityEngine.Vector3") {
+        const float* value = (const float*)base;
+        char buf[192];
+        snprintf(buf, sizeof(buf), "{\"resultKind\":\"vector3\",\"x\":%.6f,\"y\":%.6f,\"z\":%.6f}", (double)value[0], (double)value[1], (double)value[2]);
+        *outJson = buf;
+        return true;
+    }
+
+    if (fieldTypeName == "UnityEngine.Rect") {
+        const float* value = (const float*)base;
+        char buf[224];
+        snprintf(buf, sizeof(buf), "{\"resultKind\":\"rect\",\"x\":%.6f,\"y\":%.6f,\"width\":%.6f,\"height\":%.6f}", (double)value[0], (double)value[1], (double)value[2], (double)value[3]);
+        *outJson = buf;
+        return true;
+    }
+
+    Il2CppObject* refObj = *(Il2CppObject**)base;
+    if (!refObj) {
+        *outJson = "{\"resultKind\":\"null\"}";
+        return true;
+    }
+
+    if (fieldTypeName == "System.String") {
+        std::string textValue;
+        if (!Il2CppStringToUtf8(refObj, &textValue)) return false;
+        *outJson = "{\"resultKind\":\"string\",\"stringValue\":\"";
+        *outJson += EscapeJsonString(textValue);
+        *outJson += "\"}";
+        return true;
+    }
+
+    *outJson = "{\"resultKind\":\"object\",\"resultClass\":\"";
+    *outJson += EscapeJsonString(GetQualifiedTypeName(refObj));
+    *outJson += "\"";
+    std::string objectName;
+    if (GetObjectNameUtf8(refObj, &objectName) && !objectName.empty()) {
+        *outJson += ",\"objectName\":\"";
+        *outJson += EscapeJsonString(objectName);
+        *outJson += "\"";
+    }
+    *outJson += "}";
+    return true;
+}
+
+static bool TrySerializeInvokeResult(Il2CppObject* resultObj, std::string* outJson) {
+    if (!outJson) return false;
+    if (!resultObj) {
+        *outJson = "{\"resultKind\":\"null\"}";
+        return true;
+    }
+
+    const char* resultClass = ObjClassName(resultObj);
+    if (strcmp(resultClass, "String") == 0) {
+        std::string textValue;
+        if (!Il2CppStringToUtf8(resultObj, &textValue)) return false;
+        *outJson = "{\"resultKind\":\"string\",\"stringValue\":\"";
+        *outJson += EscapeJsonString(textValue);
+        *outJson += "\"}";
+        return true;
+    }
+
+    if (strcmp(resultClass, "Boolean") == 0) {
+        *outJson = std::string("{\"resultKind\":\"bool\",\"boolValue\":") + (UNBOX_BOOL(resultObj) ? "true" : "false") + "}";
+        return true;
+    }
+
+    if (strcmp(resultClass, "Int32") == 0) {
+        char buf[96];
+        snprintf(buf, sizeof(buf), "{\"resultKind\":\"int\",\"intValue\":%d}", UNBOX_INT32(resultObj));
+        *outJson = buf;
+        return true;
+    }
+
+    if (strcmp(resultClass, "UInt32") == 0) {
+        char buf[96];
+        snprintf(buf, sizeof(buf), "{\"resultKind\":\"uint32\",\"uint32Value\":%u}", (unsigned int)UNBOX_UINT32(resultObj));
+        *outJson = buf;
+        return true;
+    }
+
+    if (strcmp(resultClass, "Int64") == 0) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "{\"resultKind\":\"int64\",\"int64Value\":%lld}", (long long)UNBOX_INT64(resultObj));
+        *outJson = buf;
+        return true;
+    }
+
+    if (strcmp(resultClass, "Single") == 0) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "{\"resultKind\":\"float\",\"floatValue\":%.6f}", (double)UNBOX_FLOAT(resultObj));
+        *outJson = buf;
+        return true;
+    }
+
+    if (strcmp(resultClass, "Vector2") == 0) {
+        const float* value = (float*)((char*)resultObj + 16);
+        char buf[160];
+        snprintf(
+            buf,
+            sizeof(buf),
+            "{\"resultKind\":\"vector2\",\"x\":%.6f,\"y\":%.6f}",
+            (double)value[0],
+            (double)value[1]
+        );
+        *outJson = buf;
+        return true;
+    }
+
+    if (strcmp(resultClass, "Vector3") == 0) {
+        const float* value = (float*)((char*)resultObj + 16);
+        char buf[192];
+        snprintf(
+            buf,
+            sizeof(buf),
+            "{\"resultKind\":\"vector3\",\"x\":%.6f,\"y\":%.6f,\"z\":%.6f}",
+            (double)value[0],
+            (double)value[1],
+            (double)value[2]
+        );
+        *outJson = buf;
+        return true;
+    }
+
+    if (strcmp(resultClass, "Rect") == 0) {
+        const float* value = (float*)((char*)resultObj + 16);
+        char buf[224];
+        snprintf(
+            buf,
+            sizeof(buf),
+            "{\"resultKind\":\"rect\",\"x\":%.6f,\"y\":%.6f,\"width\":%.6f,\"height\":%.6f}",
+            (double)value[0],
+            (double)value[1],
+            (double)value[2],
+            (double)value[3]
+        );
+        *outJson = buf;
+        return true;
+    }
+
+    *outJson = "{\"resultKind\":\"object\",\"resultClass\":\"";
+    *outJson += EscapeJsonString(GetQualifiedTypeName(resultObj));
+    *outJson += "\"";
+    std::string objectName;
+    if (GetObjectNameUtf8(resultObj, &objectName) && !objectName.empty()) {
+        *outJson += ",\"objectName\":\"";
+        *outJson += EscapeJsonString(objectName);
+        *outJson += "\"";
+    }
+    *outJson += "}";
+    return true;
+}
+
 static void InspectUiNodeComponents(Il2CppObject* transform, UiComponentRefs* refs) {
     if (!transform || !refs) return;
     EnsureUiTypeCache();
@@ -2344,9 +2685,14 @@ static bool InitIl2cpp() {
     g_method_get_name = (fn_method_get_name)GetProcAddress(hGame, "il2cpp_method_get_name");
     g_method_get_param_count = (fn_method_get_param_count)GetProcAddress(hGame, "il2cpp_method_get_param_count");
     g_method_get_param = (fn_method_get_param)GetProcAddress(hGame, "il2cpp_method_get_param");
+    g_class_get_fields = (fn_class_get_fields)GetProcAddress(hGame, "il2cpp_class_get_fields");
+    g_field_get_name = (fn_field_get_name)GetProcAddress(hGame, "il2cpp_field_get_name");
+    g_field_get_type = (fn_field_get_type)GetProcAddress(hGame, "il2cpp_field_get_type");
+    g_field_get_flags = (fn_field_get_flags)GetProcAddress(hGame, "il2cpp_field_get_flags");
     g_type_get_name = (fn_type_get_name)GetProcAddress(hGame, "il2cpp_type_get_name");
     g_class_get_type = (fn_class_get_type)GetProcAddress(hGame, "il2cpp_class_get_type");
     g_type_get_object = (fn_type_get_object)GetProcAddress(hGame, "il2cpp_type_get_object");
+    g_object_new = (fn_object_new)GetProcAddress(hGame, "il2cpp_object_new");
     g_il2cpp_free = (fn_free)GetProcAddress(hGame, "il2cpp_free");
     g_domain = g_domain_get();
     g_il2cppReady = (g_domain != nullptr);
@@ -2945,6 +3291,451 @@ static void CmdGetNodeState(AgentConn* c, const char* id, const char* json) {
     result += EscapeJsonString(text);
     result += "\",\"toggleOn\":";
     result += toggleOn ? "true" : "false";
+    result += "}";
+    SendResponse(c, id, true, result.c_str());
+}
+
+static void CmdDescribeNodeComponents(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char panel[96] = {};
+    char rootPath[512] = {};
+    char path[512] = {};
+    char pathModeRaw[16] = "exact";
+    char error[128] = {};
+
+    if (!ReadRequiredStringArg(json, "panel", panel, sizeof(panel), "missing panel", "invalid panel", error, sizeof(error)) ||
+        !ReadOptionalStringArg(json, "rootPath", rootPath, sizeof(rootPath), "", error, sizeof(error)) ||
+        !ReadRequiredStringArg(json, "path", path, sizeof(path), "missing path", "invalid path", error, sizeof(error)) ||
+        !ReadOptionalStringArg(json, "pathMode", pathModeRaw, sizeof(pathModeRaw), "exact", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+
+    UiPathMode pathMode = UI_PATH_EXACT;
+    if (!ParseUiPathMode(pathModeRaw, &pathMode)) {
+        SendResponse(c, id, false, "invalid pathMode");
+        return;
+    }
+
+    Il2CppObject* panelTransform = nullptr;
+    UiPanelLookupResult panelResult = FindVisiblePanelTransform(panel, nullptr, &panelTransform, error, sizeof(error));
+    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return; }
+    if (panelResult != UI_PANEL_FOUND) { SendResponse(c, id, false, "panel not visible"); return; }
+
+    Il2CppObject* anchorTransform = panelTransform;
+    if (rootPath[0]) {
+        std::string ignoredResolvedPath;
+        if (!ResolveExactRelativePath(panelTransform, rootPath, &anchorTransform, &ignoredResolvedPath) || !anchorTransform) {
+            SendResponse(c, id, false, "root path not found");
+            return;
+        }
+    }
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(anchorTransform, path, pathMode, 2, &matches);
+    if (matches.empty()) { SendResponse(c, id, false, "node not found"); return; }
+    if (matches.size() > 1) { SendResponse(c, id, false, "multiple nodes matched"); return; }
+
+    UiNodeSnapshot& node = matches[0];
+    std::vector<std::string> componentClassNames;
+    if (!CollectNodeComponentTypeNames(node.transform, &componentClassNames)) {
+        SendResponse(c, id, false, "GetComponents failed");
+        return;
+    }
+
+    std::string result = "{\"resolvedPath\":\"";
+    result += EscapeJsonString(node.path);
+    result += "\",\"componentClassNames\":[";
+    for (size_t i = 0; i < componentClassNames.size(); i++) {
+        if (i) result += ",";
+        result += "\"";
+        result += EscapeJsonString(componentClassNames[i]);
+        result += "\"";
+    }
+    result += "]}";
+    SendResponse(c, id, true, result.c_str());
+}
+
+static bool ResolveSingleNodeForDebugCommand(
+    AgentConn* c,
+    const char* id,
+    const char* json,
+    UiNodeSnapshot* outNode
+) {
+    if (!outNode) {
+        SendResponse(c, id, false, "internal error");
+        return false;
+    }
+
+    char panel[96] = {};
+    char rootPath[512] = {};
+    char path[512] = {};
+    char pathModeRaw[16] = "exact";
+    char error[128] = {};
+
+    if (!ReadRequiredStringArg(json, "panel", panel, sizeof(panel), "missing panel", "invalid panel", error, sizeof(error)) ||
+        !ReadOptionalStringArg(json, "rootPath", rootPath, sizeof(rootPath), "", error, sizeof(error)) ||
+        !ReadRequiredStringArg(json, "path", path, sizeof(path), "missing path", "invalid path", error, sizeof(error)) ||
+        !ReadOptionalStringArg(json, "pathMode", pathModeRaw, sizeof(pathModeRaw), "exact", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return false;
+    }
+
+    UiPathMode pathMode = UI_PATH_EXACT;
+    if (!ParseUiPathMode(pathModeRaw, &pathMode)) {
+        SendResponse(c, id, false, "invalid pathMode");
+        return false;
+    }
+
+    Il2CppObject* panelTransform = nullptr;
+    UiPanelLookupResult panelResult = FindVisiblePanelTransform(panel, nullptr, &panelTransform, error, sizeof(error));
+    if (panelResult == UI_PANEL_LOOKUP_ERROR) { SendResponse(c, id, false, error); return false; }
+    if (panelResult != UI_PANEL_FOUND) { SendResponse(c, id, false, "panel not visible"); return false; }
+
+    Il2CppObject* anchorTransform = panelTransform;
+    if (rootPath[0]) {
+        std::string ignoredResolvedPath;
+        if (!ResolveExactRelativePath(panelTransform, rootPath, &anchorTransform, &ignoredResolvedPath) || !anchorTransform) {
+            SendResponse(c, id, false, "root path not found");
+            return false;
+        }
+    }
+
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(anchorTransform, path, pathMode, 2, &matches);
+    if (matches.empty()) { SendResponse(c, id, false, "node not found"); return false; }
+    if (matches.size() > 1) { SendResponse(c, id, false, "multiple nodes matched"); return false; }
+
+    *outNode = matches[0];
+    return true;
+}
+
+static bool AppendMethodSignaturesJson(Il2CppClass* klass, std::string* outJson) {
+    if (!klass || !outJson || !g_class_get_methods || !g_method_get_name || !g_method_get_param_count || !g_method_get_param) {
+        return false;
+    }
+
+    outJson->append("[");
+    void* iter = nullptr;
+    const Il2CppMethod* method = nullptr;
+    bool firstMethod = true;
+    while ((method = g_class_get_methods(klass, &iter)) != nullptr) {
+        const char* methodName = g_method_get_name(method);
+        if (!methodName || !methodName[0]) continue;
+        uint32_t paramCount = g_method_get_param_count(method);
+
+        if (!firstMethod) outJson->append(",");
+        firstMethod = false;
+
+        outJson->append("{\"name\":\"");
+        outJson->append(EscapeJsonString(methodName));
+        outJson->append("\",\"paramTypes\":[");
+        for (uint32_t i = 0; i < paramCount; i++) {
+            if (i) outJson->append(",");
+            outJson->append("\"");
+            outJson->append(EscapeJsonString(GetTypeNameFromMethodParam(g_method_get_param(method, i))));
+            outJson->append("\"");
+        }
+        outJson->append("]}");
+    }
+    outJson->append("]");
+    return true;
+}
+
+static Il2CppObject* CreatePointerEventDataObject() {
+    if (!g_object_new) return nullptr;
+
+    const char* const eventSystemNamespaces[] = { "UnityEngine.EventSystems", nullptr };
+    Il2CppClass* eventSystemClass = FindClassInNamespaces("EventSystem", eventSystemNamespaces);
+    if (!eventSystemClass) return nullptr;
+    const char* const currentGetterNames[] = { "get_current", nullptr };
+    const Il2CppMethod* currentGetter = FindMethodByNames(eventSystemClass, currentGetterNames, 0);
+    if (!currentGetter) return nullptr;
+    Il2CppObject* eventSystem = nullptr;
+    if (!TryInvoke(currentGetter, nullptr, nullptr, &eventSystem) || !eventSystem) return nullptr;
+
+    Il2CppClass* pointerEventDataClass = FindClassInNamespaces("PointerEventData", eventSystemNamespaces);
+    if (!pointerEventDataClass) return nullptr;
+    Il2CppObject* pointerEventData = g_object_new(pointerEventDataClass);
+    if (!pointerEventData) return nullptr;
+
+    const char* const ctorNames[] = { ".ctor", nullptr };
+    const char* const ctorParamTypes[] = { "UnityEngine.EventSystems.EventSystem", nullptr };
+    const Il2CppMethod* ctor = FindMethodBySignature(pointerEventDataClass, ctorNames, ctorParamTypes, 1);
+    if (!ctor) return nullptr;
+    void* args[] = { eventSystem };
+    if (!TryInvoke(ctor, pointerEventData, args, nullptr)) return nullptr;
+
+    return pointerEventData;
+}
+
+static void CmdDescribeNodeComponentMethods(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char className[160] = {};
+    char error[128] = {};
+    if (!ReadRequiredStringArg(json, "className", className, sizeof(className), "missing className", "invalid className", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+
+    UiNodeSnapshot node;
+    if (!ResolveSingleNodeForDebugCommand(c, id, json, &node)) return;
+
+    Il2CppObject* component = FindNodeComponentByClassName(node.transform, className);
+    if (!component) {
+        SendResponse(c, id, false, "component not found");
+        return;
+    }
+
+    std::vector<std::string> methodNames;
+    CollectZeroArgMethodNames(component, &methodNames);
+
+    std::string result = "{\"resolvedPath\":\"";
+    result += EscapeJsonString(node.path);
+    result += "\",\"componentClassName\":\"";
+    result += EscapeJsonString(GetQualifiedTypeName(component));
+    result += "\",\"methodNames\":[";
+    for (size_t i = 0; i < methodNames.size(); i++) {
+        if (i) result += ",";
+        result += "\"";
+        result += EscapeJsonString(methodNames[i]);
+        result += "\"";
+    }
+    result += "]}";
+    SendResponse(c, id, true, result.c_str());
+}
+
+static void CmdInvokeNodeComponentMethod(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char className[160] = {};
+    char methodName[160] = {};
+    char error[128] = {};
+    if (!ReadRequiredStringArg(json, "className", className, sizeof(className), "missing className", "invalid className", error, sizeof(error)) ||
+        !ReadRequiredStringArg(json, "methodName", methodName, sizeof(methodName), "missing methodName", "invalid methodName", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+
+    UiNodeSnapshot node;
+    if (!ResolveSingleNodeForDebugCommand(c, id, json, &node)) return;
+
+    Il2CppObject* component = FindNodeComponentByClassName(node.transform, className);
+    if (!component) {
+        SendResponse(c, id, false, "component not found");
+        return;
+    }
+
+    if (!QueueManagedNoArgActionOnMainThread(component, methodName)) {
+        SendResponse(c, id, false, "method invoke failed");
+        return;
+    }
+
+    std::string result = "{\"resolvedPath\":\"";
+    result += EscapeJsonString(node.path);
+    result += "\",\"componentClassName\":\"";
+    result += EscapeJsonString(GetQualifiedTypeName(component));
+    result += "\",\"methodName\":\"";
+    result += EscapeJsonString(methodName);
+    result += "\"}";
+    SendResponse(c, id, true, result.c_str());
+}
+
+static void CmdDescribeNodeComponentMethodSignatures(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char className[160] = {};
+    char error[128] = {};
+    if (!ReadRequiredStringArg(json, "className", className, sizeof(className), "missing className", "invalid className", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+
+    UiNodeSnapshot node;
+    if (!ResolveSingleNodeForDebugCommand(c, id, json, &node)) return;
+
+    Il2CppObject* component = FindNodeComponentByClassName(node.transform, className);
+    if (!component) {
+        SendResponse(c, id, false, "component not found");
+        return;
+    }
+
+    if (!g_object_get_class || !g_class_get_methods || !g_method_get_name || !g_method_get_param_count || !g_method_get_param) {
+        SendResponse(c, id, false, "method reflection unavailable");
+        return;
+    }
+
+    Il2CppClass* klass = g_object_get_class(component);
+    if (!klass) {
+        SendResponse(c, id, false, "component class unavailable");
+        return;
+    }
+
+    std::string result = "{\"resolvedPath\":\"";
+    result += EscapeJsonString(node.path);
+    result += "\",\"componentClassName\":\"";
+    result += EscapeJsonString(GetQualifiedTypeName(component));
+    result += "\",\"methods\":";
+    if (!AppendMethodSignaturesJson(klass, &result)) {
+        SendResponse(c, id, false, "method reflection unavailable");
+        return;
+    }
+    result += "}";
+    SendResponse(c, id, true, result.c_str());
+}
+
+static void CmdDescribeNodeComponentFields(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char className[160] = {};
+    char error[128] = {};
+    bool includeBase = false;
+    if (!ReadRequiredStringArg(json, "className", className, sizeof(className), "missing className", "invalid className", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+    JsonGetBool(json, "includeBase", &includeBase);
+
+    UiNodeSnapshot node;
+    if (!ResolveSingleNodeForDebugCommand(c, id, json, &node)) return;
+
+    Il2CppObject* component = FindNodeComponentByClassName(node.transform, className);
+    if (!component) {
+        SendResponse(c, id, false, "component not found");
+        return;
+    }
+
+    if (!g_object_get_class || !g_class_get_fields || !g_field_get_name || !g_field_get_type || !g_field_get_flags || !g_type_get_name) {
+        SendResponse(c, id, false, "field reflection unavailable");
+        return;
+    }
+
+    Il2CppClass* klass = g_object_get_class(component);
+    if (!klass) {
+        SendResponse(c, id, false, "component class unavailable");
+        return;
+    }
+
+    std::string result = "{\"resolvedPath\":\"";
+    result += EscapeJsonString(node.path);
+    result += "\",\"componentClassName\":\"";
+    result += EscapeJsonString(GetQualifiedTypeName(component));
+    result += "\",\"fields\":[";
+
+    bool firstField = true;
+    for (Il2CppClass* current = klass; current != nullptr; current = includeBase && g_class_get_parent ? g_class_get_parent(current) : nullptr) {
+        void* iter = nullptr;
+        Il2CppFieldInfo* field = nullptr;
+        while ((field = g_class_get_fields(current, &iter)) != nullptr) {
+            const char* fieldName = g_field_get_name(field);
+            if (!fieldName || !fieldName[0]) continue;
+            const uint32_t flags = g_field_get_flags(field);
+            if ((flags & 0x0010u) != 0) continue;
+            std::string fieldTypeName = GetTypeNameFromMethodParam(g_field_get_type(field));
+            std::string fieldValueJson;
+            if (!TrySerializeFieldValue(component, field, fieldTypeName, &fieldValueJson)) {
+                fieldValueJson = "{\"resultKind\":\"unavailable\"}";
+            }
+
+            if (!firstField) result += ",";
+            firstField = false;
+            result += "{\"declaringClass\":\"";
+            result += EscapeJsonString(g_class_get_name ? g_class_get_name(current) : "unknown");
+            result += "\",\"name\":\"";
+            result += EscapeJsonString(fieldName);
+            result += "\",\"fieldType\":\"";
+            result += EscapeJsonString(fieldTypeName);
+            result += "\",\"flags\":";
+            result += std::to_string((unsigned long long)flags);
+            result += ",\"value\":";
+            result += fieldValueJson;
+            result += "}";
+        }
+        if (!includeBase) break;
+    }
+
+    result += "]}";
+    SendResponse(c, id, true, result.c_str());
+}
+
+static void CmdDescribeClassMethodSignatures(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char className[160] = {};
+    char error[128] = {};
+    if (!ReadRequiredStringArg(json, "className", className, sizeof(className), "missing className", "invalid className", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+
+    Il2CppClass* klass = FindClass(className);
+    if (!klass) {
+        SendResponse(c, id, false, "class not found");
+        return;
+    }
+
+    std::string result = "{\"className\":\"";
+    result += EscapeJsonString(className);
+    result += "\",\"methods\":";
+    if (!AppendMethodSignaturesJson(klass, &result)) {
+        SendResponse(c, id, false, "method reflection unavailable");
+        return;
+    }
+    result += "}";
+    SendResponse(c, id, true, result.c_str());
+}
+
+static void CmdCallNodeComponentMethod(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char className[160] = {};
+    char methodName[160] = {};
+    char error[128] = {};
+    if (!ReadRequiredStringArg(json, "className", className, sizeof(className), "missing className", "invalid className", error, sizeof(error)) ||
+        !ReadRequiredStringArg(json, "methodName", methodName, sizeof(methodName), "missing methodName", "invalid methodName", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+
+    UiNodeSnapshot node;
+    if (!ResolveSingleNodeForDebugCommand(c, id, json, &node)) return;
+
+    Il2CppObject* component = FindNodeComponentByClassName(node.transform, className);
+    if (!component) {
+        SendResponse(c, id, false, "component not found");
+        return;
+    }
+
+    Il2CppClass* klass = g_object_get_class ? g_object_get_class(component) : nullptr;
+    if (!klass) {
+        SendResponse(c, id, false, "component class unavailable");
+        return;
+    }
+
+    const char* names[] = { methodName, nullptr };
+    const Il2CppMethod* method = FindMethodByNames(klass, names, 0);
+    if (!method) {
+        SendResponse(c, id, false, "method not found");
+        return;
+    }
+
+    Il2CppObject* resultObj = SafeInvoke(method, component, nullptr);
+    std::string invokeResultJson;
+    if (!TrySerializeInvokeResult(resultObj, &invokeResultJson)) {
+        SendResponse(c, id, false, "result serialization failed");
+        return;
+    }
+
+    std::string result = "{\"resolvedPath\":\"";
+    result += EscapeJsonString(node.path);
+    result += "\",\"componentClassName\":\"";
+    result += EscapeJsonString(GetQualifiedTypeName(component));
+    result += "\",\"methodName\":\"";
+    result += EscapeJsonString(methodName);
+    result += "\",\"invokeResult\":";
+    result += invokeResultJson;
     result += "}";
     SendResponse(c, id, true, result.c_str());
 }
@@ -3922,6 +4713,13 @@ static const CmdEntry kCommands[] = {
     { "ClickNode",        CmdClickNode        },
     { "SetInputText",     CmdSetInputText     },
     { "GetNodeState",     CmdGetNodeState     },
+    { "DescribeNodeComponents", CmdDescribeNodeComponents },
+    { "DescribeNodeComponentMethods", CmdDescribeNodeComponentMethods },
+    { "DescribeNodeComponentMethodSignatures", CmdDescribeNodeComponentMethodSignatures },
+    { "DescribeNodeComponentFields", CmdDescribeNodeComponentFields },
+    { "DescribeClassMethodSignatures", CmdDescribeClassMethodSignatures },
+    { "CallNodeComponentMethod", CmdCallNodeComponentMethod },
+    { "InvokeNodeComponentMethod", CmdInvokeNodeComponentMethod },
     { "WaitForVisiblePanel", CmdWaitForVisiblePanel },
     { "WaitForNode",      CmdWaitForNode      },
     { "CollectionPrices", CmdCollectionPrices },

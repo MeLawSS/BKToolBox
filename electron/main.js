@@ -45,7 +45,6 @@ const {
     isAhmedUrl,
     isEthanUrl,
 } = require('./desktop-utils');
-
 const startupLogPath = path.join(os.tmpdir(), 'bidking-electron.log');
 const screenshotHotkey = process.env.BIDKING_SCREENSHOT_HOTKEY || 'CommandOrControl+Shift+A';
 const regionScreenshotHotkey =
