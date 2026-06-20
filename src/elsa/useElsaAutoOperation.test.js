@@ -429,7 +429,8 @@ describe('useElsaAutoOperation', () => {
     elsaExpectedPrice.value = 50000;
     elsaAutoBidKnownQualityKeys.value = [];
 
-    const autoAuctionPromise = new Promise(() => {});
+    let resolveAutoAuction;
+    const autoAuctionPromise = new Promise((resolve) => { resolveAutoAuction = resolve; });
     window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name, args) => {
       if (name === 'SetExpectedPrice') {
         return Promise.resolve({ ok: true, value: { price: args.price }, response: {} });
@@ -451,32 +452,32 @@ describe('useElsaAutoOperation', () => {
       expect(result.isEnabled.value).toBe(true);
       expect(result.isBusy.value).toBe(false);
       expect(window.bidkingDesktop.writeDataFile).toHaveBeenCalledWith('Price', '100000');
-      expect(window.bidkingDesktop.runAutoOperationCommand).not.toHaveBeenCalledWith(
-        'AutoAuction',
-        expect.anything(),
-      );
+      const commandNamesBeforeDelay = window.bidkingDesktop.runAutoOperationCommand.mock.calls.map(([name]) => name);
+      expect(commandNamesBeforeDelay).not.toContain('AutoAuction');
 
       await vi.advanceTimersByTimeAsync(3999);
       await flushPromises();
-      expect(window.bidkingDesktop.runAutoOperationCommand).not.toHaveBeenCalledWith(
-        'SetExpectedPrice',
-        expect.anything(),
-      );
+      const commandsBeforeFire = window.bidkingDesktop.runAutoOperationCommand.mock.calls.map(([name]) => name);
+      expect(commandsBeforeFire).not.toContain('SetExpectedPrice');
 
       await vi.advanceTimersByTimeAsync(1);
       await flushPromises();
 
-      expect(window.bidkingDesktop.runAutoOperationCommand).toHaveBeenNthCalledWith(
-        1,
+      const setExpectedIndex = window.bidkingDesktop.runAutoOperationCommand.mock.calls.findIndex(([name]) => name === 'SetExpectedPrice');
+      const autoAuctionIndex = window.bidkingDesktop.runAutoOperationCommand.mock.calls.findIndex(([name]) => name === 'AutoAuction');
+      expect(setExpectedIndex).toBeGreaterThanOrEqual(0);
+      expect(autoAuctionIndex).toBeGreaterThanOrEqual(0);
+      expect(setExpectedIndex).toBeLessThan(autoAuctionIndex);
+      expect(window.bidkingDesktop.runAutoOperationCommand.mock.calls[setExpectedIndex]).toEqual([
         'SetExpectedPrice',
         { price: 100000 },
-      );
-      expect(window.bidkingDesktop.runAutoOperationCommand).toHaveBeenNthCalledWith(
-        2,
+      ]);
+      expect(window.bidkingDesktop.runAutoOperationCommand.mock.calls[autoAuctionIndex]).toEqual([
         'AutoAuction',
         { roomId: 101, useExpectedPrice: true },
-      );
+      ]);
     } finally {
+      resolveAutoAuction?.({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 100000 }, response: {} });
       wrapper.unmount();
       vi.useRealTimers();
     }
@@ -489,7 +490,8 @@ describe('useElsaAutoOperation', () => {
     elsaExpectedPrice.value = 40000;
     elsaAutoBidKnownQualityKeys.value = [];
 
-    const autoAuctionPromise = new Promise(() => {});
+    let resolveAutoAuction;
+    const autoAuctionPromise = new Promise((resolve) => { resolveAutoAuction = resolve; });
     window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
       if (name === 'AutoAuction') {
         return autoAuctionPromise;
@@ -516,6 +518,7 @@ describe('useElsaAutoOperation', () => {
       expect(commandNames).not.toContain('AutoAuction');
       expect(result.isEnabled.value).toBe(false);
     } finally {
+      resolveAutoAuction?.({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 0 }, response: {} });
       wrapper.unmount();
       vi.useRealTimers();
     }
@@ -528,7 +531,8 @@ describe('useElsaAutoOperation', () => {
     elsaExpectedPrice.value = 50000;
     elsaAutoBidKnownQualityKeys.value = [];
 
-    const autoAuctionPromise = new Promise(() => {});
+    let resolveAutoAuction;
+    const autoAuctionPromise = new Promise((resolve) => { resolveAutoAuction = resolve; });
     window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name, args) => {
       if (name === 'SetExpectedPrice') {
         return Promise.resolve({ ok: true, value: { price: args.price }, response: {} });
@@ -563,6 +567,7 @@ describe('useElsaAutoOperation', () => {
       expect(setExpectedCalls[0]).toEqual(['SetExpectedPrice', { price: 140000 }]);
       expect(window.bidkingDesktop.writeDataFile).toHaveBeenLastCalledWith('Price', '140000');
     } finally {
+      resolveAutoAuction?.({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 50000 }, response: {} });
       wrapper.unmount();
       vi.useRealTimers();
     }
@@ -575,7 +580,8 @@ describe('useElsaAutoOperation', () => {
     elsaExpectedPrice.value = 50000;
     elsaAutoBidKnownQualityKeys.value = [];
 
-    const autoAuctionPromise = new Promise(() => {});
+    let resolveAutoAuction;
+    const autoAuctionPromise = new Promise((resolve) => { resolveAutoAuction = resolve; });
     window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
       if (name === 'SetExpectedPrice') {
         return Promise.reject(new Error('pipe down'));
@@ -602,6 +608,7 @@ describe('useElsaAutoOperation', () => {
         e => e.level === 'error' && e.message.includes('初始化自动竞拍价格同步失败')
       )).toBe(true);
     } finally {
+      resolveAutoAuction?.({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 0 }, response: {} });
       wrapper.unmount();
       vi.useRealTimers();
     }
@@ -615,7 +622,8 @@ describe('useElsaAutoOperation', () => {
     elsaAutoBidKnownQualityKeys.value = [];
 
     let setExpectedCount = 0;
-    const autoAuctionPromise = new Promise(() => {});
+    let resolveAutoAuction;
+    const autoAuctionPromise = new Promise((resolve) => { resolveAutoAuction = resolve; });
     window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name, args) => {
       if (name === 'SetExpectedPrice') {
         setExpectedCount += 1;
@@ -635,6 +643,9 @@ describe('useElsaAutoOperation', () => {
       await vi.advanceTimersByTimeAsync(4000);
       await flushPromises();
 
+      const autoAuctionCallIndex = window.bidkingDesktop.runAutoOperationCommand.mock.calls.findIndex(([name]) => name === 'AutoAuction');
+      expect(autoAuctionCallIndex).toBeGreaterThanOrEqual(0);
+
       elsaExpectedPrice.value = 65000;
       await flushPromises();
       await vi.advanceTimersByTimeAsync(4000);
@@ -645,6 +656,7 @@ describe('useElsaAutoOperation', () => {
         e => e.level === 'warn' && e.message.includes('同步自动竞拍价格失败')
       )).toBe(true);
     } finally {
+      resolveAutoAuction?.({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 50000 }, response: {} });
       wrapper.unmount();
       vi.useRealTimers();
     }
