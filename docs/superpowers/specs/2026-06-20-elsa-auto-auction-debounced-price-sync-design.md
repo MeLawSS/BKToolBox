@@ -108,10 +108,12 @@ app 侧继续立即写 `Price` 文件，保持现有兼容性。
 
 - 只要当前在有效 round
 - 当前 round 还没出价
-- 已经收到过至少一次 `SetExpectedPrice`
-- 当前同步价格大于 0
+- 本次会话已经在首次 `SetExpectedPrice` 成功后启动
+- 当前能够按既有 expected-price 解析规则得到有效 `amount`
 
 就允许立刻进入现有出价流程。
+
+非 `useExpectedPrice` 的 legacy `bidAmount` 模式不在本轮改变，仍然保留 `secs < 15` 门槛。
 
 ### 决策 5: 同一轮仍然最多只出价一次
 
@@ -180,6 +182,59 @@ await cmd('SetExpectedPrice', { price: latestPrice })
 - `waitForInitialExpectedPriceSync(signal)`
 
 其中首次同步既是价格同步，也是本次脚本启动屏障。
+
+实现草图必须满足下面这个时序：
+
+1. `enable()` 先把 `isEnabled.value = true`
+2. 再注册 `watch(autoBidPrice, ..., { immediate: true })`
+3. `immediate: true` 同步触发 watcher callback，启动首次 4 秒 timer
+4. `enable()` 随后调用 `waitForInitialExpectedPriceSync(controller.signal)`
+5. 只有这个 Promise resolve 后，才进入 `runScript()` 内真正的 `AutoAuction`
+
+推荐最小状态：
+
+```js
+let initialExpectedPriceSync = null;
+let resolveInitialExpectedPriceSync = null;
+let rejectInitialExpectedPriceSync = null;
+let hasResolvedInitialExpectedPriceSync = false;
+```
+
+推荐流程：
+
+```js
+function createInitialExpectedPriceSyncPromise() {
+  hasResolvedInitialExpectedPriceSync = false;
+  initialExpectedPriceSync = new Promise((resolve, reject) => {
+    resolveInitialExpectedPriceSync = resolve;
+    rejectInitialExpectedPriceSync = reject;
+  });
+}
+
+function settleInitialExpectedPriceSync(kind, value) {
+  if (hasResolvedInitialExpectedPriceSync) return;
+  hasResolvedInitialExpectedPriceSync = true;
+  if (kind === 'resolve') resolveInitialExpectedPriceSync?.(value);
+  else rejectInitialExpectedPriceSync?.(value);
+}
+```
+
+在 debounced `SetExpectedPrice` timer 中：
+
+- 首次同步成功：`settleInitialExpectedPriceSync('resolve')`
+- 首次同步失败：`settleInitialExpectedPriceSync('reject', error)`
+
+在 `waitForInitialExpectedPriceSync(signal)` 中：
+
+- 先检查 `signal.aborted`
+- 再注册一次性 `abort` listener
+- `await initialExpectedPriceSync`
+- 无论 resolve/reject/abort，最后都移除 listener
+
+如果 `signal` 在 timer 触发前或请求途中被 abort：
+
+- `waitForInitialExpectedPriceSync(signal)` 必须 reject 一个 abort error
+- `enable()` / `runScript()` 必须把这条 abort 视为干净退出，不继续发送 `AutoAuction`
 
 ### 1.4 Disable/unmount must cancel pending sync
 
@@ -259,7 +314,7 @@ window.bidkingDesktop.runAutoOperationCommand(name, args)
 
 ### 2.2 Separate notified expected price state
 
-在 `MetaOperations.cpp` 内，把 AutoAuction 使用的 expected price 状态收敛为一组只由 `SetExpectedPrice` 更新的字段：
+在 `MetaOperations.cpp` 内，把 AutoAuction 使用的 expected price 状态收敛为只由 `SetExpectedPrice` 更新的一份字段：
 
 ```cpp
 static std::atomic<int> g_notifiedExpectedPrice{0};
@@ -269,6 +324,12 @@ static std::atomic<int> g_notifiedExpectedPrice{0};
 
 - `g_notifiedExpectedPrice`
   - 最近一次通过 `SetExpectedPrice` 明确通知给 agent 的价格
+
+实现要求：
+
+- 删除旧的 `g_expectedPrice`
+- 删除 `PriceReaderThreadProc()`、`StartPriceReaderThread()`、`StopPriceReaderThread()`
+- AutoAuction 运行时不允许同时保留“两份 expected price 状态源”
 
 ### 2.3 CmdSetExpectedPrice behavior
 
@@ -285,7 +346,7 @@ static std::atomic<int> g_notifiedExpectedPrice{0};
 `CmdAutoAuction()` 开始时：
 
 - 不启动 `StartPriceReaderThread()`
-- 不创建 `PriceReaderGuard`
+- 不创建当前 inline local guard struct `PriceReaderGuard`
 - 不清空全局最新 notified price
 
 原因：
@@ -314,15 +375,18 @@ if (round.empty() || round == lastBidRound) {
 }
 
 if (useExpectedPrice) {
-    const int currentPrice = g_notifiedExpectedPrice.load();
-    if (currentPrice <= 0) {
-        continue;
-    }
-
+    static const int FLOOR_PRICE = 11119;
+    int currentPrice = g_notifiedExpectedPrice.load();
+    if (currentPrice <= 0) currentPrice = FLOOR_PRICE;
     amount = currentPrice;
     lastExpectedPrice = currentPrice;
 } else {
+    if (secs >= 15) continue;
     amount = bidAmount;
+}
+
+if (amount == 0) {
+    continue;
 }
 ```
 
@@ -333,6 +397,25 @@ if (useExpectedPrice) {
 - 确认按钮点击
 - `ShouldCountAutoAuctionRound(...)`
 
+并且**显式保留**当前 `MetaOperations.cpp:1165-1242` 的 opponent-cap 子系统：
+
+```cpp
+// useExpectedPrice 分支在算出 originalBid / amount 之后，
+// 继续沿用现有 opponent-cap 逻辑，不在本轮改写：
+// - TryReadVisiblePlayerName
+// - TryResolveOpponentSlot
+// - TryReadOpponentPreviousRoundBid
+// - TryGetOpponentCapMultiplier
+// - ComputeOpponentCappedBid
+// - 相关 limiter skipped / cappedBid log
+```
+
+整合点要求：
+
+- `originalBid` 仍然取进入 opponent-cap 逻辑前的 `amount`
+- round 2..5 的封顶逻辑保持原样
+- 本轮只改变“amount 从哪里来”和“什么时候允许进入这段逻辑”，不改变它本身
+
 ### 2.6 Round semantics after removing the time gate
 
 去掉 `secs < 15` 之后，round 语义变成：
@@ -342,7 +425,7 @@ if (useExpectedPrice) {
 这会带来以下明确行为：
 
 - 如果进入某轮时 notified price 已经就绪，则该轮会尽早出价
-- 如果进入某轮时 notified price 还是 `0`，bid loop 会持续 `continue`
+- 如果进入某轮时 notified price 还是 `0`，则按既有 `FLOOR_PRICE` 规则继续解析 amount
 - 一旦该轮期间 price 通知补到、且还没出过价，该轮会在下一次 loop 立即出价
 - 如果该轮已经成功写入 `lastBidRound`，后续新通知不会触发二次出价
 
@@ -352,7 +435,6 @@ if (useExpectedPrice) {
 
 以下返回值中的 expected price 字段，应改为以 notified expected price 为准：
 
-- authcode 中断回包
 - early ended 回包
 - auction ended 回包中的 `expectedPrice`
 
@@ -361,7 +443,10 @@ if (useExpectedPrice) {
 - 优先用 `lastExpectedPrice`
 - 否则回退到 `g_notifiedExpectedPrice`
 
-不再回退到文件轮询线程产出的值。
+补充说明：
+
+- authcode 中断路径当前已经有“`lastExpectedPrice` 优先，否则回退到全局价格”的正确结构；本轮只需要把它的全局价格来源从旧 `g_expectedPrice` 切换到 `g_notifiedExpectedPrice`
+- early ended 路径需要同样遵守这套优先级，而不是直接读取旧文件轮询状态
 
 ## Part 3: Test Strategy
 
@@ -376,6 +461,7 @@ if (useExpectedPrice) {
 5. `disable()` 发生在 timer 触发前时，不会再发送 `SetExpectedPrice`
 6. 首次 `SetExpectedPrice` 失败时，不会启动 `AutoAuction`，且 Elsa 会回到 disabled
 7. AutoAuction 运行中的后续 `SetExpectedPrice` 发送失败时写一条 `warn` log，但 Elsa 不会自动停掉
+8. `AutoAuction` 运行期间，即使去掉了 `secs < 15`，`roundsEncountered` 仍然按“观察到新 round 文本”继续递增，不会因为更早出价而少记轮次
 
 实现要求：
 
@@ -394,7 +480,7 @@ if (useExpectedPrice) {
 
 ```cpp
 inline bool ShouldAttemptExpectedPriceAutoBid(
-    int expectedPrice,
+    int resolvedAmount,
     const std::string& round,
     const std::string& lastBidRound
 );
@@ -404,8 +490,13 @@ inline bool ShouldAttemptExpectedPriceAutoBid(
 
 - `round` 为空 -> false
 - `round == lastBidRound` -> false
-- `expectedPrice <= 0` -> false
-- `expectedPrice > 0 && round != lastBidRound` -> true
+- `resolvedAmount <= 0` -> false
+- `resolvedAmount > 0 && round != lastBidRound` -> true
+
+另外在现有 native test 中补一条回归断言，锁住：
+
+- 去掉 `secs < 15` 后，round counter 仍由 `round != lastRoundSeen` 驱动
+- 不会因为出价更早而跳过 round 2/3/4/5 的 `roundsEncountered` 递增语义
 
 ### 3.3 Regression verification
 
