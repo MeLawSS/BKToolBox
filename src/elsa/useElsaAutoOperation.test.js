@@ -791,4 +791,74 @@ describe('useElsaAutoOperation', () => {
       vi.useRealTimers();
     }
   });
+
+  it('waits for the latest same-session initial SetExpectedPrice generation before starting AutoAuction', async () => {
+    vi.useFakeTimers();
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
+    elsaAutoBidKnownQualityKeys.value = [];
+
+    let setExpectedPriceCallCount = 0;
+    let resolveFirstSetExpectedPrice;
+    let resolveSecondSetExpectedPrice;
+    let resolveAutoAuction;
+    const autoAuctionPromise = new Promise((resolve) => {
+      resolveAutoAuction = resolve;
+    });
+
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name, args) => {
+      if (name === 'SetExpectedPrice') {
+        setExpectedPriceCallCount += 1;
+        if (setExpectedPriceCallCount === 1) {
+          return new Promise((resolve) => {
+            resolveFirstSetExpectedPrice = resolve;
+          });
+        }
+        if (setExpectedPriceCallCount === 2) {
+          return new Promise((resolve) => {
+            resolveSecondSetExpectedPrice = resolve;
+          });
+        }
+      }
+      if (name === 'AutoAuction') {
+        return autoAuctionPromise;
+      }
+      if (name === 'CancelAutoAuction') {
+        return Promise.resolve({ ok: true, value: { canceled: true }, response: {} });
+      }
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
+
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
+    try {
+      await result.enable();
+      await flushPromises();
+
+      await advanceInitialExpectedPriceSync();
+      expect(setExpectedPriceCallCount).toBe(1);
+      expect(window.bidkingDesktop.runAutoOperationCommand.mock.calls.map(([name]) => name)).not.toContain('AutoAuction');
+
+      elsaExpectedPrice.value = 65000;
+      await flushPromises();
+
+      await advanceInitialExpectedPriceSync();
+      expect(setExpectedPriceCallCount).toBe(2);
+      expect(window.bidkingDesktop.runAutoOperationCommand.mock.calls.map(([name]) => name)).not.toContain('AutoAuction');
+
+      resolveFirstSetExpectedPrice?.({ ok: true, value: { price: 100000 }, response: {} });
+      await flushPromises();
+
+      expect(window.bidkingDesktop.runAutoOperationCommand.mock.calls.map(([name]) => name)).not.toContain('AutoAuction');
+
+      resolveSecondSetExpectedPrice?.({ ok: true, value: { price: 130000 }, response: {} });
+      await flushPromises();
+
+      expect(window.bidkingDesktop.runAutoOperationCommand.mock.calls.filter(([name]) => name === 'AutoAuction')).toHaveLength(1);
+    } finally {
+      resolveAutoAuction?.({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 130000 }, response: {} });
+      wrapper.unmount();
+      vi.useRealTimers();
+    }
+  });
 });

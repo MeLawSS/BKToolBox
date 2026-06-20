@@ -32,6 +32,8 @@ export function useElsaAutoOperation() {
   let hasSettledInitialExpectedPriceSync = false;
   let activeExpectedPriceSyncSessionId = 0;
   let nextExpectedPriceSyncSessionId = 0;
+  let activeInitialExpectedPriceSyncGeneration = 0;
+  let nextInitialExpectedPriceSyncGeneration = 0;
   const cmd = (name, args) => window.bidkingDesktop.runAutoOperationCommand(name, args);
   const autoBidPrice = computed(() =>
     computeElsaAutoBidPrice(elsaExpectedPrice.value, elsaAutoBidKnownQualityKeys.value)
@@ -65,10 +67,14 @@ export function useElsaAutoOperation() {
     rejectInitialExpectedPriceSync = null;
     hasSettledInitialExpectedPriceSync = false;
     activeExpectedPriceSyncSessionId = 0;
+    activeInitialExpectedPriceSyncGeneration = 0;
+    nextInitialExpectedPriceSyncGeneration = 0;
   }
 
   function createInitialExpectedPriceSyncPromise(sessionId) {
     activeExpectedPriceSyncSessionId = sessionId;
+    activeInitialExpectedPriceSyncGeneration = 0;
+    nextInitialExpectedPriceSyncGeneration = 0;
     hasSettledInitialExpectedPriceSync = false;
     initialExpectedPriceSync = new Promise((resolve, reject) => {
       resolveInitialExpectedPriceSync = resolve;
@@ -80,8 +86,20 @@ export function useElsaAutoOperation() {
     return Boolean(sessionId) && sessionId === activeExpectedPriceSyncSessionId;
   }
 
-  function settleInitialExpectedPriceSync(kind, value, sessionId) {
-    if (!isActiveExpectedPriceSyncSession(sessionId) || hasSettledInitialExpectedPriceSync) return;
+  function createInitialExpectedPriceSyncGeneration() {
+    nextInitialExpectedPriceSyncGeneration += 1;
+    activeInitialExpectedPriceSyncGeneration = nextInitialExpectedPriceSyncGeneration;
+    return activeInitialExpectedPriceSyncGeneration;
+  }
+
+  function isActiveInitialExpectedPriceSyncGeneration(sessionId, generation) {
+    return isActiveExpectedPriceSyncSession(sessionId)
+      && Boolean(generation)
+      && generation === activeInitialExpectedPriceSyncGeneration;
+  }
+
+  function settleInitialExpectedPriceSync(kind, value, sessionId, generation) {
+    if (!isActiveInitialExpectedPriceSyncGeneration(sessionId, generation) || hasSettledInitialExpectedPriceSync) return;
     hasSettledInitialExpectedPriceSync = true;
     if (kind === 'resolve') {
       resolveInitialExpectedPriceSync?.(value);
@@ -90,24 +108,25 @@ export function useElsaAutoOperation() {
     }
   }
 
-  async function syncExpectedPrice(price, { isInitial, sessionId } = {}) {
+  async function syncExpectedPrice(price, { isInitial, sessionId, generation } = {}) {
     await cmd('SetExpectedPrice', { price });
     if (isInitial) {
-      settleInitialExpectedPriceSync('resolve', undefined, sessionId);
+      settleInitialExpectedPriceSync('resolve', undefined, sessionId, generation);
     }
   }
 
   function scheduleExpectedPriceSync(price, { isInitial, sessionId } = {}) {
+    const generation = isInitial ? createInitialExpectedPriceSyncGeneration() : 0;
     pendingExpectedPriceValue = Number(price) || 0;
     clearPendingExpectedPriceTimer();
     pendingExpectedPriceTimer = setTimeout(async () => {
       pendingExpectedPriceTimer = null;
       if (!isEnabled.value) return;
       try {
-        await syncExpectedPrice(pendingExpectedPriceValue, { isInitial, sessionId });
+        await syncExpectedPrice(pendingExpectedPriceValue, { isInitial, sessionId, generation });
       } catch (error) {
         if (isInitial) {
-          settleInitialExpectedPriceSync('reject', error, sessionId);
+          settleInitialExpectedPriceSync('reject', error, sessionId, generation);
         } else if (isActiveExpectedPriceSyncSession(sessionId)) {
           addLog(`同步自动竞拍价格失败: ${error?.message || error}`, 'warn');
         }
