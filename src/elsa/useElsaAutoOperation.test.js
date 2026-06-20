@@ -55,7 +55,7 @@ describe('useElsaAutoOperation', () => {
     elsaExpectedPrice.value = 0;
     window.bidkingDesktop = {
       isDesktop: true,
-      runAutoOperationCommand: vi.fn().mockResolvedValue({ ok: true, value: { rounds: 2, expectedPrice: 50000 }, response: {} }),
+      runAutoOperationCommand: vi.fn().mockResolvedValue({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 0 }, response: {} }),
       writeDataFile: vi.fn().mockResolvedValue(undefined),
     };
   });
@@ -98,11 +98,19 @@ describe('useElsaAutoOperation', () => {
     monitorRunning = true;
     mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
     elsaExpectedPrice.value = 50000;
+    let resolveAuction;
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
+      if (name === 'AutoAuction') return new Promise((resolve) => { resolveAuction = resolve; });
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
     const { result, wrapper } = withSetup(() => useElsaAutoOperation());
     await result.enable();
     await flushPromises();
     expect(result.log.value.some(e => e.message.includes('已连接'))).toBe(true);
-    expect(result.isEnabled.value).toBe(false); // auto-disabled after runScript completes
+    expect(result.isEnabled.value).toBe(true);
+    await result.disable();
+    await flushPromises();
+    resolveAuction?.({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 0 }, response: {} });
     wrapper.unmount();
   });
 
@@ -269,15 +277,31 @@ describe('useElsaAutoOperation', () => {
     wrapper.unmount();
   });
 
-  it('disable() is called automatically after runScript completes', async () => {
+  it('starts a new AutoAuction round after the previous round completes', async () => {
     monitorRunning = true;
     mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
     elsaExpectedPrice.value = 50000;
+    const auctionResolvers = [];
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
+      if (name === 'AutoAuction') {
+        return new Promise((resolve) => {
+          auctionResolvers.push(resolve);
+        });
+      }
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
     const { result, wrapper } = withSetup(() => useElsaAutoOperation());
     await result.enable();
     await flushPromises();
-    expect(result.isEnabled.value).toBe(false);
+    expect(window.bidkingDesktop.runAutoOperationCommand.mock.calls.filter(([name]) => name === 'AutoAuction')).toHaveLength(1);
+    auctionResolvers[0]?.({ ok: true, value: { rounds: 2, expectedPrice: 50000 }, response: {} });
+    await flushPromises();
+    expect(window.bidkingDesktop.runAutoOperationCommand.mock.calls.filter(([name]) => name === 'AutoAuction')).toHaveLength(2);
+    expect(result.isEnabled.value).toBe(true);
     expect(result.log.value.some(e => e.message.includes('竞拍完成'))).toBe(true);
+    await result.disable();
+    await flushPromises();
+    auctionResolvers[1]?.({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 0 }, response: {} });
     wrapper.unmount();
   });
 

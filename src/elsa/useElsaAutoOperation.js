@@ -35,19 +35,20 @@ export function useElsaAutoOperation() {
   }
 
   async function runScript(signal) {
-    if (signal.aborted) throw new Error('操作已取消');
-    addLog('开始自动竞拍…');
-    addLog(`当前估价: ${elsaExpectedPrice.value || '无，将使用底价'}`);
+    while (!signal.aborted) {
+      addLog('开始自动竞拍…');
+      addLog(`当前估价: ${elsaExpectedPrice.value || '无，将使用底价'}`);
 
-    const result = await cmd('AutoAuction', { roomId: 101, useExpectedPrice: true });
-    const status = result?.value?.result || '';
-    const rounds = result?.value?.rounds ?? 0;
-    const usedPrice = result?.value?.expectedPrice ?? 0;
-    if (signal.aborted || status === 'canceled') {
-      addLog(`自动竞拍已停止，共出价 ${rounds} 轮，最近估价 ${usedPrice}`);
-      return;
+      const result = await cmd('AutoAuction', { roomId: 101, useExpectedPrice: true });
+      const status = result?.value?.result || '';
+      const rounds = result?.value?.rounds ?? 0;
+      const usedPrice = result?.value?.expectedPrice ?? 0;
+      if (signal.aborted || status === 'canceled') {
+        addLog(`自动竞拍已停止，共出价 ${rounds} 轮，最近估价 ${usedPrice}`);
+        return;
+      }
+      addLog(`竞拍完成，共出价 ${rounds} 轮，使用估价 ${usedPrice}`);
     }
-    addLog(`竞拍完成，共出价 ${rounds} 轮，使用估价 ${usedPrice}`);
   }
 
   async function enable() {
@@ -81,7 +82,14 @@ export function useElsaAutoOperation() {
       scriptAbort = controller;
       runScript(controller.signal)
         .catch(e => addLog(`脚本异常: ${e?.message || e}`, 'error'))
-        .finally(() => disable());
+        .finally(() => {
+          if (scriptAbort === controller) {
+            scriptAbort = null;
+          }
+          if (isEnabled.value && !controller.signal.aborted) {
+            disable();
+          }
+        });
     } finally {
       isBusy.value = false;
     }
