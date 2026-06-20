@@ -466,9 +466,12 @@ static ScreenState DetectScreenState() {
     bool hasMailMain     = FindVisiblePanelTransform("Mail_Main",            nullptr, &s.mailMainTransform,      err, sizeof(err)) == UI_PANEL_FOUND;
     bool hasTradingPanel = FindVisiblePanelTransform("TradingPanel",         nullptr, &s.tradingPanelTransform,  err, sizeof(err)) == UI_PANEL_FOUND;
     bool hasBattlePass   = FindVisiblePanelTransform("BattlePass_Main",      nullptr, &s.battlePassTransform,    err, sizeof(err)) == UI_PANEL_FOUND;
+    bool hasAuthCode     = FindVisiblePanelTransform("AuthCode_Main",        nullptr, nullptr,                   err, sizeof(err)) == UI_PANEL_FOUND;
                            FindVisiblePanelTransform("UIMain",               nullptr, &s.uiMainTransform,        err, sizeof(err));
 
-    if (hasBattleMain && s.battleMainTransform) {
+    if (hasAuthCode) {
+        s.screen = "authcode";
+    } else if (hasBattleMain && s.battleMainTransform) {
         std::vector<UiNodeSnapshot> endM, gamingM;
         ResolveUiNodeMatches(s.battleMainTransform, "EndPanel", UI_PATH_EXACT, 1, &endM);
         ResolveUiNodeMatches(s.battleMainTransform, "Gaming",   UI_PATH_EXACT, 1, &gamingM);
@@ -1000,6 +1003,20 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         return true;
     };
 
+    auto sendAuthCodeRequired = [&]() -> bool {
+        const int reportedExpectedPrice = lastExpectedPrice > 0 ? lastExpectedPrice : g_expectedPrice.load();
+        char result[160];
+        snprintf(
+            result,
+            sizeof(result),
+            "{\"result\":\"authcode_required\",\"rounds\":%d,\"expectedPrice\":%d}",
+            roundsPlayed,
+            reportedExpectedPrice
+        );
+        SendResponse(c, id, true, result);
+        return true;
+    };
+
     auto clickOnPanel = [&](const char* panelName, const char* nodePath, int delayMs) -> bool {
         Il2CppObject* t = nullptr;
         if (FindVisiblePanelTransform(panelName, nullptr, &t, errBuf, sizeof(errBuf)) != UI_PANEL_FOUND || !t)
@@ -1015,6 +1032,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
     for (int attempt = 0; ; attempt++) {
         if (stopIfRequested()) return;
         ScreenState cur = DetectScreenState();
+        if (IsAutoAuctionVerificationScreen(cur.screen)) {
+            Logf("AutoAuction interrupted: AuthCode_Main detected while navigating to main_lobby");
+            sendAuthCodeRequired();
+            return;
+        }
         if (strcmp(cur.screen, "main_lobby") == 0) break;
         if (attempt >= 10) { SendResponse(c, id, false, "could not reach main_lobby"); return; }
         Il2CppObject* t = nullptr; const char* p = nullptr;
@@ -1032,6 +1054,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         for (int i = 0; i < 15; i++) {
             if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
             ScreenState state = DetectScreenState();
+            if (IsAutoAuctionVerificationScreen(state.screen)) {
+                Logf("AutoAuction interrupted: AuthCode_Main detected while waiting for auction_lobby_map");
+                sendAuthCodeRequired();
+                return;
+            }
             if (strcmp(state.screen, "auction_lobby_map") == 0) { found = true; break; }
         }
         if (!found) { SendResponse(c, id, false, "timeout waiting for auction_lobby_map"); return; }
@@ -1051,6 +1078,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         for (int i = 0; i < 15; i++) {
             if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
             ScreenState state = DetectScreenState();
+            if (IsAutoAuctionVerificationScreen(state.screen)) {
+                Logf("AutoAuction interrupted: AuthCode_Main detected while waiting for auction_lobby_room");
+                sendAuthCodeRequired();
+                return;
+            }
             if (strcmp(state.screen, "auction_lobby_room") == 0) { found = true; break; }
         }
         if (!found) { SendResponse(c, id, false, "timeout waiting for auction_lobby_room"); return; }
@@ -1087,6 +1119,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     g_expectedPrice.load());
                 SendResponse(c, id, true, earlyResult); return;
             }
+            if (IsAutoAuctionVerificationScreen(sc)) {
+                Logf("AutoAuction interrupted: AuthCode_Main detected while waiting for auction_in_progress");
+                sendAuthCodeRequired();
+                return;
+            }
         }
         if (!found) { SendResponse(c, id, false, "timeout waiting for auction_in_progress"); return; }
     }
@@ -1101,6 +1138,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         ScreenState s = DetectScreenState();
 
         if (stopIfRequested()) return;
+        if (IsAutoAuctionVerificationScreen(s.screen)) {
+            Logf("AutoAuction interrupted: AuthCode_Main detected during bid loop");
+            sendAuthCodeRequired();
+            return;
+        }
         if (strcmp(s.screen, "auction_ended") == 0) break;
         if (strcmp(s.screen, "auction_in_progress") != 0 || !s.battleMainTransform) continue;
 
@@ -1257,6 +1299,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         for (int attempt = 0; attempt < 30; ++attempt) {
             if (stopIfRequested()) return;
             ScreenState se = DetectScreenState();
+            if (IsAutoAuctionVerificationScreen(se.screen)) {
+                Logf("AutoAuction interrupted: AuthCode_Main detected during cleanup winner detection");
+                sendAuthCodeRequired();
+                return;
+            }
             if (!IsAutoAuctionCleanupEndedScreen(se.screen) || !se.battleMainTransform) break;
 
             std::string winnerName;
@@ -1312,6 +1359,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             const int attemptNumber = attempt + 1;
             if (stopIfRequested()) return;
             ScreenState se = DetectScreenState();
+            if (IsAutoAuctionVerificationScreen(se.screen)) {
+                Logf("AutoAuction interrupted: AuthCode_Main detected during cleanup exit flow");
+                sendAuthCodeRequired();
+                return;
+            }
             if (IsAutoAuctionCleanupCompleteScreen(se.screen)) {
                 cleanupComplete = true;
                 break;

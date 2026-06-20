@@ -74,6 +74,7 @@ describe('useElsaAutoOperation', () => {
       isDesktop: true,
       runAutoOperationCommand: vi.fn().mockResolvedValue({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 0 }, response: {} }),
       writeDataFile: vi.fn().mockResolvedValue(undefined),
+      showNotification: vi.fn().mockResolvedValue({ ok: true, shown: true }),
     };
   });
 
@@ -361,6 +362,41 @@ describe('useElsaAutoOperation', () => {
     await flushPromises();
     expect(result.log.value.some(e => e.message.includes('自动竞拍已停止'))).toBe(true);
     expect(result.log.value.some(e => e.message.includes('竞拍完成'))).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('stops auto operation and shows a desktop notification when AutoAuction requires auth code', async () => {
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
+    let autoAuctionCalls = 0;
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
+      if (name === 'AutoAuction') {
+        autoAuctionCalls += 1;
+        if (autoAuctionCalls === 1) {
+          return Promise.resolve({
+            ok: true,
+            value: { result: 'authcode_required', rounds: 0, expectedPrice: 50000 },
+            response: {},
+          });
+        }
+        return new Promise(() => {});
+      }
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
+
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
+    await result.enable();
+    await flushPromises();
+
+    expect(autoAuctionCalls).toBe(1);
+    expect(result.isEnabled.value).toBe(false);
+    expect(mockUnloadAgent).toHaveBeenCalledTimes(1);
+    expect(window.bidkingDesktop.showNotification).toHaveBeenCalledWith(
+      'BKToolBox',
+      expect.stringContaining('验证'),
+    );
+    expect(result.log.value.some(e => e.message.includes('验证'))).toBe(true);
     wrapper.unmount();
   });
 });

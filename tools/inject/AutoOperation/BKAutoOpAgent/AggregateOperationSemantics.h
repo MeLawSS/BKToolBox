@@ -44,6 +44,10 @@ inline bool IsAutoAuctionCleanupRecoverableScreen(const char* screen) {
         IsAutoAuctionCleanupEndedScreen(screen);
 }
 
+inline bool IsAutoAuctionVerificationScreen(const char* screen) {
+    return screen && strcmp(screen, "authcode") == 0;
+}
+
 inline int GetAutoAuctionCleanupMaxAttempts() {
     return 40;
 }

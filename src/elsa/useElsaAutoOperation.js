@@ -9,6 +9,9 @@ import {
 } from './elsaEstimateState.js';
 
 const MAX_LOG = 200;
+const AUTO_AUCTION_AUTH_CODE_RESULT = 'authcode_required';
+const AUTO_AUCTION_AUTH_CODE_MESSAGE = '检测到验证界面，已停止自动竞拍，请手动完成验证。';
+const AUTO_AUCTION_NOTIFICATION_TITLE = 'BKToolBox';
 
 export function useElsaAutoOperation() {
   const monitor = useMonitorSwitch();
@@ -39,6 +42,16 @@ export function useElsaAutoOperation() {
   function writePriceFile(price) {
     window.bidkingDesktop.writeDataFile('Price', String(price || 0))
       .catch(e => addLog(`价格文件写入失败: ${e?.message || e}`, 'warn'));
+  }
+
+  async function showDesktopNotification(title, body) {
+    const notify = window.bidkingDesktop?.showNotification;
+    if (typeof notify !== 'function') return;
+    try {
+      await notify(title, body);
+    } catch (e) {
+      addLog(`Windows 通知发送失败: ${e?.message || e}`, 'warn');
+    }
   }
 
   async function stopAutomation(options = {}) {
@@ -75,6 +88,12 @@ export function useElsaAutoOperation() {
       const usedPrice = result?.value?.expectedPrice ?? 0;
       if (signal.aborted || status === 'canceled') {
         addLog(`自动竞拍已停止，共出价 ${rounds} 轮，最近出价 ${usedPrice}`);
+        return;
+      }
+      if (status === AUTO_AUCTION_AUTH_CODE_RESULT) {
+        addLog(AUTO_AUCTION_AUTH_CODE_MESSAGE, 'warn');
+        await stopAutomation({ requestCancel: false });
+        await showDesktopNotification(AUTO_AUCTION_NOTIFICATION_TITLE, AUTO_AUCTION_AUTH_CODE_MESSAGE);
         return;
       }
       addLog(`竞拍完成，共出价 ${rounds} 轮，使用出价 ${usedPrice}`);

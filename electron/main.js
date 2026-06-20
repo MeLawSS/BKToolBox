@@ -1,7 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, Notification, screen } = require('electron');
 const {
     claimCabinetReward,
     confirmHighPriceExchangeListing,
@@ -45,6 +45,7 @@ const {
     isAhmedUrl,
     isEthanUrl,
 } = require('./desktop-utils');
+const { showDesktopNotification } = require('./services/desktop-notification');
 const startupLogPath = path.join(os.tmpdir(), 'bidking-electron.log');
 const screenshotHotkey = process.env.BIDKING_SCREENSHOT_HOTKEY || 'CommandOrControl+Shift+A';
 const regionScreenshotHotkey =
@@ -704,6 +705,13 @@ function registerIpc() {
         const dir = path.join(app.getPath('documents'), 'BidKing');
         fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(path.join(dir, filename), String(content ?? ''), 'utf8');
+    });
+    ipcMain.handle('app:showNotification', (_event, payload) => {
+        try {
+            return showDesktopNotification(payload, { Notification });
+        } catch (error) {
+            return { ok: false, error: error?.message || String(error) };
+        }
     });
 }
 

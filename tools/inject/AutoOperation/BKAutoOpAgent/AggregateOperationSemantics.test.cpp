@@ -31,6 +31,8 @@ int main() {
     assert(IsAutoAuctionCleanupRecoverableScreen("auction_lobby_map"));
     assert(IsAutoAuctionCleanupRecoverableScreen("main_lobby"));
     assert(!IsAutoAuctionCleanupRecoverableScreen("warehouse"));
+    assert(IsAutoAuctionVerificationScreen("authcode"));
+    assert(!IsAutoAuctionVerificationScreen("auction_in_progress"));
     assert(GetAutoAuctionCleanupMaxAttempts() == 40);
     assert(strcmp(PickAutoAuctionEndedPrimaryActionPath(true, false), "EndPanel/tuichu/receiveBtn") == 0);
     assert(strcmp(PickAutoAuctionEndedPrimaryActionPath(false, true), "EndPanel/tuichu/continueBtn") == 0);
