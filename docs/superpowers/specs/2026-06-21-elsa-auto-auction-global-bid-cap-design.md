@@ -36,7 +36,7 @@ Rejected because the final submitted amount is decided in native `AutoAuction`, 
 
 Add a small helper in `AggregateOperationSemantics.h`:
 
-- `ResolveAutoAuctionFinalBidAmount(int computedAmount, int maxAmount) -> int`
+- `ClampAutoAuctionBidAmount(int computedAmount, int maxAmount) -> int`
 
 Rules:
 
@@ -50,18 +50,31 @@ For this feature, `maxAmount` is hard-coded to `150000`.
 Inside `CmdAutoAuction()`:
 
 1. Keep the existing amount computation path unchanged.
-2. After opponent-cap logic has produced the round's effective `amount`, derive:
-   - `const int finalAmount = ResolveAutoAuctionFinalBidAmount(amount, 150000);`
-3. Use `finalAmount` for:
+2. After the round's effective `amount` has been finalized for submission, derive:
+   - `const int finalAmount = ClampAutoAuctionBidAmount(amount, 150000);`
+3. The concrete insertion point is the existing submit path immediately before the code formats the amount string for `InputDevice/Panel1/InputField (TMP)`.
+4. If opponent-cap logic is present, this clamp happens after that limiter has already produced the round's effective `amount`.
+5. If opponent-cap logic is absent, the same clamp still applies at the same final-submit location.
+6. Use `finalAmount` for:
    - writing into `InputDevice/Panel1/InputField (TMP)`
    - the rest of the same-round submit flow
-4. Do not rework the existing round-advancement or cleanup logic.
+7. Do not rework the existing round-advancement or cleanup logic.
 
 ### 3. Logging
 
-If the cap changes the amount, native log lines should make that visible. Minimal acceptable form:
+If the cap changes the amount, native log lines should make that visible. The log is emitted at the call site in `MetaOperations.cpp`, not from the pure helper. Minimal acceptable form:
+
+```cpp
+const int finalAmount = ClampAutoAuctionBidAmount(amount, 150000);
+if (finalAmount != amount) {
+    Logf("AutoAuction amount capped: %d -> %d", amount, finalAmount);
+}
+```
+
+Requirements:
 
 - include both the pre-cap amount and the final submitted amount
+- only emit this extra line when the cap actually changes the submitted amount
 
 This preserves operator debuggability when a round is clipped by the global ceiling.
 
