@@ -893,8 +893,10 @@ static bool TryReadOpponentPreviousRoundBid(
 //   3. EnterRoom → wait for auction_lobby_room                          [poll 1s, max 15s]
 //   4. OpenSkillConfig → SelectRole → StartAction                       [1.5s each]
 //   5. Wait for auction_in_progress                                     [poll 1.5s, max 120s]
-//   6. Bid loop: when secs < 30 in a new round → PlaceBid +
-//               SetBidAmount + ConfirmBid; repeat until auction_ended
+//   6. Bid loop:
+//      - useExpectedPrice: bid on each new round using the latest notified expected price
+//      - legacy bidAmount path: bid on each new round only when secs < 15
+//      Both paths then PlaceBid + SetBidAmount + ConfirmBid until auction_ended.
 //   7. 快捷回收 (PanelBattleHuiShouTran/huishou, if active)
 //   8. Exit: continueBtn → auction_lobby_map → BattlePrevPanel_Main/Top/Close → main_lobby
 // Returns {"result":"auction_ended","rounds":<n>}
@@ -1412,6 +1414,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
     char result[128];
     snprintf(result, sizeof(result),
         "{\"result\":\"auction_ended\",\"rounds\":%d,\"expectedPrice\":%d}",
-        roundsPlayed, lastExpectedPrice);
+        roundsPlayed,
+        ResolveAutoAuctionReportedExpectedPrice(lastExpectedPrice, g_notifiedExpectedPrice.load()));
     SendResponse(c, id, true, result);
 }
