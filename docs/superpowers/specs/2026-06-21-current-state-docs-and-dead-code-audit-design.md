@@ -22,7 +22,10 @@ This audit only covers:
 - user-facing formal manuals
   - `docs/AUTO_OPERATION_COMMANDS.md`
   - `docs/AUTO_OPERATION_MANUAL.md`
-  - `docs/BIDKING_*.md`
+  - candidate `docs/BIDKING_*.md` files, but only if their actual content functions as a current user-facing formal manual
+    - `docs/BIDKING_GAME_LOG_REVERSE_ENGINEERING.md`
+    - `docs/BIDKING_REALTIME_PROTOCOL_SCHEMA.md`
+    - `docs/BIDKING_SKILL_PARSE_SUPPORT.md`
   - `docs/CONTROLLER_PAGE_COMMAND_EXAMPLES.md`
 - the current code surface needed to verify those docs and identify retired code
   - `src/`
@@ -91,6 +94,8 @@ A code item qualifies only when all of the following are true:
 - the old code no longer has a meaningful current entry/caller/integration role
 
 This class is for code that is effectively retired, not just secondary.
+
+If a code path still has a caller, but that caller is itself classified as high-confidence dead/retired code and there is no surviving current entry into the chain, the whole chain may be classified as high-confidence dead/retired code.
 
 ### Suspected dead/retired code
 
@@ -168,6 +173,12 @@ Each candidate must end in exactly one of:
 - suspected dead/retired code
 
 ## Report Structure
+
+The audit report should be written to:
+
+- `docs/superpowers/reports/2026-06-21-current-state-audit.md`
+
+The report is a tracked repository artifact and should be committed, not left only as conversation output.
 
 The final audit report should have these sections:
 
