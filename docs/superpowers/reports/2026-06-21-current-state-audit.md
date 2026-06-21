@@ -2,8 +2,6 @@
 
 ## Scope And Method
 
-This report currently contains the report skeleton and the opening scope/method statement only. The later section headings are intentional placeholders for evidence-backed findings that are added in subsequent audit tasks.
-
 This audit covers only current-state documents and formal user-facing/operator manuals that describe the repository's present behavior, supported surfaces, or current operating workflow.
 
 Audited current-state documents:
@@ -49,7 +47,9 @@ Verification surface for later findings is limited to the current implementation
 
 Excluded from scope:
 
-- `docs/superpowers/*`
+- `docs/superpowers/plans/`
+- `docs/superpowers/specs/`
+- `docs/superpowers/reviews/`
 - `Archive/`
 - `tmp/`
 - `coverage/`
@@ -97,17 +97,21 @@ This report is evidence-first. A finding must cite observable repository facts f
 
 ## High-Confidence Dead/Retired Code
 
+No high-confidence dead/retired code findings retained.
+
+## Suspected Outdated Documents / Suspected Dead Code
+
 ### [BKAutoOpClient native pipe client DLL has no current in-repo caller or integration]
 
 - Files: `tools/inject/AutoOperation/BKAutoOpClient/BKAutoOpClient.cpp`, `tools/inject/AutoOperation/BKAutoOpClient/BKAutoOpClient.h`, `tools/inject/AutoOperation/BKAutoOpClient/build.sh`
 - Former role: Native C DLL client for the `\\.\pipe\BKAutoOp` protocol, exporting `BKConnect`, `BKSendCommand`, `BKSetEventCallback`, and `BKBuildCommand` so a native consumer could talk to the AutoOperation agent over the named pipe.
 - Current live path: Surviving in-scope named-pipe paths are `electron/services/inject-service.js` for the Electron service-side pipe flow, `electron/preload.js` exposing the renderer-to-main bridge that reaches that service flow through `electron/main.js`, and `tools/bkcli/pipe.js` as the current CLI pipe client.
-- Current live-path evidence: `electron/preload.js` exposes `startAutoOperationAgent` and `runAutoOperationCommand`; `electron/main.js` routes those bridge calls into `electron/services/inject-service.js`; `tools/bkcli/pipe.js` remains the in-repo CLI named-pipe client. Within the audited surface, CodeGraph/text search finds `BKConnect`, `BKSendCommand`, `BKBuildCommand`, and `BKSetEventCallback` only in `BKAutoOpClient.cpp`, `codegraph_callers` reports no callers for `BKSendCommand`, and the only remaining build target for this path is `tools/inject/AutoOperation/BKAutoOpClient/build.sh`.
-- Classification: high-confidence dead/retired code
-- Reason: The audited surface still contains active named-pipe client flows, but the native `BKAutoOpClient` DLL path itself has no current in-repo caller chain, no user/runtime entry point, and no bridge or service integration.
-
-## Suspected Outdated Documents / Suspected Dead Code
-
-This audit pass did not retain any suspected dead/retired-code finding.
+- Current live-path evidence: `electron/preload.js` exposes `startAutoOperationAgent` and `runAutoOperationCommand`; `electron/main.js` routes those bridge calls into `electron/services/inject-service.js`; `tools/bkcli/pipe.js` remains the in-repo CLI named-pipe client. Within the audited surface, CodeGraph/text search finds `BKConnect`, `BKSendCommand`, `BKBuildCommand`, and `BKSetEventCallback` only in `BKAutoOpClient.cpp` and `BKAutoOpClient.h`, `codegraph_callers` reports no callers for `BKSendCommand`, and the only remaining build target for this path is `tools/inject/AutoOperation/BKAutoOpClient/build.sh`.
+- Classification: suspected dead/retired code
+- Reason: The audited surface does not show any current in-repo caller chain, route, page entry, bridge integration, or runtime integration for the native `BKAutoOpClient` DLL path, but the public header and dedicated build target leave unresolved ambiguity about possible external consumers outside the audited surface.
 
 ## Optional Next Actions
+
+- Rewrite `docs/Documentation.md` so the current `Inject` Controller and MetaOperation surfaces match the shipped panel composition and command exposure.
+- Refresh `docs/AUTO_OPERATION_MANUAL.md` and `docs/AUTO_OPERATION_COMMANDS.md` so their dispatch-table inventories match the commands currently registered in `BKAutoOpAgent.cpp`.
+- Decide whether `tools/inject/AutoOperation/BKAutoOpClient/` should be deleted, archived, or kept with an explicit “no current in-repo integration” note.
