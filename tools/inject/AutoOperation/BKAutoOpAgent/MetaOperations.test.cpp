@@ -1,5 +1,6 @@
 #include "AutoAuctionOpponentCap.h"
 #include "AutoAuctionResponseFormatting.h"
+#include "AutoCollectCabinetRewardStateFormatting.h"
 #include "UiClickComponentSemantics.h"
 
 #include <assert.h>
@@ -49,5 +50,36 @@ int main() {
     assert(ResolveUiClickComponentKind(true, true) == UI_CLICK_COMPONENT_BUTTON);
     assert(BuildAutoAuctionAuthCodeRequiredResult(2, 60000)
            == "{\"result\":\"authcode_required\",\"reason\":\"authcode_detected\",\"rounds\":2,\"expectedPrice\":60000}");
+
+    assert(ConvertWindowsFileTime100nsToUnixMs(116444736000000000ULL) == 0ULL);
+    assert(ConvertWindowsFileTime100nsToUnixMs(116444736010000000ULL) == 1000ULL);
+
+    AutoCollectCabinetRewardStateSnapshot disabledState = {};
+    disabledState.enabled = false;
+    disabledState.running = false;
+    disabledState.intervalMs = 10800000;
+    disabledState.nextCheckInMs = -1;
+    disabledState.lastCheckAtUnixMs = 0;
+    disabledState.lastResultCode = "never_run";
+    disabledState.lastResultMessage = "";
+    disabledState.lastObservedScreen = "";
+    assert(
+        BuildAutoCollectCabinetRewardStateJson(disabledState) ==
+        "{\"enabled\":false,\"running\":false,\"intervalMs\":10800000,\"nextCheckInMs\":null,\"lastCheckAtUnixMs\":0,\"lastResultCode\":\"never_run\",\"lastResultMessage\":\"\",\"lastObservedScreen\":\"\"}"
+    );
+
+    AutoCollectCabinetRewardStateSnapshot enabledState = {};
+    enabledState.enabled = true;
+    enabledState.running = true;
+    enabledState.intervalMs = 10800000;
+    enabledState.nextCheckInMs = 3210;
+    enabledState.lastCheckAtUnixMs = 1710000000123ULL;
+    enabledState.lastResultCode = "running";
+    enabledState.lastResultMessage = "cycle active";
+    enabledState.lastObservedScreen = "main_lobby";
+    assert(
+        BuildAutoCollectCabinetRewardStateJson(enabledState) ==
+        "{\"enabled\":true,\"running\":true,\"intervalMs\":10800000,\"nextCheckInMs\":3210,\"lastCheckAtUnixMs\":1710000000123,\"lastResultCode\":\"running\",\"lastResultMessage\":\"cycle active\",\"lastObservedScreen\":\"main_lobby\"}"
+    );
     return 0;
 }
