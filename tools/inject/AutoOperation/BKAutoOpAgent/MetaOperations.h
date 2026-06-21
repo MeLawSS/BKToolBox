@@ -5,6 +5,7 @@
 #include <string>
 #include <limits.h>
 #include "../protocol.h"
+#include "UiClickComponentSemantics.h"
 
 // Minimal IL2CPP types needed by shared structs and function signatures
 typedef void Il2CppObject;
@@ -81,8 +82,10 @@ bool                ResolveUiNodeMatches(Il2CppObject* anchor, const char* path,
                                          UiPathMode pathMode, int maxMatches,
                                          std::vector<UiNodeSnapshot>* matches);
 bool                PerformButtonClick(Il2CppObject* buttonComponent);
+bool                PerformToggleClick(Il2CppObject* toggleComponent);
 bool                PerformSetInputText(const UiNodeSnapshot& node, const char* text, bool submit, std::string* componentName);
 bool                ReadNodeTextValue(const UiComponentRefs& refs, std::string* out);
+bool                ReadToggleValue(const UiComponentRefs& refs, bool* out);
 
 // --------------------------------------------------------------------------
 // Meta-operation commands (defined in MetaOperations.cpp)

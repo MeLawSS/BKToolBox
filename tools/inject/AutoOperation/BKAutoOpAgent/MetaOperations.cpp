@@ -478,11 +478,24 @@ static bool ClickNode(Il2CppObject* anchor, const char* path,
                       int delayMs, std::string* errOut) {
     std::vector<UiNodeSnapshot> m;
     ResolveUiNodeMatches(anchor, path, UI_PATH_EXACT, 1, &m);
-    if (m.empty() || !m[0].active || !m[0].components.button) {
+    if (m.empty() || !m[0].active) {
         if (errOut) *errOut = std::string("node not ready: ") + path;
         return false;
     }
-    if (!PerformButtonClick(m[0].components.button)) {
+    const UiClickComponentKind clickKind = ResolveUiClickComponentKind(
+        m[0].components.button != nullptr,
+        m[0].components.toggle != nullptr
+    );
+    bool clicked = false;
+    if (clickKind == UI_CLICK_COMPONENT_BUTTON) {
+        clicked = PerformButtonClick(m[0].components.button);
+    } else if (clickKind == UI_CLICK_COMPONENT_TOGGLE) {
+        clicked = PerformToggleClick(m[0].components.toggle);
+    } else {
+        if (errOut) *errOut = std::string("node not clickable: ") + path;
+        return false;
+    }
+    if (!clicked) {
         if (errOut) *errOut = std::string("click failed: ") + path;
         return false;
     }

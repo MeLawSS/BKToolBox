@@ -1932,7 +1932,7 @@ bool ReadNodeTextValue(const UiComponentRefs& refs, std::string* out) {
     return false;
 }
 
-static bool ReadToggleValue(const UiComponentRefs& refs, bool* out) {
+bool ReadToggleValue(const UiComponentRefs& refs, bool* out) {
     if (!refs.toggle || !out) return false;
     const char* const names[] = { "get_isOn", nullptr };
     return InvokeBoolGetterByNames(refs.toggle, names, out);
@@ -2332,7 +2332,7 @@ bool PerformButtonClick(Il2CppObject* buttonComponent) {
     );
 }
 
-static bool PerformToggleClick(Il2CppObject* toggleComponent) {
+bool PerformToggleClick(Il2CppObject* toggleComponent) {
     if (!toggleComponent) return false;
     UiMainThreadClickPlan plan = ResolveToggleMainThreadClickPlan();
     if (QueueManagedNoArgActionOnMainThread(toggleComponent, plan.methodName, plan.fallbackMethodName)) {
