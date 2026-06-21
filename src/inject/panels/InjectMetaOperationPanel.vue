@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from '../../shared/i18n.js';
 import { useAutoOperationAgentRuntimeState } from '../../shared/useAutoOperationAgentSwitch.js';
 
@@ -117,7 +117,7 @@ const latestResultPayload = ref(null);
 const autoCollectState = ref({ ...DEFAULT_AUTO_COLLECT_STATE });
 const autoCollectLoading = ref(false);
 const autoCollectStateLoaded = ref(false);
-const autoCollectProbeNeedsHistoryReset = ref(false);
+const autoCollectInitialTransportAttempted = ref(false);
 
 const desktopReady = computed(() => Boolean(window.bidkingDesktop?.isDesktop));
 const agentBridgeAvailable = computed(() => agent.isAvailable.value);
@@ -198,20 +198,9 @@ function getActionButtonText(command) {
     : t('inject.metaOperationExecute');
 }
 
-function resetBridgeMockHistoryAfterAutoCollectProbe() {
-  if (!autoCollectProbeNeedsHistoryReset.value) return;
-
-  const bridgeCommand = window.bidkingDesktop?.runAutoOperationCommand;
-  if (typeof bridgeCommand?.mockClear === 'function') {
-    bridgeCommand.mockClear();
-  }
-  autoCollectProbeNeedsHistoryReset.value = false;
-}
-
 async function runMetaOperationCommand(command, args = {}) {
   if (!canRunMetaOperation.value) return;
 
-  resetBridgeMockHistoryAfterAutoCollectProbe();
   panelError.value = '';
   latestCommand.value = command;
   latestResultLabel.value = t(META_OPERATION_LABEL_KEYS[command] || command);
@@ -247,24 +236,22 @@ async function loadAutoCollectState() {
     return;
   }
 
-  autoCollectStateLoaded.value = true;
   autoCollectLoading.value = true;
-  const bridgeCommand = window.bidkingDesktop.runAutoOperationCommand;
 
   try {
-    const response = await bridgeCommand('GetAutoCollectCabinetRewardState', {});
+    const response = await window.bidkingDesktop.runAutoOperationCommand(
+      'GetAutoCollectCabinetRewardState',
+      {},
+    );
     if (response?.value) {
-      autoCollectProbeNeedsHistoryReset.value = false;
+      autoCollectStateLoaded.value = true;
       autoCollectState.value = {
         ...DEFAULT_AUTO_COLLECT_STATE,
         ...response.value,
       };
-    } else {
-      autoCollectProbeNeedsHistoryReset.value = true;
     }
   } catch {
     // Initial scheduler state is best-effort and should not surface panel errors.
-    autoCollectProbeNeedsHistoryReset.value = true;
   } finally {
     autoCollectLoading.value = false;
   }
@@ -273,7 +260,6 @@ async function loadAutoCollectState() {
 async function toggleAutoCollectEnabled(nextEnabled) {
   if (!transportReady.value || effectiveCommandLoading.value) return;
 
-  resetBridgeMockHistoryAfterAutoCollectProbe();
   panelError.value = '';
   localCommandLoading.value = 'SetAutoCollectCabinetRewardEnabled';
   emit('command-loading-change', 'SetAutoCollectCabinetRewardEnabled');
@@ -284,6 +270,7 @@ async function toggleAutoCollectEnabled(nextEnabled) {
       { enabled: nextEnabled },
     );
     if (response?.value) {
+      autoCollectStateLoaded.value = true;
       autoCollectState.value = {
         ...DEFAULT_AUTO_COLLECT_STATE,
         ...response.value,
@@ -312,14 +299,46 @@ async function submitSetBidAmount() {
   });
 }
 
+onMounted(async () => {
+  await nextTick();
+  if (
+    transportReady.value &&
+    !props.commandLoading &&
+    !autoCollectStateLoaded.value &&
+    !autoCollectLoading.value
+  ) {
+    autoCollectInitialTransportAttempted.value = true;
+    void loadAutoCollectState();
+  }
+});
+
+watch(transportReady, (ready, previous) => {
+  if (
+    ready &&
+    !previous &&
+    !autoCollectInitialTransportAttempted.value &&
+    !props.commandLoading &&
+    !autoCollectStateLoaded.value &&
+    !autoCollectLoading.value
+  ) {
+    autoCollectInitialTransportAttempted.value = true;
+    void loadAutoCollectState();
+  }
+});
+
 watch(
-  transportReady,
-  (ready) => {
-    if (ready) {
+  () => props.commandLoading,
+  (loading, previous) => {
+    if (
+      !loading &&
+      previous &&
+      transportReady.value &&
+      !autoCollectStateLoaded.value &&
+      !autoCollectLoading.value
+    ) {
       void loadAutoCollectState();
     }
   },
-  { immediate: true },
 );
 </script>
 

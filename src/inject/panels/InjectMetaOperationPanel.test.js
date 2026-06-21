@@ -133,9 +133,10 @@ describe('InjectMetaOperationPanel', () => {
     await flushPromises();
     await nextTick();
 
-    expect(runAutoOperationCommand).toHaveBeenNthCalledWith(1, 'OpenSkillConfig', {});
-    expect(runAutoOperationCommand).toHaveBeenNthCalledWith(2, 'StartAction', {});
-    expect(runAutoOperationCommand).toHaveBeenNthCalledWith(3, 'GetBidState', {});
+    expect(runAutoOperationCommand).toHaveBeenNthCalledWith(1, 'GetAutoCollectCabinetRewardState', {});
+    expect(runAutoOperationCommand).toHaveBeenNthCalledWith(2, 'OpenSkillConfig', {});
+    expect(runAutoOperationCommand).toHaveBeenNthCalledWith(3, 'StartAction', {});
+    expect(runAutoOperationCommand).toHaveBeenNthCalledWith(4, 'GetBidState', {});
   });
 
   it('loads auto collect scheduler state on mount and renders the enabled status', async () => {
@@ -219,6 +220,87 @@ describe('InjectMetaOperationPanel', () => {
     expect(
       lockedWrapper.get('[data-testid="meta-operation-auto-collect-toggle"]').element.disabled,
     ).toBe(true);
+  });
+
+  it('retries loading auto collect scheduler state after the shared command lock is released', async () => {
+    const runAutoOperationCommand = setupConnectedDesktop(
+      vi.fn().mockResolvedValue({
+        ok: true,
+        value: {
+          enabled: false,
+          running: false,
+          intervalMs: 10800000,
+          nextCheckInMs: null,
+          lastCheckAtUnixMs: 1710000000123,
+          lastResultCode: 'disabled',
+          lastResultMessage: 'disabled by user',
+          lastObservedScreen: 'main_lobby',
+        },
+      }),
+    );
+
+    const wrapper = await mountPanel({ commandLoading: 'CollectCabinetReward' });
+
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+
+    await wrapper.setProps({ commandLoading: '' });
+    await flushPromises();
+    await nextTick();
+
+    expect(runAutoOperationCommand).toHaveBeenCalledTimes(1);
+    expect(runAutoOperationCommand).toHaveBeenCalledWith('GetAutoCollectCabinetRewardState', {});
+    expect(wrapper.get('[data-testid="meta-operation-auto-collect-status"]').text()).toContain(
+      '已关闭',
+    );
+  });
+
+  it('retries loading auto collect scheduler state after an empty or failed probe response', async () => {
+    const runAutoOperationCommand = setupConnectedDesktop(
+      vi.fn()
+        .mockResolvedValueOnce({ ok: true })
+        .mockRejectedValueOnce(new Error('probe failed'))
+        .mockResolvedValueOnce({
+          ok: true,
+          value: {
+            enabled: true,
+            running: false,
+            intervalMs: 10800000,
+            nextCheckInMs: 3600000,
+            lastCheckAtUnixMs: 0,
+            lastResultCode: 'never_run',
+            lastResultMessage: '',
+            lastObservedScreen: '',
+          },
+        }),
+    );
+
+    const wrapper = await mountPanel();
+
+    expect(runAutoOperationCommand).toHaveBeenNthCalledWith(1, 'GetAutoCollectCabinetRewardState', {});
+    expect(wrapper.get('[data-testid="meta-operation-auto-collect-status"]').text()).toContain(
+      '未运行',
+    );
+
+    await wrapper.setProps({ commandLoading: 'CollectCabinetReward' });
+    await flushPromises();
+    await nextTick();
+    await wrapper.setProps({ commandLoading: '' });
+    await flushPromises();
+    await nextTick();
+
+    expect(runAutoOperationCommand).toHaveBeenNthCalledWith(2, 'GetAutoCollectCabinetRewardState', {});
+
+    await wrapper.setProps({ commandLoading: 'PlaceBid' });
+    await flushPromises();
+    await nextTick();
+    await wrapper.setProps({ commandLoading: '' });
+    await flushPromises();
+    await nextTick();
+
+    expect(runAutoOperationCommand).toHaveBeenNthCalledWith(3, 'GetAutoCollectCabinetRewardState', {});
+    expect(wrapper.get('[data-testid="meta-operation-auto-collect-toggle"]').element.checked).toBe(
+      true,
+    );
   });
 
   it('disables the actions and room select when transport is not ready or the shared lock is held', async () => {
