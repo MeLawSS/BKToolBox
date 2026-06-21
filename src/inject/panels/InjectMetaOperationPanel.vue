@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from '../../shared/i18n.js';
 import { useAutoOperationAgentRuntimeState } from '../../shared/useAutoOperationAgentSwitch.js';
 
@@ -84,6 +84,17 @@ const META_OPERATION_LABEL_KEYS = {
   CollectCabinetReward: 'inject.metaOperationCollectCabinetReward',
 };
 
+const DEFAULT_AUTO_COLLECT_STATE = {
+  enabled: true,
+  running: false,
+  intervalMs: 10800000,
+  nextCheckInMs: null,
+  lastCheckAtUnixMs: 0,
+  lastResultCode: 'never_run',
+  lastResultMessage: '',
+  lastObservedScreen: '',
+};
+
 const props = defineProps({
   commandLoading: {
     type: String,
@@ -103,6 +114,10 @@ const panelError = ref('');
 const latestCommand = ref('');
 const latestResultLabel = ref('');
 const latestResultPayload = ref(null);
+const autoCollectState = ref({ ...DEFAULT_AUTO_COLLECT_STATE });
+const autoCollectLoading = ref(false);
+const autoCollectStateLoaded = ref(false);
+const autoCollectProbeNeedsHistoryReset = ref(false);
 
 const desktopReady = computed(() => Boolean(window.bidkingDesktop?.isDesktop));
 const agentBridgeAvailable = computed(() => agent.isAvailable.value);
@@ -131,6 +146,37 @@ const latestResultText = computed(() =>
 );
 
 const hasLatestResult = computed(() => latestResultPayload.value !== null);
+const autoCollectStatusText = computed(() => {
+  if (autoCollectState.value.running) {
+    return t('inject.metaOperationAutoCollectCabinetRewardStatusRunning');
+  }
+  if (!autoCollectState.value.enabled) {
+    return t('inject.metaOperationAutoCollectCabinetRewardDisabled');
+  }
+
+  switch (autoCollectState.value.lastResultCode) {
+    case 'skipped_not_main_lobby':
+      return t('inject.metaOperationAutoCollectCabinetRewardStatusSkippedMainLobby');
+    case 'skipped_auto_auction_running':
+      return t('inject.metaOperationAutoCollectCabinetRewardStatusSkippedAutoAuction');
+    case 'skipped_collect_running':
+      return t('inject.metaOperationAutoCollectCabinetRewardStatusSkippedBusy');
+    case 'success':
+      return t('inject.metaOperationAutoCollectCabinetRewardStatusSuccess');
+    case 'failed':
+      return t('inject.metaOperationAutoCollectCabinetRewardStatusFailed');
+    default:
+      return t('inject.metaOperationAutoCollectCabinetRewardStatusNeverRun');
+  }
+});
+const autoCollectEnabledText = computed(() =>
+  autoCollectState.value.enabled
+    ? t('inject.metaOperationAutoCollectCabinetRewardEnabled')
+    : t('inject.metaOperationAutoCollectCabinetRewardDisabled'),
+);
+const autoCollectToggleDisabled = computed(() =>
+  Boolean(!transportReady.value || effectiveCommandLoading.value || autoCollectLoading.value),
+);
 
 const transportHintText = computed(() => {
   if (!desktopReady.value) return t('inject.unavailable');
@@ -152,9 +198,20 @@ function getActionButtonText(command) {
     : t('inject.metaOperationExecute');
 }
 
+function resetBridgeMockHistoryAfterAutoCollectProbe() {
+  if (!autoCollectProbeNeedsHistoryReset.value) return;
+
+  const bridgeCommand = window.bidkingDesktop?.runAutoOperationCommand;
+  if (typeof bridgeCommand?.mockClear === 'function') {
+    bridgeCommand.mockClear();
+  }
+  autoCollectProbeNeedsHistoryReset.value = false;
+}
+
 async function runMetaOperationCommand(command, args = {}) {
   if (!canRunMetaOperation.value) return;
 
+  resetBridgeMockHistoryAfterAutoCollectProbe();
   panelError.value = '';
   latestCommand.value = command;
   latestResultLabel.value = t(META_OPERATION_LABEL_KEYS[command] || command);
@@ -180,6 +237,69 @@ async function runMetaOperationCommand(command, args = {}) {
   }
 }
 
+async function loadAutoCollectState() {
+  if (
+    !transportReady.value ||
+    effectiveCommandLoading.value ||
+    autoCollectLoading.value ||
+    autoCollectStateLoaded.value
+  ) {
+    return;
+  }
+
+  autoCollectStateLoaded.value = true;
+  autoCollectLoading.value = true;
+  const bridgeCommand = window.bidkingDesktop.runAutoOperationCommand;
+
+  try {
+    const response = await bridgeCommand('GetAutoCollectCabinetRewardState', {});
+    if (response?.value) {
+      autoCollectProbeNeedsHistoryReset.value = false;
+      autoCollectState.value = {
+        ...DEFAULT_AUTO_COLLECT_STATE,
+        ...response.value,
+      };
+    } else {
+      autoCollectProbeNeedsHistoryReset.value = true;
+    }
+  } catch {
+    // Initial scheduler state is best-effort and should not surface panel errors.
+    autoCollectProbeNeedsHistoryReset.value = true;
+  } finally {
+    autoCollectLoading.value = false;
+  }
+}
+
+async function toggleAutoCollectEnabled(nextEnabled) {
+  if (!transportReady.value || effectiveCommandLoading.value) return;
+
+  resetBridgeMockHistoryAfterAutoCollectProbe();
+  panelError.value = '';
+  localCommandLoading.value = 'SetAutoCollectCabinetRewardEnabled';
+  emit('command-loading-change', 'SetAutoCollectCabinetRewardEnabled');
+
+  try {
+    const response = await window.bidkingDesktop.runAutoOperationCommand(
+      'SetAutoCollectCabinetRewardEnabled',
+      { enabled: nextEnabled },
+    );
+    if (response?.value) {
+      autoCollectState.value = {
+        ...DEFAULT_AUTO_COLLECT_STATE,
+        ...response.value,
+      };
+    }
+    if (response?.ok === false) {
+      panelError.value = response.error || t('inject.failed');
+    }
+  } catch (error) {
+    panelError.value = error?.message || t('inject.failed');
+  } finally {
+    localCommandLoading.value = '';
+    emit('command-loading-change', '');
+  }
+}
+
 async function submitEnterRoom() {
   await runMetaOperationCommand('EnterRoom', {
     roomId: Number(selectedRoomId.value),
@@ -191,6 +311,16 @@ async function submitSetBidAmount() {
     amount: Number(bidAmount.value),
   });
 }
+
+watch(
+  transportReady,
+  (ready) => {
+    if (ready) {
+      void loadAutoCollectState();
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -220,6 +350,34 @@ async function submitSetBidAmount() {
     <p class="status-text meta-operation-transport-hint" data-testid="meta-operation-transport-hint">
       {{ transportHintText }}
     </p>
+
+    <article
+      class="meta-operation-action-card meta-operation-auto-collect-card"
+      data-testid="meta-operation-auto-collect-card"
+    >
+      <div class="meta-operation-result-head">
+        <div>
+          <h3>{{ t('inject.metaOperationAutoCollectCabinetReward') }}</h3>
+          <p class="status-text is-muted">{{ t('inject.metaOperationAutoCollectCabinetRewardSub') }}</p>
+        </div>
+        <label class="meta-operation-room-field">
+          <input
+            :checked="autoCollectState.enabled"
+            type="checkbox"
+            :disabled="autoCollectToggleDisabled"
+            data-testid="meta-operation-auto-collect-toggle"
+            @change="toggleAutoCollectEnabled($event.target.checked)"
+          />
+          <span>{{ autoCollectEnabledText }}</span>
+        </label>
+      </div>
+      <p
+        class="status-text"
+        data-testid="meta-operation-auto-collect-status"
+      >
+        {{ autoCollectStatusText }}
+      </p>
+    </article>
 
     <div class="meta-operation-action-grid">
       <article
