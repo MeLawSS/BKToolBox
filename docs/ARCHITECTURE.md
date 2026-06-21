@@ -389,12 +389,14 @@ BKToolBox/
 当前关键实现：
 
 - `src/inject/App.vue` 现在只是 workspace 壳层：维护左侧导航、当前激活 panel、已访问 panel 集合、共享 `collectibles` 加载和跨 panel 的 AutoOperation command lock。
-- `InjectControllerPanel.vue` 当前通过 `src/shared/useAutoOperationAgentSwitch.js` 的无副作用只读视图消费共享 agent runtime，并作为 readiness cards + 泛型 command console 的外层壳；`src/inject/App.vue` 会按 `activePanelId === 'controller'` 显式传入 `isActive`，`InjectControllerPanel.vue` 再把该信号转交给 `InjectUiAutomationPanel.vue` + `useControllerUiAutomation.js`。后者继续负责 activation refresh、visible panel 切换、node 选择，以及 `ClickNode / SetInputText` 结构化动作；而 `InjectUiAutomationPanel.vue` 现在额外保留 view-local 的 search/filter、双击行点击、compact status line 和 1.5s transient row feedback，因此 UI 体验可以重做，但 bridge / refresh / shared lock 语义仍集中在 composable 里。
+- `InjectControllerPanel.vue` 当前通过 `src/shared/useAutoOperationAgentSwitch.js` 的无副作用只读视图消费共享 agent runtime，并作为 readiness cards + `InjectUiAutomationPanel.vue` + `InjectWarehouseBatchOpPanel.vue` + 泛型 command console 的外层壳；`src/inject/App.vue` 会按 `activePanelId === 'controller'` 显式传入 `isActive`，`InjectControllerPanel.vue` 再把该信号转交给 `InjectUiAutomationPanel.vue` + `useControllerUiAutomation.js`。后者继续负责 activation refresh、visible panel 切换、node 选择，以及 `ClickNode / SetInputText` 结构化动作；而 `InjectUiAutomationPanel.vue` 现在额外保留 view-local 的 search/filter、双击行点击、compact status line 和 1.5s transient row feedback，因此 UI 体验可以重做，但 bridge / refresh / shared lock 语义仍集中在 composable 里。`InjectWarehouseBatchOpPanel.vue` + `src/inject/useWarehouseBatchOp.js` 则承载当前仓库自动排序流程，通过 `GetCurrentScreen`、`CloseCurrentOverlay`、`GetStockContainers` 与 `ClickNode` 编排主仓库和物品箱排序。
 - `InjectMetaOperationPanel.vue` 与 `InjectControllerPanel.vue` 的边界不同：前者是固定业务动作入口，后者仍是通用 Controller / UI automation 外壳。`InjectMetaOperationPanel.vue` 通过 `useAutoOperationAgentRuntimeState()` 读取桌面环境、bridge 可用性和 agent 连接状态，并通过 `src/inject/App.vue` 传入的共享 `commandLoading` relay 参与跨 panel AutoOperation 串行化；它不重新实现 agent 生命周期，也不直接消费 native UI tree。
 - `src/inject/panels/InjectCabinetRewardPanel.vue`
 - `src/inject/panels/InjectAgentPanel.vue`
 - `src/inject/panels/InjectControllerPanel.vue`
+- `src/inject/panels/InjectWarehouseBatchOpPanel.vue`
 - `src/inject/panels/InjectMetaOperationPanel.vue`
+- `src/inject/useWarehouseBatchOp.js`
 - `src/inject/panels/InjectWarehousePanel.vue`
 - `src/inject/panels/InjectListingPanel.vue`
 - `src/inject/panels/InjectDelayedPricePanel.vue`
