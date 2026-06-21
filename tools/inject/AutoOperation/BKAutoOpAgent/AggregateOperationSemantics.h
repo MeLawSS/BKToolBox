@@ -13,7 +13,7 @@ inline bool ShouldOpenWarehouseForCabinetReward(const char* screen) {
 }
 
 inline bool IsEligibleAutoCollectCabinetRewardScreen(const char* screen) {
-    return screen && strcmp(screen, "main_lobby") == 0;
+    return ShouldOpenWarehouseForCabinetReward(screen);
 }
 
 inline bool ShouldSkipAutoCollectCabinetRewardForAutoAuction(bool autoAuctionRunning) {
