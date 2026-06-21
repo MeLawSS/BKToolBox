@@ -1286,6 +1286,13 @@ DumpPanelTree
 ClickNode
 SetInputText
 GetNodeState
+DescribeNodeComponents
+DescribeNodeComponentMethods
+DescribeNodeComponentMethodSignatures
+DescribeNodeComponentFields
+DescribeClassMethodSignatures
+CallNodeComponentMethod
+InvokeNodeComponentMethod
 WaitForVisiblePanel
 WaitForNode
 CollectionPrices
@@ -1315,7 +1322,9 @@ DismissCollectAward
 GetCurrentScreen
 CloseCurrentOverlay
 CollectCabinetReward
+SetExpectedPrice
 AutoAuction
+CancelAutoAuction
 UnloadAgent
 ```
 
