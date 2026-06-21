@@ -15,19 +15,25 @@ Also add one session-scoped switch in Inject so the user can disable or re-enabl
 2. `AgentMain()` already initializes IL2CPP, attaches its worker thread, and starts `HeartbeatThread()`.
 3. A manual native command already exists for cabinet reward collection:
    - `CmdCollectCabinetReward(...)` in `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.cpp`
-4. Current cabinet-reward flow is already capable of:
+4. The current manual cabinet-reward flow still uses fixed blocking waits, both as:
+   - an explicit `Sleep(1500)` in its overlay-close retry loop
+   - `ClickNode(..., 1500, ...)` calls whose delay path also blocks with `Sleep(delayMs)`
+5. `g_autoAuctionRunning` is currently a `static` atomic inside `MetaOperations.cpp`, not a cross-translation-unit global.
+6. Existing native thread attach behavior is attach-only. Current agent threads call into IL2CPP after `g_thread_attach(g_domain)` but do not currently expose an explicit detach pattern.
+7. Inject i18n strings live in `src/shared/messages.js`.
+8. Current cabinet-reward flow is already capable of:
    - converging to a stable cabinet-reward entry screen
    - opening warehouse from `main_lobby`
    - entering the cabinet reward list
    - clicking collect
    - dismissing reward popup / reward list overlays
-5. Current screen detection already distinguishes:
+9. Current screen detection already distinguishes:
    - `main_lobby`
    - `warehouse`
    - `cabinet_reward_list`
    - `cabinet_reward_popup`
-6. Inject already has a meta-operation panel at `src/inject/panels/InjectMetaOperationPanel.vue`, and it already exposes manual `CollectCabinetReward`.
-7. Current Electron bridge for auto-operation commands is still one-shot request/response. There is no persistent state/event channel that would make live scheduler events visible without polling.
+10. Inject already has a meta-operation panel at `src/inject/panels/InjectMetaOperationPanel.vue`, and it already exposes manual `CollectCabinetReward`.
+11. Current Electron bridge for auto-operation commands is still one-shot request/response. There is no persistent state/event channel that would make live scheduler events visible without polling.
 
 ## User Decisions Captured
 
@@ -75,7 +81,9 @@ Startup rules:
 
 - `AgentMain()` remains the owner of thread startup
 - after `InitIl2cpp()` and the existing worker-thread attach succeed, `AgentMain()` creates one additional thread for cabinet-reward scheduling
-- the scheduler thread must also call `g_thread_attach(g_domain)` before any IL2CPP/UI access
+- the scheduler thread procedure itself is declared in `MetaOperations.h` and implemented in `MetaOperations.cpp`
+- `BKAutoOpAgent.cpp` exports one tiny non-static helper for thread attach, declared in `MetaOperations.h`, and the scheduler thread calls that helper before any IL2CPP/UI access
+- the scheduler loop stays in `MetaOperations.cpp` on purpose so it can directly read `g_autoAuctionRunning`, `DetectScreenState()`, and the shared reward-flow helper without turning those internals into new exported globals
 
 Shutdown rules:
 
@@ -84,6 +92,8 @@ Shutdown rules:
 - instead, it tracks a due time and sleeps in short chunks so that:
   - shutdown is responsive
   - enable/disable changes apply promptly
+- this feature does **not** add a new explicit IL2CPP thread-detach requirement
+- the scheduler thread follows the current agent-wide attach-only pattern; if a future repository-wide IL2CPP detach policy is introduced, the scheduler thread must adopt that same policy in the same change
 
 Availability rule:
 
@@ -99,8 +109,8 @@ Required state:
 - `enabled` — defaults to `true` on each injection
 - `running` — whether a background collection cycle is currently executing
 - `intervalMs` — fixed at `10800000`
-- `nextDueTick` — internal monotonic due time
-- `lastCheckAt` — last scheduler wake time that actually evaluated a cycle
+- `nextDueTick` — internal monotonic due time based on `GetTickCount64()`
+- `lastCheckAtUnixMs` — last scheduler wake time that actually evaluated a cycle, represented as Unix epoch milliseconds
 - `lastResultCode`
 - `lastResultMessage`
 - `lastObservedScreen`
@@ -123,6 +133,17 @@ Rules:
 - disabling while a cycle is already running does not cancel that in-flight cycle; it only prevents future cycles
 
 This keeps the behavior literal to “every 3 hours check once”.
+
+Time-source rules:
+
+- scheduler due-time computation uses monotonic `GetTickCount64()`
+- externally reported `lastCheckAtUnixMs` uses wall-clock Unix epoch milliseconds
+- `lastCheckAtUnixMs` must **not** be filled from `GetTickCount()` / `GetTickCount64()`
+- the required wall-clock conversion is:
+  - `GetSystemTimeAsFileTime(...)`
+  - convert `FILETIME` to 100-ns ticks
+  - subtract Windows epoch offset `116444736000000000`
+  - divide by `10000`
 
 ### 4. Cycle Entry Rule
 
@@ -176,6 +197,14 @@ Design requirements:
 - the helper performs the actual collection flow
 - the manual command wraps helper success/failure into `SendResponse(...)`
 - the scheduler updates session state and logs based on the same helper result
+- all fixed waits inside cabinet-reward flow must become chunked shutdown-aware waits
+- this wait helper must live alongside cabinet-reward flow in `MetaOperations.cpp` and check `g_shuttingDown`
+- reward flow must stop passing `delayMs = 1500` into `ClickNode(...)`
+- instead, reward flow uses `ClickNode(..., 0, ...)` followed by its own shutdown-aware wait helper after successful clicks
+- do **not** reuse AutoAuction's existing `SleepInterruptibly(...)` as-is, because that helper also observes auto-auction cancel state and is scoped to a different stop contract
+- if shutdown is observed inside the shared reward-flow helper:
+  - manual command returns `ok: false, error: "shutting down"`
+  - scheduler path exits the in-flight cycle promptly and then exits its thread loop
 
 ### 6. Mutual Exclusion Rules
 
@@ -198,6 +227,13 @@ Required skip/fail semantics:
   - log the skip reason
 
 This round does not require queueing, deferred replay, or cancellation of in-flight reward collection.
+
+Required guard shape:
+
+- use one process-local `std::atomic<bool>` running flag
+- acquire with `compare_exchange_strong`
+- release with a small RAII guard so all early-return paths are covered
+- do not rely on manual paired set/reset across multiple early returns in the shared helper
 
 ### 7. AutoAuction Interaction
 
@@ -248,6 +284,8 @@ Contract:
 - if the feature is disabled, return `nextCheckInMs = null`
 - `lastCheckAtUnixMs = 0` means no cycle has run yet
 - `lastResultCode = "never_run"` means no cycle has run yet
+- `lastCheckAtUnixMs` is Unix epoch milliseconds, not a monotonic tick count
+- because `nextCheckInMs` may be JSON `null`, the state response uses a dedicated serializer/helper instead of a plain `%d`-only `snprintf(...)` template
 
 #### 8.2 `SetAutoCollectCabinetRewardEnabled`
 
@@ -311,6 +349,10 @@ No event stream:
 
 Add dedicated i18n keys for the new Inject panel surface.
 
+File location:
+
+- add these keys to `src/shared/messages.js`
+
 At minimum:
 
 - `inject.metaOperationAutoCollectCabinetReward`
@@ -361,6 +403,7 @@ Reason:
 - the actual long-running reward collection still only happens in:
   - the background thread
   - the existing manual `CollectCabinetReward` command, which already has long-timeout handling in `inject-service.js`
+- the state-response payload needs a dedicated native serializer because disabled state returns `nextCheckInMs: null`
 
 This feature does not require event-channel redesign or timeout policy changes.
 
@@ -385,6 +428,8 @@ Extend or add native tests for:
 - enabling resets next due time to 3 hours from “now”
 - invalid `enabled` argument is rejected
 - manual command and scheduler contention resolve with the documented skip/fail behavior
+- disabled state serializes `nextCheckInMs` as JSON `null`
+- `lastCheckAtUnixMs` is emitted in Unix epoch milliseconds, not monotonic tick space
 
 Pure logic should be tested outside the full pipe runtime wherever possible.
 
@@ -437,7 +482,7 @@ Verify against a real injected game session:
 - `tools/inject/AutoOperation/BKAutoOpAgent/AggregateOperationSemantics.test.cpp`
 - `src/inject/panels/InjectMetaOperationPanel.vue`
 - `src/inject/panels/InjectMetaOperationPanel.test.js`
-- relevant Inject i18n source files
+- `src/shared/messages.js`
 
 ## Acceptance Criteria
 
