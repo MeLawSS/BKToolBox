@@ -70,6 +70,7 @@ Il2CppClass*        FindClass(const char* name);
 Il2CppObject*       SafeInvoke(const Il2CppMethod* m, void* obj, void** args);
 const char*         ObjClassName(Il2CppObject* obj);
 void                Logf(const char* fmt, ...);
+void                AttachCurrentThread();
 
 void                SendResponse(AgentConn* c, const char* id, bool ok, const char* result);
 UiPanelLookupResult FindVisiblePanelTransform(const char* panelName,
@@ -86,6 +87,7 @@ bool                PerformToggleClick(Il2CppObject* toggleComponent);
 bool                PerformSetInputText(const UiNodeSnapshot& node, const char* text, bool submit, std::string* componentName);
 bool                ReadNodeTextValue(const UiComponentRefs& refs, std::string* out);
 bool                ReadToggleValue(const UiComponentRefs& refs, bool* out);
+DWORD WINAPI        AutoCollectCabinetRewardThread(LPVOID);
 
 // --------------------------------------------------------------------------
 // Meta-operation commands (defined in MetaOperations.cpp)
@@ -105,6 +107,8 @@ void CmdDismissCollectAward(AgentConn* c, const char* id, const char* json);
 void CmdGetCurrentScreen(AgentConn* c, const char* id, const char* json);
 void CmdCloseCurrentOverlay(AgentConn* c, const char* id, const char* json);
 void CmdCollectCabinetReward(AgentConn* c, const char* id, const char* json);
+void CmdGetAutoCollectCabinetRewardState(AgentConn* c, const char* id, const char* json);
+void CmdSetAutoCollectCabinetRewardEnabled(AgentConn* c, const char* id, const char* json);
 void CmdAutoAuction(AgentConn* c, const char* id, const char* json);
 void CmdCancelAutoAuction(AgentConn* c, const char* id, const char* json);
 void CmdSetExpectedPrice(AgentConn* c, const char* id, const char* json);

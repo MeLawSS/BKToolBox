@@ -2,17 +2,107 @@
 #include "AggregateOperationSemantics.h"
 #include "AutoAuctionOpponentCap.h"
 #include "AutoAuctionResponseFormatting.h"
+#include "AutoCollectCabinetRewardStateFormatting.h"
 #include <atomic>
 
+static const uint64_t kAutoCollectCabinetRewardIntervalMs = 10800000ULL;
 static std::atomic<int> g_notifiedExpectedPrice{0};
 static std::atomic<bool> g_autoAuctionRunning{false};
 static std::atomic<bool> g_autoAuctionCancelRequested{false};
+static std::atomic<bool> g_autoCollectCabinetRewardEnabled{true};
+static std::atomic<bool> g_autoCollectCabinetRewardRunning{false};
+static std::atomic<unsigned long long> g_autoCollectCabinetRewardNextDueTick{0ULL};
+static CRITICAL_SECTION g_autoCollectCabinetRewardStateCs;
+static volatile LONG g_autoCollectCabinetRewardStateCsInit = 0;
+static uint64_t g_autoCollectCabinetRewardLastCheckAtUnixMs = 0;
+static std::string g_autoCollectCabinetRewardLastResultCode = "never_run";
+static std::string g_autoCollectCabinetRewardLastResultMessage;
+static std::string g_autoCollectCabinetRewardLastObservedScreen;
+
+static bool IsAgentShuttingDown() {
+    return InterlockedCompareExchange(&g_shuttingDown, 0, 0) != 0;
+}
+
+static void EnsureAutoCollectCabinetRewardStateCsInitialized() {
+    LONG state = InterlockedCompareExchange(&g_autoCollectCabinetRewardStateCsInit, 0, 0);
+    if (state == 2) return;
+    if (state == 0 &&
+        InterlockedCompareExchange(&g_autoCollectCabinetRewardStateCsInit, 1, 0) == 0) {
+        InitializeCriticalSection(&g_autoCollectCabinetRewardStateCs);
+        InterlockedExchange(&g_autoCollectCabinetRewardStateCsInit, 2);
+        return;
+    }
+    while (InterlockedCompareExchange(&g_autoCollectCabinetRewardStateCsInit, 0, 0) != 2) {
+        Sleep(1);
+    }
+}
+
+static void UpdateAutoCollectCabinetRewardCycleState(
+    uint64_t lastCheckAtUnixMs,
+    const char* lastResultCode,
+    const char* lastResultMessage,
+    const char* lastObservedScreen
+) {
+    EnsureAutoCollectCabinetRewardStateCsInitialized();
+    EnterCriticalSection(&g_autoCollectCabinetRewardStateCs);
+    if (lastCheckAtUnixMs != UINT64_MAX) {
+        g_autoCollectCabinetRewardLastCheckAtUnixMs = lastCheckAtUnixMs;
+    }
+    if (lastResultCode) {
+        g_autoCollectCabinetRewardLastResultCode = lastResultCode;
+    }
+    if (lastResultMessage) {
+        g_autoCollectCabinetRewardLastResultMessage = lastResultMessage;
+    }
+    if (lastObservedScreen) {
+        g_autoCollectCabinetRewardLastObservedScreen = lastObservedScreen;
+    }
+    LeaveCriticalSection(&g_autoCollectCabinetRewardStateCs);
+}
+
+static void ScheduleNextAutoCollectCabinetRewardCycleFromNow() {
+    g_autoCollectCabinetRewardNextDueTick.store(
+        GetTickCount64() + kAutoCollectCabinetRewardIntervalMs,
+        std::memory_order_relaxed
+    );
+}
+
+static bool SleepForAutoCollectCabinetRewardDelayInterruptibly(int totalMs, int sliceMs = 100) {
+    if (totalMs <= 0) return !IsAgentShuttingDown();
+    int remaining = totalMs;
+    while (remaining > 0) {
+        if (IsAgentShuttingDown()) return false;
+        const int chunk = remaining < sliceMs ? remaining : sliceMs;
+        Sleep((DWORD)chunk);
+        remaining -= chunk;
+    }
+    return !IsAgentShuttingDown();
+}
+
+struct ScopedAutoCollectCabinetRewardRunGuard {
+    explicit ScopedAutoCollectCabinetRewardRunGuard(std::atomic<bool>* runningFlag)
+        : flag(runningFlag), acquired(false) {
+        bool expected = false;
+        acquired = flag &&
+            flag->compare_exchange_strong(expected, true, std::memory_order_relaxed);
+    }
+
+    ~ScopedAutoCollectCabinetRewardRunGuard() {
+        if (acquired && flag) {
+            flag->store(false, std::memory_order_relaxed);
+        }
+    }
+
+    bool IsAcquired() const { return acquired; }
+
+    std::atomic<bool>* flag;
+    bool acquired;
+};
 
 static bool IsAutoAuctionStopRequested() {
-    const bool shuttingDown = InterlockedCompareExchange(&g_shuttingDown, 0, 0) != 0;
     return ShouldAbortAutoAuction(
         g_autoAuctionCancelRequested.load(std::memory_order_relaxed),
-        shuttingDown
+        IsAgentShuttingDown()
     );
 }
 
@@ -33,6 +123,7 @@ static bool SleepInterruptibly(int totalMs, int sliceMs = 50) {
 // ==========================================================================
 
 static bool GetBattleMainPanel(AgentConn* c, const char* id, Il2CppObject** out);
+static bool ExecuteCollectCabinetRewardFlow(const char* sourceTag, std::string* errorMessage);
 
 // ==========================================================================
 // Meta-operations
@@ -552,91 +643,337 @@ void CmdCloseCurrentOverlay(AgentConn* c, const char* id, const char*) {
 // Aggregate Operations
 // ==========================================================================
 
-// CollectCabinetReward: collect showcase cabinet rewards from anywhere.
-// Steps:
-//   1. Close overlays until screen is main_lobby or warehouse  [up to 10 attempts, 1.5s each]
-//   2. If on main_lobby, open the warehouse panel               [1.5s]
-//   3. Click UIMain/WareHousePanel/leftDown/Button[0] (查看)    [1.5s]
-//   4. Verify cabinet_reward_list appeared
-//   5. Click CollectAward_Main/Panel/down/Button (领取)         [1.5s]
-//   6. If cabinet_reward_popup: click RewardsBox/bg             [1.5s]
-//   7. Click CollectAward_Main/bg (close reward list)           [1.5s]
-// Returns {"collected":true} or {"ok":false,"error":"..."}
-void CmdCollectCabinetReward(AgentConn* c, const char* id, const char*) {
-    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+static bool ExecuteCollectCabinetRewardFlow(const char* sourceTag, std::string* errorMessage) {
+    if (errorMessage) errorMessage->clear();
+    if (IsAgentShuttingDown()) {
+        if (errorMessage) *errorMessage = "shutting down";
+        return false;
+    }
 
-    // Step 1: close overlays until the cabinet reward entry is reachable.
+    ScopedAutoCollectCabinetRewardRunGuard runGuard(&g_autoCollectCabinetRewardRunning);
+    if (!runGuard.IsAcquired()) {
+        if (errorMessage) *errorMessage = "collect cabinet reward already running";
+        return false;
+    }
+
     ScreenState stable = {};
     for (int attempt = 0; ; attempt++) {
+        if (IsAgentShuttingDown()) {
+            if (errorMessage) *errorMessage = "shutting down";
+            return false;
+        }
+
         ScreenState cur = DetectScreenState();
         if (IsStableCabinetRewardEntryScreen(cur.screen)) {
             stable = cur;
             break;
         }
         if (attempt >= 10) {
-            SendResponse(c, id, false, "could not reach cabinet reward entry after 10 close attempts");
-            return;
+            if (errorMessage) *errorMessage = "could not reach cabinet reward entry after 10 close attempts";
+            return false;
         }
-        Il2CppObject* t = nullptr; const char* p = nullptr;
-        if (ResolveCloseTarget(cur, &t, &p)) {
-            std::string err;
-            ClickNode(t, p, 0, &err); // ignore individual click errors; retry loop handles it
+
+        Il2CppObject* targetTransform = nullptr;
+        const char* clickPath = nullptr;
+        if (ResolveCloseTarget(cur, &targetTransform, &clickPath)) {
+            std::string ignoredError;
+            ClickNode(targetTransform, clickPath, 0, &ignoredError);
         }
-        Sleep(1500);
+        if (!SleepForAutoCollectCabinetRewardDelayInterruptibly(1500)) {
+            if (errorMessage) *errorMessage = "shutting down";
+            return false;
+        }
     }
 
-    // Step 2: open warehouse if we are still on the main lobby.
     std::string err;
     if (ShouldOpenWarehouseForCabinetReward(stable.screen)) {
-        if (!stable.uiMainTransform) { SendResponse(c, id, false, "UIMain not found"); return; }
-        if (!ClickNode(stable.uiMainTransform, "MainPanel/Btns2/Button_1", 1500, &err)) {
-            SendResponse(c, id, false, err.c_str()); return;
+        if (!stable.uiMainTransform) {
+            if (errorMessage) *errorMessage = "UIMain not found";
+            return false;
+        }
+        if (!ClickNode(stable.uiMainTransform, "MainPanel/Btns2/Button_1", 0, &err)) {
+            if (errorMessage) *errorMessage = err;
+            return false;
+        }
+        if (!SleepForAutoCollectCabinetRewardDelayInterruptibly(1500)) {
+            if (errorMessage) *errorMessage = "shutting down";
+            return false;
         }
         stable = DetectScreenState();
         if (strcmp(stable.screen, "warehouse") != 0) {
             char msg[128];
             snprintf(msg, sizeof(msg), "expected warehouse after opening it, got %s", stable.screen);
-            SendResponse(c, id, false, msg); return;
+            if (errorMessage) *errorMessage = msg;
+            return false;
         }
     }
 
-    // Step 3: click 查看 (open cabinet reward list)
-    if (!stable.uiMainTransform) { SendResponse(c, id, false, "UIMain not found"); return; }
-    if (!ClickNode(stable.uiMainTransform, "WareHousePanel/leftDown/Button[0]", 1500, &err)) {
-        SendResponse(c, id, false, err.c_str()); return;
+    if (!stable.uiMainTransform) {
+        if (errorMessage) *errorMessage = "UIMain not found";
+        return false;
+    }
+    if (!ClickNode(stable.uiMainTransform, "WareHousePanel/leftDown/Button[0]", 0, &err)) {
+        if (errorMessage) *errorMessage = err;
+        return false;
+    }
+    if (!SleepForAutoCollectCabinetRewardDelayInterruptibly(1500)) {
+        if (errorMessage) *errorMessage = "shutting down";
+        return false;
     }
 
-    // Step 4: verify cabinet_reward_list
     ScreenState s3 = DetectScreenState();
     if (strcmp(s3.screen, "cabinet_reward_list") != 0) {
         char msg[128];
         snprintf(msg, sizeof(msg), "expected cabinet_reward_list after 查看, got %s", s3.screen);
-        SendResponse(c, id, false, msg); return;
+        if (errorMessage) *errorMessage = msg;
+        return false;
     }
 
-    // Step 5: click 领取
-    if (!s3.collectAwardTransform) { SendResponse(c, id, false, "CollectAward_Main transform missing"); return; }
-    if (!ClickNode(s3.collectAwardTransform, "Panel/down/Button", 1500, &err)) {
-        SendResponse(c, id, false, err.c_str()); return;
+    if (!s3.collectAwardTransform) {
+        if (errorMessage) *errorMessage = "CollectAward_Main transform missing";
+        return false;
+    }
+    if (!ClickNode(s3.collectAwardTransform, "Panel/down/Button", 0, &err)) {
+        if (errorMessage) *errorMessage = err;
+        return false;
+    }
+    if (!SleepForAutoCollectCabinetRewardDelayInterruptibly(1500)) {
+        if (errorMessage) *errorMessage = "shutting down";
+        return false;
     }
 
-    // Step 6: dismiss RewardsBox popup if it appeared
     ScreenState s5 = DetectScreenState();
     if (strcmp(s5.screen, "cabinet_reward_popup") == 0 && s5.rewardsBoxTransform) {
-        if (!ClickNode(s5.rewardsBoxTransform, "bg", 1500, &err)) {
-            SendResponse(c, id, false, err.c_str()); return;
+        if (!ClickNode(s5.rewardsBoxTransform, "bg", 0, &err)) {
+            if (errorMessage) *errorMessage = err;
+            return false;
+        }
+        if (!SleepForAutoCollectCabinetRewardDelayInterruptibly(1500)) {
+            if (errorMessage) *errorMessage = "shutting down";
+            return false;
         }
     }
 
-    // Step 7: close CollectAward_Main
     ScreenState s6 = DetectScreenState();
     if (s6.collectAwardTransform) {
-        if (!ClickNode(s6.collectAwardTransform, "bg", 1500, &err)) {
-            SendResponse(c, id, false, err.c_str()); return;
+        if (!ClickNode(s6.collectAwardTransform, "bg", 0, &err)) {
+            if (errorMessage) *errorMessage = err;
+            return false;
         }
+        if (!SleepForAutoCollectCabinetRewardDelayInterruptibly(1500)) {
+            if (errorMessage) *errorMessage = "shutting down";
+            return false;
+        }
+    }
+
+    Logf("AutoCollectCabinetReward success source=%s", sourceTag ? sourceTag : "unknown");
+    return true;
+}
+
+// CollectCabinetReward: collect showcase cabinet rewards from anywhere.
+// Returns {"collected":true} or {"ok":false,"error":"..."}
+void CmdCollectCabinetReward(AgentConn* c, const char* id, const char*) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    std::string errorMessage;
+    if (!ExecuteCollectCabinetRewardFlow("manual", &errorMessage)) {
+        SendResponse(
+            c,
+            id,
+            false,
+            errorMessage.empty() ? "collect cabinet reward failed" : errorMessage.c_str()
+        );
+        return;
     }
 
     SendResponse(c, id, true, "{\"collected\":true}");
+}
+
+static uint64_t ReadUnixTimeMs() {
+    FILETIME fileTime = {};
+    GetSystemTimeAsFileTime(&fileTime);
+    ULARGE_INTEGER ticks = {};
+    ticks.LowPart = fileTime.dwLowDateTime;
+    ticks.HighPart = fileTime.dwHighDateTime;
+    return ConvertWindowsFileTime100nsToUnixMs(ticks.QuadPart);
+}
+
+static AutoCollectCabinetRewardStateSnapshot SnapshotAutoCollectCabinetRewardState() {
+    AutoCollectCabinetRewardStateSnapshot snapshot = {};
+    snapshot.enabled = g_autoCollectCabinetRewardEnabled.load(std::memory_order_relaxed);
+    snapshot.running = g_autoCollectCabinetRewardRunning.load(std::memory_order_relaxed);
+    snapshot.intervalMs = (int)kAutoCollectCabinetRewardIntervalMs;
+
+    const unsigned long long dueTick =
+        g_autoCollectCabinetRewardNextDueTick.load(std::memory_order_relaxed);
+    if (snapshot.enabled && dueTick > 0ULL) {
+        const long long delta = (long long)dueTick - (long long)GetTickCount64();
+        snapshot.nextCheckInMs = delta > 0 ? delta : 0;
+    } else {
+        snapshot.nextCheckInMs = -1;
+    }
+
+    EnsureAutoCollectCabinetRewardStateCsInitialized();
+    static thread_local std::string lastResultCodeCopy;
+    static thread_local std::string lastResultMessageCopy;
+    static thread_local std::string lastObservedScreenCopy;
+
+    EnterCriticalSection(&g_autoCollectCabinetRewardStateCs);
+    snapshot.lastCheckAtUnixMs = g_autoCollectCabinetRewardLastCheckAtUnixMs;
+    lastResultCodeCopy = g_autoCollectCabinetRewardLastResultCode;
+    lastResultMessageCopy = g_autoCollectCabinetRewardLastResultMessage;
+    lastObservedScreenCopy = g_autoCollectCabinetRewardLastObservedScreen;
+    LeaveCriticalSection(&g_autoCollectCabinetRewardStateCs);
+
+    snapshot.lastResultCode = lastResultCodeCopy.c_str();
+    snapshot.lastResultMessage = lastResultMessageCopy.c_str();
+    snapshot.lastObservedScreen = lastObservedScreenCopy.c_str();
+    return snapshot;
+}
+
+void CmdGetAutoCollectCabinetRewardState(AgentConn* c, const char* id, const char*) {
+    const std::string json = BuildAutoCollectCabinetRewardStateJson(
+        SnapshotAutoCollectCabinetRewardState()
+    );
+    SendResponse(c, id, true, json.c_str());
+}
+
+void CmdSetAutoCollectCabinetRewardEnabled(AgentConn* c, const char* id, const char* json) {
+    bool enabled = false;
+    if (!JsonGetBool(json, "enabled", &enabled)) {
+        SendResponse(c, id, false, "enabled must be boolean");
+        return;
+    }
+
+    g_autoCollectCabinetRewardEnabled.store(enabled, std::memory_order_relaxed);
+    if (enabled) {
+        ScheduleNextAutoCollectCabinetRewardCycleFromNow();
+        UpdateAutoCollectCabinetRewardCycleState(
+            UINT64_MAX,
+            "never_run",
+            "",
+            nullptr
+        );
+        Logf("AutoCollectCabinetReward enabled by UI");
+    } else {
+        g_autoCollectCabinetRewardNextDueTick.store(0ULL, std::memory_order_relaxed);
+        UpdateAutoCollectCabinetRewardCycleState(
+            UINT64_MAX,
+            "disabled",
+            "disabled by user",
+            nullptr
+        );
+        Logf("AutoCollectCabinetReward disabled by UI");
+    }
+
+    const std::string resultJson = BuildAutoCollectCabinetRewardStateJson(
+        SnapshotAutoCollectCabinetRewardState()
+    );
+    SendResponse(c, id, true, resultJson.c_str());
+}
+
+DWORD WINAPI AutoCollectCabinetRewardThread(LPVOID) {
+    AttachCurrentThread();
+    EnsureAutoCollectCabinetRewardStateCsInitialized();
+    ScheduleNextAutoCollectCabinetRewardCycleFromNow();
+    Logf("AutoCollectCabinetReward scheduler started intervalMs=%llu",
+         (unsigned long long)kAutoCollectCabinetRewardIntervalMs);
+
+    while (!IsAgentShuttingDown()) {
+        if (!g_autoCollectCabinetRewardEnabled.load(std::memory_order_relaxed)) {
+            if (!SleepForAutoCollectCabinetRewardDelayInterruptibly(250)) break;
+            continue;
+        }
+
+        const unsigned long long nowTick = GetTickCount64();
+        const unsigned long long dueTick =
+            g_autoCollectCabinetRewardNextDueTick.load(std::memory_order_relaxed);
+        if (dueTick == 0ULL) {
+            ScheduleNextAutoCollectCabinetRewardCycleFromNow();
+            if (!SleepForAutoCollectCabinetRewardDelayInterruptibly(250)) break;
+            continue;
+        }
+        if (nowTick < dueTick) {
+            const unsigned long long remaining = dueTick - nowTick;
+            const int waitMs = remaining > 250ULL ? 250 : (int)remaining;
+            if (!SleepForAutoCollectCabinetRewardDelayInterruptibly(waitMs)) break;
+            continue;
+        }
+
+        if (IsAgentShuttingDown()) break;
+
+        UpdateAutoCollectCabinetRewardCycleState(ReadUnixTimeMs(), nullptr, nullptr, nullptr);
+
+        if (ShouldSkipAutoCollectCabinetRewardForAutoAuction(
+                g_autoAuctionRunning.load(std::memory_order_relaxed))) {
+            UpdateAutoCollectCabinetRewardCycleState(
+                UINT64_MAX,
+                "skipped_auto_auction_running",
+                "auto auction running",
+                nullptr
+            );
+            ScheduleNextAutoCollectCabinetRewardCycleFromNow();
+            Logf("AutoCollectCabinetReward skipped: auto auction running");
+            continue;
+        }
+
+        if (ShouldSkipAutoCollectCabinetRewardForBusyFlow(
+                g_autoCollectCabinetRewardRunning.load(std::memory_order_relaxed))) {
+            UpdateAutoCollectCabinetRewardCycleState(
+                UINT64_MAX,
+                "skipped_collect_running",
+                "collect cabinet reward already running",
+                nullptr
+            );
+            ScheduleNextAutoCollectCabinetRewardCycleFromNow();
+            Logf("AutoCollectCabinetReward skipped: collect already running");
+            continue;
+        }
+
+        ScreenState state = DetectScreenState();
+        UpdateAutoCollectCabinetRewardCycleState(UINT64_MAX, nullptr, nullptr, state.screen);
+        if (!IsEligibleAutoCollectCabinetRewardScreen(state.screen)) {
+            UpdateAutoCollectCabinetRewardCycleState(
+                UINT64_MAX,
+                "skipped_not_main_lobby",
+                state.screen ? state.screen : "",
+                nullptr
+            );
+            ScheduleNextAutoCollectCabinetRewardCycleFromNow();
+            Logf("AutoCollectCabinetReward skipped: screen=%s", state.screen ? state.screen : "");
+            continue;
+        }
+
+        std::string errorMessage;
+        const bool ok = ExecuteCollectCabinetRewardFlow("scheduler", &errorMessage);
+        if (ok) {
+            UpdateAutoCollectCabinetRewardCycleState(UINT64_MAX, "success", "", nullptr);
+        } else if (errorMessage == "collect cabinet reward already running") {
+            UpdateAutoCollectCabinetRewardCycleState(
+                UINT64_MAX,
+                "skipped_collect_running",
+                "collect cabinet reward already running",
+                nullptr
+            );
+            Logf("AutoCollectCabinetReward skipped: collect already running");
+        } else {
+            UpdateAutoCollectCabinetRewardCycleState(
+                UINT64_MAX,
+                "failed",
+                errorMessage.c_str(),
+                nullptr
+            );
+            if (!errorMessage.empty()) {
+                Logf("AutoCollectCabinetReward failed source=scheduler error=%s",
+                     errorMessage.c_str());
+            }
+        }
+
+        ScheduleNextAutoCollectCabinetRewardCycleFromNow();
+        if (!ok && errorMessage == "shutting down") break;
+    }
+
+    return 0;
 }
 
 // DismissRewardsBox: click the background of the RewardsBox popup ("点击屏幕继续").
