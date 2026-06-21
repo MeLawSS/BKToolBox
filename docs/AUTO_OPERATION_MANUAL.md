@@ -246,11 +246,11 @@ The current dispatch table in `BKAutoOpAgent.cpp` registers all of these command
 | --- | --- |
 | Connectivity / lifecycle | `Ping`, `UnloadAgent` |
 | Panel-level UI | `GetCurrentUI`, `GetVisiblePanels`, `OpenPanel`, `ClosePanel` |
-| UI automation selector commands | `DumpPanelTree`, `ClickNode`, `SetInputText`, `GetNodeState`, `WaitForVisiblePanel`, `WaitForNode` |
+| UI automation selector commands | `DumpPanelTree`, `ClickNode`, `SetInputText`, `GetNodeState`, `DescribeNodeComponents`, `DescribeNodeComponentMethods`, `DescribeNodeComponentMethodSignatures`, `DescribeNodeComponentFields`, `DescribeClassMethodSignatures`, `CallNodeComponentMethod`, `InvokeNodeComponentMethod`, `WaitForVisiblePanel`, `WaitForNode` |
 | Collection / warehouse / exchange | `CollectionPrices`, `GetCollectionItemCids`, `GetWarehouseItemList`, `GetStockCollectibleCounts`, `GetStockContainers`, `MoveStockItem`, `GetItemTradeInfo`, `ExchangeItem` |
 | Delayed query | `StartDelayedPriceQuery`, `GetDelayedPriceQueryStatus`, `CancelDelayedPriceQuery` |
 | Probe infrastructure | `LoadProbe`, `InvokeMethod` |
-| Business / MetaOperation | `GoToBattlePrev`, `EnterRoom`, `OpenSkillConfig`, `SelectRole`, `StartAction`, `GetBidState`, `PlaceBid`, `SetBidAmount`, `ConfirmBid`, `DismissRewardsBox`, `DismissCollectAward`, `GetCurrentScreen`, `CloseCurrentOverlay` |
+| Business / MetaOperation | `GoToBattlePrev`, `EnterRoom`, `OpenSkillConfig`, `SelectRole`, `StartAction`, `GetBidState`, `PlaceBid`, `SetBidAmount`, `ConfirmBid`, `DismissRewardsBox`, `DismissCollectAward`, `GetCurrentScreen`, `CloseCurrentOverlay`, `SetExpectedPrice`, `CancelAutoAuction` |
 | AggregateOperation | `CollectCabinetReward`, `AutoAuction` |
 
 This is one dispatch table, not separate transport layers.
@@ -293,6 +293,8 @@ Current command matrix:
 | `DismissCollectAward` | yes | yes | yes | zero-arg button |
 | `GetCurrentScreen` | yes | yes | yes | zero-arg button |
 | `CloseCurrentOverlay` | yes | yes | yes | zero-arg button |
+| `SetExpectedPrice` | yes | yes | no | helper command for renderer-driven expected-price sync; not exposed in Inject MetaOperation panel |
+| `CancelAutoAuction` | yes | yes | no | stop/cancel companion to `AutoAuction`; not exposed in Inject MetaOperation panel |
 | `CollectCabinetReward` | yes | yes | yes | aggregate by behavior, but exposed in the panel |
 | `AutoAuction` | yes | yes | no | available in native dispatch and `bkcli`, not in Inject MetaOperation panel |
 
@@ -324,7 +326,7 @@ Current non-member that is easy to confuse with MetaOperation:
   - `EnterRoom`
   - `SetBidAmount`
 
-It currently does not expose `AutoAuction`.
+It currently does not expose `AutoAuction`, `SetExpectedPrice`, or `CancelAutoAuction`.
 
 ## `AggregateOperation`
 
