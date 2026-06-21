@@ -80,9 +80,10 @@ Add a dedicated native thread for this feature.
 Startup rules:
 
 - `AgentMain()` remains the owner of thread startup
-- after `InitIl2cpp()` and the existing worker-thread attach succeed, `AgentMain()` creates one additional thread for cabinet-reward scheduling
+- after `InitIl2cpp()` and the existing main worker-thread attach succeed, `AgentMain()` creates one additional thread for cabinet-reward scheduling
+- the concrete insertion point in `AgentMain()` is immediately after the existing main-thread `g_thread_attach(g_domain)` call, adjacent to `g_heartbeatThread = CreateThread(...)`, and before the named-pipe accept loop begins
 - the scheduler thread procedure itself is declared in `MetaOperations.h` and implemented in `MetaOperations.cpp`
-- `BKAutoOpAgent.cpp` exports one tiny non-static helper for thread attach, declared in `MetaOperations.h`, and the scheduler thread calls that helper before any IL2CPP/UI access
+- `BKAutoOpAgent.cpp` lifts the existing `AttachCurrentThread()` helper from `static` to non-static, declares `void AttachCurrentThread();` in `MetaOperations.h`, and the scheduler thread calls that helper before any IL2CPP/UI access
 - the scheduler loop stays in `MetaOperations.cpp` on purpose so it can directly read `g_autoAuctionRunning`, `DetectScreenState()`, and the shared reward-flow helper without turning those internals into new exported globals
 
 Shutdown rules:
@@ -144,6 +145,8 @@ Time-source rules:
   - convert `FILETIME` to 100-ns ticks
   - subtract Windows epoch offset `116444736000000000`
   - divide by `10000`
+- new scheduler/reward-flow shutdown checks use a single helper in `MetaOperations.cpp` backed by `InterlockedCompareExchange(&g_shuttingDown, 0, 0) != 0`
+- do not introduce new plain `while (!g_shuttingDown)` reads in the scheduler implementation; existing unrelated code may keep its current style until a dedicated cleanup change
 
 ### 4. Cycle Entry Rule
 
@@ -153,7 +156,7 @@ At due time:
 
 1. if `enabled == false`, do nothing and keep waiting
 2. if `g_shuttingDown != 0`, exit thread
-3. if `g_autoAuctionRunning == true`, skip this cycle
+3. if `g_autoAuctionRunning.load(std::memory_order_relaxed) == true`, skip this cycle
 4. if another cabinet-reward collection is already running, skip this cycle
 5. call `DetectScreenState()`
 6. only if `screen == "main_lobby"` may the scheduler proceed with reward collection
@@ -166,6 +169,11 @@ Important clarification:
 - only the manual command keeps its broader “close overlays / recover to entry screen” behavior
 
 This is deliberate. The user requirement is “if current UI is the main lobby, collect reward”, not “from any UI try to navigate to reward collection”.
+
+`lastObservedScreen` update rule:
+
+- if the cycle reaches `DetectScreenState()`, update `lastObservedScreen` to the detected `screen`, even when the cycle then skips because the screen is not `main_lobby`
+- if the cycle skips earlier because auto-auction is running or cabinet-reward collection is already busy, leave `lastObservedScreen` unchanged
 
 ### 5. Shared Collection Helper
 
@@ -190,6 +198,15 @@ bool ExecuteCollectCabinetRewardFlow(
     std::string* errorMessage
 );
 ```
+
+Refactor scope note:
+
+- this helper extraction is the largest implementation change in this feature
+- the current inline `CmdCollectCabinetReward(...)` flow must be converted from direct `SendResponse(...)` early returns into helper-local error propagation (`*errorMessage = ...; return false`)
+- the same extraction also absorbs:
+  - mutual exclusion guard entry/exit
+  - shutdown-aware waits
+  - shared logging context via `sourceTag`
 
 Design requirements:
 
@@ -234,6 +251,7 @@ Required guard shape:
 - acquire with `compare_exchange_strong`
 - release with a small RAII guard so all early-return paths are covered
 - do not rely on manual paired set/reset across multiple early returns in the shared helper
+- this is a deliberate behavior change for the manual command; today `CmdCollectCabinetReward(...)` has no contention-aware fail-fast path
 
 ### 7. AutoAuction Interaction
 
@@ -254,6 +272,18 @@ This feature does not pause, cancel, or otherwise coordinate with auto-auction b
 ### 8. State / Control Commands
 
 Add two lightweight native commands.
+
+These remain ordinary pipe commands:
+
+- Inject uses the existing `window.bidkingDesktop.runAutoOperationCommand(...)` path
+- no new preload bridge method or side channel is introduced
+
+Command wiring requirements:
+
+- declare both command handlers in `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.h`
+- implement both handlers in `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.cpp`
+- register both command names in the `kCommands` dispatch table in `tools/inject/AutoOperation/BKAutoOpAgent/BKAutoOpAgent.cpp`
+- omission of either declaration or dispatch registration is a spec violation because the runtime result would be `unknown command: ...`
 
 #### 8.1 `GetAutoCollectCabinetRewardState`
 
@@ -331,8 +361,8 @@ UI requirements:
 
 State-fetch behavior:
 
-- on panel mount, call `GetAutoCollectCabinetRewardState`
-- after toggle changes, call `SetAutoCollectCabinetRewardEnabled`
+- on panel mount, call `GetAutoCollectCabinetRewardState` through the existing `window.bidkingDesktop.runAutoOperationCommand(...)` path
+- after toggle changes, call `SetAutoCollectCabinetRewardEnabled` through the same existing command path
 - after the set command resolves, refresh local UI state from the returned payload
 
 Locking behavior:
@@ -413,6 +443,7 @@ This feature does not require event-channel redesign or timeout policy changes.
 
 Extend `tools/inject/AutoOperation/BKAutoOpAgent/AggregateOperationSemantics.test.cpp` with pure decision coverage for:
 
+- `inline bool IsEligibleAutoCollectCabinetRewardScreen(const char* screen)` returns true only for `main_lobby`
 - only `main_lobby` qualifies for scheduler collection
 - `warehouse` does not qualify
 - skip when auto-auction is running
