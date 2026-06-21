@@ -67,6 +67,23 @@ static void ScheduleNextAutoCollectCabinetRewardCycleFromNow() {
     );
 }
 
+static unsigned long long EnsureAutoCollectCabinetRewardNextDueTickSeeded() {
+    const unsigned long long currentDueTick =
+        g_autoCollectCabinetRewardNextDueTick.load(std::memory_order_relaxed);
+    if (currentDueTick != 0ULL) return currentDueTick;
+
+    const unsigned long long nextDueTick =
+        GetTickCount64() + kAutoCollectCabinetRewardIntervalMs;
+    unsigned long long expected = 0ULL;
+    if (g_autoCollectCabinetRewardNextDueTick.compare_exchange_strong(
+            expected,
+            nextDueTick,
+            std::memory_order_relaxed)) {
+        return nextDueTick;
+    }
+    return expected;
+}
+
 static bool SleepForAutoCollectCabinetRewardDelayInterruptibly(int totalMs, int sliceMs = 100) {
     if (totalMs <= 0) return !IsAgentShuttingDown();
     int remaining = totalMs;
@@ -804,8 +821,9 @@ static AutoCollectCabinetRewardStateSnapshot SnapshotAutoCollectCabinetRewardSta
     snapshot.running = g_autoCollectCabinetRewardRunning.load(std::memory_order_relaxed);
     snapshot.intervalMs = (int)kAutoCollectCabinetRewardIntervalMs;
 
-    const unsigned long long dueTick =
-        g_autoCollectCabinetRewardNextDueTick.load(std::memory_order_relaxed);
+    const unsigned long long dueTick = snapshot.enabled
+        ? EnsureAutoCollectCabinetRewardNextDueTickSeeded()
+        : g_autoCollectCabinetRewardNextDueTick.load(std::memory_order_relaxed);
     if (snapshot.enabled && dueTick > 0ULL) {
         const long long delta = (long long)dueTick - (long long)GetTickCount64();
         snapshot.nextCheckInMs = delta > 0 ? delta : 0;
@@ -848,21 +866,9 @@ void CmdSetAutoCollectCabinetRewardEnabled(AgentConn* c, const char* id, const c
     g_autoCollectCabinetRewardEnabled.store(enabled, std::memory_order_relaxed);
     if (enabled) {
         ScheduleNextAutoCollectCabinetRewardCycleFromNow();
-        UpdateAutoCollectCabinetRewardCycleState(
-            UINT64_MAX,
-            "never_run",
-            "",
-            nullptr
-        );
         Logf("AutoCollectCabinetReward enabled by UI");
     } else {
         g_autoCollectCabinetRewardNextDueTick.store(0ULL, std::memory_order_relaxed);
-        UpdateAutoCollectCabinetRewardCycleState(
-            UINT64_MAX,
-            "disabled",
-            "disabled by user",
-            nullptr
-        );
         Logf("AutoCollectCabinetReward disabled by UI");
     }
 
@@ -875,7 +881,7 @@ void CmdSetAutoCollectCabinetRewardEnabled(AgentConn* c, const char* id, const c
 DWORD WINAPI AutoCollectCabinetRewardThread(LPVOID) {
     AttachCurrentThread();
     EnsureAutoCollectCabinetRewardStateCsInitialized();
-    ScheduleNextAutoCollectCabinetRewardCycleFromNow();
+    EnsureAutoCollectCabinetRewardNextDueTickSeeded();
     Logf("AutoCollectCabinetReward scheduler started intervalMs=%llu",
          (unsigned long long)kAutoCollectCabinetRewardIntervalMs);
 
@@ -886,10 +892,8 @@ DWORD WINAPI AutoCollectCabinetRewardThread(LPVOID) {
         }
 
         const unsigned long long nowTick = GetTickCount64();
-        const unsigned long long dueTick =
-            g_autoCollectCabinetRewardNextDueTick.load(std::memory_order_relaxed);
+        const unsigned long long dueTick = EnsureAutoCollectCabinetRewardNextDueTickSeeded();
         if (dueTick == 0ULL) {
-            ScheduleNextAutoCollectCabinetRewardCycleFromNow();
             if (!SleepForAutoCollectCabinetRewardDelayInterruptibly(250)) break;
             continue;
         }
