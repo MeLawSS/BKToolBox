@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('bidkingDesktop', {
     },
     writeDataFile: (filename, content) => ipcRenderer.invoke('app:writeDataFile', filename, content),
     showNotification: (title, body) => ipcRenderer.invoke('app:showNotification', { title, body }),
+    focusMainWindow: () => ipcRenderer.invoke('app:focusMainWindow'),
     onScreenshotCaptureFailed: (callback) => {
         if (typeof callback !== 'function') {
             return () => {};

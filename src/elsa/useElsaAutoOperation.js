@@ -221,6 +221,11 @@ export function useElsaAutoOperation() {
         addLog(AUTO_AUCTION_AUTH_CODE_MESSAGE, 'warn');
         await stopAutomation({ requestCancel: false });
         await showDesktopNotification(AUTO_AUCTION_NOTIFICATION_TITLE, AUTO_AUCTION_AUTH_CODE_MESSAGE);
+        try {
+          await window.bidkingDesktop?.focusMainWindow?.();
+        } catch (_e) {
+          // focus is best-effort; never block the shutdown flow
+        }
         return;
       }
       addLog(`竞拍完成，共出价 ${rounds} 轮，使用出价 ${usedPrice}`);

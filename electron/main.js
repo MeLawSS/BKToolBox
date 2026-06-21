@@ -713,6 +713,17 @@ function registerIpc() {
             return { ok: false, error: error?.message || String(error) };
         }
     });
+    ipcMain.handle('app:focusMainWindow', () => {
+        if (!mainWindow || mainWindow.isDestroyed()) {
+            return { ok: false, error: 'no window' };
+        }
+        if (mainWindow.isMinimized()) {
+            mainWindow.restore();
+        }
+        mainWindow.show();
+        mainWindow.focus();
+        return { ok: true };
+    });
 }
 
 async function createMainWindow() {

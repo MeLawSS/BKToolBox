@@ -80,6 +80,7 @@ describe('useElsaAutoOperation', () => {
       runAutoOperationCommand: vi.fn().mockResolvedValue({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 0 }, response: {} }),
       writeDataFile: vi.fn().mockResolvedValue(undefined),
       showNotification: vi.fn().mockResolvedValue({ ok: true, shown: true }),
+      focusMainWindow: vi.fn().mockResolvedValue({ ok: true }),
     };
   });
 
@@ -440,7 +441,36 @@ describe('useElsaAutoOperation', () => {
         'BKToolBox',
         expect.stringContaining('验证'),
       );
+      expect(window.bidkingDesktop.focusMainWindow).toHaveBeenCalled();
       expect(result.log.value.some(e => e.message.includes('验证'))).toBe(true);
+    } finally {
+      wrapper.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not propagate focusMainWindow rejection when captcha is detected', async () => {
+    vi.useFakeTimers();
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
+    window.bidkingDesktop.focusMainWindow.mockRejectedValue(new Error('pipe broken'));
+    window.bidkingDesktop.runAutoOperationCommand.mockResolvedValue({
+      ok: true,
+      value: { result: 'authcode_required', rounds: 0, expectedPrice: 50000 },
+      response: {},
+    });
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
+    try {
+      await result.enable();
+      await flushPromises();
+      await advanceInitialExpectedPriceSync();
+
+      expect(result.isEnabled.value).toBe(false);
+      expect(mockUnloadAgent).toHaveBeenCalledTimes(1);
+      expect(window.bidkingDesktop.showNotification).toHaveBeenCalled();
+      expect(window.bidkingDesktop.focusMainWindow).toHaveBeenCalled();
+      // No unhandled rejection — test completes without error
     } finally {
       wrapper.unmount();
       vi.useRealTimers();
