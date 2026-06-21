@@ -1,0 +1,2005 @@
+{
+  "schemaVersion": 1,
+  "source": "Archive/BidKing/BidKing_Data/StreamingAssets/dll/Scripts.dll.bytes XOR key ryrs, parsed with monodis",
+  "generatedOn": "2026-05-23",
+  "liveMonitorEventPayload": {
+    "type": "object",
+    "description": "SSE event payload emitted by /api/bidking-monitor/events. Raw parser event fields remain at the top level for backward compatibility; enriched fields are optional.",
+    "additionalProperties": true,
+    "properties": {
+      "rawEvent": { "type": "object" },
+      "facts": {
+        "type": "array",
+        "items": { "type": "object" }
+      },
+      "state": { "type": "object" }
+    }
+  },
+  "transport": {
+    "downstreamHeaderBytes": 16,
+    "upstreamHeaderBytes": 12,
+    "endian": "big-endian packet header, protobuf payload"
+  },
+  "coreTypes": {
+    "StockContainerData": [
+      {
+        "number": 1,
+        "name": "StockId",
+        "type": "int32",
+        "repeated": false,
+        "storage": "stockId"
+      },
+      {
+        "number": 2,
+        "name": "StockCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "stockCid"
+      },
+      {
+        "number": 3,
+        "name": "StockBoxes",
+        "type": "Protodata.StockBoxData",
+        "repeated": true,
+        "storage": "stockBoxes"
+      },
+      {
+        "number": 4,
+        "name": "CabinetLastGetRewardTime",
+        "type": "int64",
+        "repeated": false,
+        "storage": "cabinetLastGetRewardTime"
+      },
+      {
+        "number": 5,
+        "name": "CabinetCumulativeReward",
+        "type": "int32",
+        "repeated": false,
+        "storage": "cabinetCumulativeReward"
+      },
+      {
+        "number": 6,
+        "name": "CabinetBasicReward",
+        "type": "int32",
+        "repeated": false,
+        "storage": "cabinetBasicReward"
+      },
+      {
+        "number": 7,
+        "name": "CabinetReward",
+        "type": "int32",
+        "repeated": false,
+        "storage": "cabinetReward"
+      }
+    ],
+    "StockBoxData": [
+      {
+        "number": 1,
+        "name": "BoxId",
+        "type": "int32",
+        "repeated": false,
+        "storage": "boxId"
+      },
+      {
+        "number": 2,
+        "name": "Position",
+        "type": "Protodata.BoxPositionData",
+        "repeated": false,
+        "storage": "position"
+      },
+      {
+        "number": 3,
+        "name": "Item",
+        "type": "Protodata.ItemData",
+        "repeated": false,
+        "storage": "item"
+      }
+    ],
+    "BoxPositionData": [
+      {
+        "number": 1,
+        "name": "X",
+        "type": "int32",
+        "repeated": false,
+        "storage": "x"
+      },
+      {
+        "number": 2,
+        "name": "Y",
+        "type": "int32",
+        "repeated": false,
+        "storage": "y"
+      }
+    ],
+    "ItemData": [
+      {
+        "number": 1,
+        "name": "Uid",
+        "type": "int64",
+        "repeated": false,
+        "storage": "uid"
+      },
+      {
+        "number": 2,
+        "name": "Cid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "cid"
+      },
+      {
+        "number": 3,
+        "name": "Count",
+        "type": "int32",
+        "repeated": false,
+        "storage": "count"
+      },
+      {
+        "number": 4,
+        "name": "BoxPositionData",
+        "type": "Protodata.BoxPositionData",
+        "repeated": true,
+        "storage": "boxPositionData"
+      },
+      {
+        "number": 5,
+        "name": "Rotate",
+        "type": "bool",
+        "repeated": false,
+        "storage": "rotate"
+      },
+      {
+        "number": 6,
+        "name": "CanTrade",
+        "type": "bool",
+        "repeated": false,
+        "storage": "canTrade"
+      },
+      {
+        "number": 7,
+        "name": "No",
+        "type": "int32",
+        "repeated": false,
+        "storage": "no"
+      },
+      {
+        "number": 8,
+        "name": "IsLock",
+        "type": "bool",
+        "repeated": false,
+        "storage": "isLock"
+      },
+      {
+        "number": 9,
+        "name": "Quality",
+        "type": "int32",
+        "repeated": false,
+        "storage": "quality"
+      }
+    ],
+    "GameUseItemOrPriceData": [
+      {
+        "number": 1,
+        "name": "Round",
+        "type": "int32",
+        "repeated": false,
+        "storage": "round"
+      },
+      {
+        "number": 2,
+        "name": "ItemCidOrPrice",
+        "type": "int32",
+        "repeated": false,
+        "storage": "itemCidOrPrice"
+      }
+    ],
+    "UserSimSelectGameItemData": [
+      {
+        "number": 1,
+        "name": "ItemUid",
+        "type": "int64",
+        "repeated": false,
+        "storage": "itemUid"
+      },
+      {
+        "number": 2,
+        "name": "ItemCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "itemCid"
+      }
+    ],
+    "UserSimBuffItemData": [
+      {
+        "number": 1,
+        "name": "ItemCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "itemCid"
+      },
+      {
+        "number": 2,
+        "name": "ItemCount",
+        "type": "int32",
+        "repeated": false,
+        "storage": "itemCount"
+      },
+      {
+        "number": 3,
+        "name": "Power",
+        "type": "int32",
+        "repeated": false,
+        "storage": "power"
+      },
+      {
+        "number": 4,
+        "name": "CD",
+        "type": "int32",
+        "repeated": false,
+        "storage": "cD"
+      }
+    ],
+    "UserSelectItemData": [
+      {
+        "number": 1,
+        "name": "ItemCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "itemCid"
+      },
+      {
+        "number": 2,
+        "name": "IsUsed",
+        "type": "bool",
+        "repeated": false,
+        "storage": "isUsed"
+      }
+    ],
+    "GameUserData": [
+      {
+        "number": 1,
+        "name": "UserUid",
+        "type": "int64",
+        "repeated": false,
+        "storage": "userUid"
+      },
+      {
+        "number": 2,
+        "name": "Name",
+        "type": "string",
+        "repeated": false,
+        "storage": "name"
+      },
+      {
+        "number": 3,
+        "name": "HeroCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "heroCid"
+      },
+      {
+        "number": 4,
+        "name": "UseItemLog",
+        "type": "Protodata.GameUseItemOrPriceData",
+        "repeated": true,
+        "storage": "useItemLog"
+      },
+      {
+        "number": 5,
+        "name": "PriceLog",
+        "type": "Protodata.GameUseItemOrPriceData",
+        "repeated": true,
+        "storage": "priceLog"
+      },
+      {
+        "number": 6,
+        "name": "IsStandDown",
+        "type": "bool",
+        "repeated": false,
+        "storage": "isStandDown"
+      },
+      {
+        "number": 7,
+        "name": "IsQuit",
+        "type": "bool",
+        "repeated": false,
+        "storage": "isQuit"
+      },
+      {
+        "number": 8,
+        "name": "HeadCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "headCid"
+      },
+      {
+        "number": 9,
+        "name": "HeroSkinCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "heroSkinCid"
+      },
+      {
+        "number": 10,
+        "name": "SimSelectItemList",
+        "type": "Protodata.UserSimSelectGameItemData",
+        "repeated": true,
+        "storage": "simSelectItemList"
+      },
+      {
+        "number": 11,
+        "name": "SimBuffItemList",
+        "type": "Protodata.UserSimBuffItemData",
+        "repeated": true,
+        "storage": "simBuffItemList"
+      },
+      {
+        "number": 12,
+        "name": "SelectItemList",
+        "type": "Protodata.UserSelectItemData",
+        "repeated": true,
+        "storage": "selectItemList"
+      },
+      {
+        "number": 13,
+        "name": "HeadBoxCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "headBoxCid"
+      },
+      {
+        "number": 14,
+        "name": "TitleCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "titleCid"
+      },
+      {
+        "number": 15,
+        "name": "Remark",
+        "type": "string",
+        "repeated": false,
+        "storage": "remark"
+      }
+    ],
+    "BoxInfoData": [
+      {
+        "number": 1,
+        "name": "BoxId",
+        "type": "int32",
+        "repeated": false,
+        "storage": "boxId"
+      },
+      {
+        "number": 2,
+        "name": "ItemUid",
+        "type": "int64",
+        "repeated": false,
+        "storage": "itemUid"
+      },
+      {
+        "number": 3,
+        "name": "ItemCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "itemCid"
+      },
+      {
+        "number": 4,
+        "name": "ItemSlotType",
+        "type": "int32",
+        "repeated": false,
+        "storage": "itemSlotType"
+      },
+      {
+        "number": 5,
+        "name": "ItemType",
+        "type": "int32",
+        "repeated": true,
+        "storage": "itemType"
+      },
+      {
+        "number": 6,
+        "name": "ItemQuility",
+        "type": "int32",
+        "repeated": false,
+        "storage": "itemQuility"
+      },
+      {
+        "number": 7,
+        "name": "ItemPrice",
+        "type": "int32",
+        "repeated": false,
+        "storage": "itemPrice"
+      },
+      {
+        "number": 8,
+        "name": "ItemBoxIndex",
+        "type": "int32",
+        "repeated": false,
+        "storage": "itemBoxIndex"
+      }
+    ],
+    "GameSkillData": [
+      {
+        "number": 1,
+        "name": "SkillCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "skillCid"
+      },
+      {
+        "number": 2,
+        "name": "HeroCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "heroCid"
+      },
+      {
+        "number": 3,
+        "name": "MapCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "mapCid"
+      },
+      {
+        "number": 4,
+        "name": "ItemCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "itemCid"
+      },
+      {
+        "number": 5,
+        "name": "CastTime",
+        "type": "int64",
+        "repeated": false,
+        "storage": "castTime"
+      },
+      {
+        "number": 6,
+        "name": "CastRound",
+        "type": "int32",
+        "repeated": false,
+        "storage": "castRound"
+      },
+      {
+        "number": 7,
+        "name": "HitItemIndex",
+        "type": "int32",
+        "repeated": false,
+        "storage": "hitItemIndex"
+      },
+      {
+        "number": 8,
+        "name": "HitBoxList",
+        "type": "Protodata.BoxInfoData",
+        "repeated": true,
+        "storage": "hitBoxList"
+      },
+      {
+        "number": 9,
+        "name": "AllHitItemAvgPrice",
+        "type": "float32",
+        "repeated": false,
+        "storage": "allHitItemAvgPrice"
+      },
+      {
+        "number": 10,
+        "name": "AllHitBoxAvgPrice",
+        "type": "float32",
+        "repeated": false,
+        "storage": "allHitBoxAvgPrice"
+      },
+      {
+        "number": 11,
+        "name": "AllHitItemAvgBoxIndex",
+        "type": "float32",
+        "repeated": false,
+        "storage": "allHitItemAvgBoxIndex"
+      },
+      {
+        "number": 12,
+        "name": "HitItemTotalPrice",
+        "type": "int32",
+        "repeated": false,
+        "storage": "hitItemTotalPrice"
+      },
+      {
+        "number": 13,
+        "name": "Uid",
+        "type": "int64",
+        "repeated": false,
+        "storage": "uid"
+      },
+      {
+        "number": 14,
+        "name": "TotalHitBoxIndex",
+        "type": "int32",
+        "repeated": false,
+        "storage": "totalHitBoxIndex"
+      },
+      {
+        "number": 15,
+        "name": "HitItemTypeList",
+        "type": "int32",
+        "repeated": true,
+        "storage": "hitItemTypeList"
+      },
+      {
+        "number": 16,
+        "name": "HitItemQuilityList",
+        "type": "int32",
+        "repeated": true,
+        "storage": "hitItemQuilityList"
+      }
+    ],
+    "GameData": [
+      {
+        "number": 1,
+        "name": "Uid",
+        "type": "string",
+        "repeated": false,
+        "storage": "uid"
+      },
+      {
+        "number": 2,
+        "name": "MapId",
+        "type": "int32",
+        "repeated": false,
+        "storage": "mapId"
+      },
+      {
+        "number": 3,
+        "name": "Round",
+        "type": "int32",
+        "repeated": false,
+        "storage": "round"
+      },
+      {
+        "number": 4,
+        "name": "StockContainer",
+        "type": "Protodata.StockContainerData",
+        "repeated": false,
+        "storage": "stockContainer"
+      },
+      {
+        "number": 5,
+        "name": "UserLog",
+        "type": "Protodata.GameUserData",
+        "repeated": true,
+        "storage": "userLog"
+      },
+      {
+        "number": 6,
+        "name": "HeroSkillLog",
+        "type": "Protodata.GameSkillData",
+        "repeated": true,
+        "storage": "heroSkillLog"
+      },
+      {
+        "number": 7,
+        "name": "MapSkillLog",
+        "type": "Protodata.GameSkillData",
+        "repeated": true,
+        "storage": "mapSkillLog"
+      },
+      {
+        "number": 8,
+        "name": "ItemSkillLog",
+        "type": "Protodata.GameSkillData",
+        "repeated": true,
+        "storage": "itemSkillLog"
+      },
+      {
+        "number": 9,
+        "name": "NextRoundTime",
+        "type": "int64",
+        "repeated": false,
+        "storage": "nextRoundTime"
+      },
+      {
+        "number": 10,
+        "name": "SelectItemCount",
+        "type": "int32",
+        "repeated": false,
+        "storage": "selectItemCount"
+      },
+      {
+        "number": 11,
+        "name": "RoundCanUseItemCount",
+        "type": "int32",
+        "repeated": false,
+        "storage": "roundCanUseItemCount"
+      },
+      {
+        "number": 12,
+        "name": "GameCarryItemMax",
+        "type": "int32",
+        "repeated": false,
+        "storage": "gameCarryItemMax"
+      },
+      {
+        "number": 13,
+        "name": "GameGoldRateMax",
+        "type": "int32",
+        "repeated": false,
+        "storage": "gameGoldRateMax"
+      },
+      {
+        "number": 14,
+        "name": "GameType",
+        "type": "int32",
+        "repeated": false,
+        "storage": "gameType"
+      },
+      {
+        "number": 15,
+        "name": "SendAuctionUserUid",
+        "type": "int64",
+        "repeated": false,
+        "storage": "sendAuctionUserUid"
+      },
+      {
+        "number": 16,
+        "name": "SendAuctionUserName",
+        "type": "string",
+        "repeated": false,
+        "storage": "sendAuctionUserName"
+      },
+      {
+        "number": 17,
+        "name": "SendAuctionUserHead",
+        "type": "int32",
+        "repeated": false,
+        "storage": "sendAuctionUserHead"
+      },
+      {
+        "number": 18,
+        "name": "SendAuctionHeadBox",
+        "type": "int32",
+        "repeated": false,
+        "storage": "sendAuctionHeadBox"
+      },
+      {
+        "number": 19,
+        "name": "SendAuctionUserTitle",
+        "type": "int32",
+        "repeated": false,
+        "storage": "sendAuctionUserTitle"
+      },
+      {
+        "number": 20,
+        "name": "ServerTime",
+        "type": "int64",
+        "repeated": false,
+        "storage": "serverTime"
+      }
+    ],
+    "GameUserSkillLogData": [
+      {
+        "number": 1,
+        "name": "UserUid",
+        "type": "int64",
+        "repeated": false,
+        "storage": "userUid"
+      },
+      {
+        "number": 2,
+        "name": "HeroSkillLog",
+        "type": "Protodata.GameSkillData",
+        "repeated": true,
+        "storage": "heroSkillLog"
+      },
+      {
+        "number": 3,
+        "name": "MapSkillLog",
+        "type": "Protodata.GameSkillData",
+        "repeated": true,
+        "storage": "mapSkillLog"
+      },
+      {
+        "number": 4,
+        "name": "ItemSkillLog",
+        "type": "Protodata.GameSkillData",
+        "repeated": true,
+        "storage": "itemSkillLog"
+      }
+    ],
+    "LogGameUser": [
+      {
+        "number": 1,
+        "name": "UserUid",
+        "type": "int64",
+        "repeated": false,
+        "storage": "userUid"
+      },
+      {
+        "number": 2,
+        "name": "LastPrice",
+        "type": "int32",
+        "repeated": false,
+        "storage": "lastPrice"
+      },
+      {
+        "number": 3,
+        "name": "UseItemLog",
+        "type": "Protodata.GameUseItemOrPriceData",
+        "repeated": true,
+        "storage": "useItemLog"
+      },
+      {
+        "number": 4,
+        "name": "PriceLog",
+        "type": "Protodata.GameUseItemOrPriceData",
+        "repeated": true,
+        "storage": "priceLog"
+      },
+      {
+        "number": 5,
+        "name": "HeroCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "heroCid"
+      },
+      {
+        "number": 6,
+        "name": "IsStandDown",
+        "type": "bool",
+        "repeated": false,
+        "storage": "isStandDown"
+      },
+      {
+        "number": 7,
+        "name": "IsQuit",
+        "type": "bool",
+        "repeated": false,
+        "storage": "isQuit"
+      },
+      {
+        "number": 8,
+        "name": "Name",
+        "type": "string",
+        "repeated": false,
+        "storage": "name"
+      },
+      {
+        "number": 9,
+        "name": "HeroSkinCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "heroSkinCid"
+      },
+      {
+        "number": 10,
+        "name": "HeadBoxCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "headBoxCid"
+      },
+      {
+        "number": 11,
+        "name": "TitleCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "titleCid"
+      },
+      {
+        "number": 12,
+        "name": "HeadCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "headCid"
+      }
+    ],
+    "GameLogData": [
+      {
+        "number": 1,
+        "name": "LogUid",
+        "type": "int64",
+        "repeated": false,
+        "storage": "logUid"
+      },
+      {
+        "number": 2,
+        "name": "GameUid",
+        "type": "string",
+        "repeated": false,
+        "storage": "gameUid"
+      },
+      {
+        "number": 3,
+        "name": "MapId",
+        "type": "int32",
+        "repeated": false,
+        "storage": "mapId"
+      },
+      {
+        "number": 4,
+        "name": "Round",
+        "type": "int32",
+        "repeated": false,
+        "storage": "round"
+      },
+      {
+        "number": 5,
+        "name": "LogGameUserList",
+        "type": "Protodata.LogGameUser",
+        "repeated": true,
+        "storage": "logGameUserList"
+      },
+      {
+        "number": 6,
+        "name": "StockItemList",
+        "type": "int32",
+        "repeated": true,
+        "storage": "stockItemList"
+      },
+      {
+        "number": 7,
+        "name": "WinUserUid",
+        "type": "int64",
+        "repeated": false,
+        "storage": "winUserUid"
+      },
+      {
+        "number": 8,
+        "name": "GameOverTime",
+        "type": "int64",
+        "repeated": false,
+        "storage": "gameOverTime"
+      }
+    ],
+    "SendAuctionGameData": [
+      {
+        "number": 1,
+        "name": "Uid",
+        "type": "int64",
+        "repeated": false,
+        "storage": "uid"
+      },
+      {
+        "number": 2,
+        "name": "MapCid",
+        "type": "int32",
+        "repeated": false,
+        "storage": "mapCid"
+      },
+      {
+        "number": 3,
+        "name": "GameData",
+        "type": "Protodata.GameData",
+        "repeated": false,
+        "storage": "gameData"
+      },
+      {
+        "number": 4,
+        "name": "GameOverTime",
+        "type": "int64",
+        "repeated": false,
+        "storage": "gameOverTime"
+      },
+      {
+        "number": 5,
+        "name": "UserSkillList",
+        "type": "Protodata.GameUserSkillLogData",
+        "repeated": true,
+        "storage": "userSkillList"
+      }
+    ]
+  },
+  "s2cMessages": {
+    "33": {
+      "name": "S2C_33_game_start_notify",
+      "category": "game",
+      "realtimeRole": "game start snapshot",
+      "fields": [
+        {
+          "number": 1,
+          "name": "GameData",
+          "type": "Protodata.GameData",
+          "repeated": false,
+          "storage": "gameData"
+        }
+      ]
+    },
+    "35": {
+      "name": "S2C_35_game_bid",
+      "category": "game",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "37": {
+      "name": "S2C_37_game_next_round_notify",
+      "category": "game",
+      "realtimeRole": "next round snapshot",
+      "fields": [
+        {
+          "number": 1,
+          "name": "GameData",
+          "type": "Protodata.GameData",
+          "repeated": false,
+          "storage": "gameData"
+        }
+      ]
+    },
+    "39": {
+      "name": "S2C_39_game_use_item",
+      "category": "game",
+      "realtimeRole": "item skill callback",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "ItemSkillLog",
+          "type": "Protodata.GameSkillData",
+          "repeated": true,
+          "storage": "itemSkillLog"
+        }
+      ]
+    },
+    "41": {
+      "name": "S2C_41_quit_game",
+      "category": "related",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "43": {
+      "name": "S2C_43_game_stand_down",
+      "category": "game",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "45": {
+      "name": "S2C_45_game_over_notify",
+      "category": "game",
+      "realtimeRole": "game over snapshot",
+      "fields": [
+        {
+          "number": 1,
+          "name": "WinUserUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "winUserUid"
+        },
+        {
+          "number": 2,
+          "name": "GameData",
+          "type": "Protodata.GameData",
+          "repeated": false,
+          "storage": "gameData"
+        },
+        {
+          "number": 3,
+          "name": "OldCollectionExp",
+          "type": "int32",
+          "repeated": false,
+          "storage": "oldCollectionExp"
+        },
+        {
+          "number": 4,
+          "name": "NewCollectionExp",
+          "type": "int32",
+          "repeated": false,
+          "storage": "newCollectionExp"
+        },
+        {
+          "number": 5,
+          "name": "LossRecovery",
+          "type": "int64",
+          "repeated": false,
+          "storage": "lossRecovery"
+        },
+        {
+          "number": 6,
+          "name": "UserSkillList",
+          "type": "Protodata.GameUserSkillLogData",
+          "repeated": true,
+          "storage": "userSkillList"
+        }
+      ]
+    },
+    "89": {
+      "name": "S2C_89_get_game_log_list",
+      "category": "game",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "GameLogList",
+          "type": "Protodata.GameLogData",
+          "repeated": true,
+          "storage": "gameLogList"
+        }
+      ]
+    },
+    "119": {
+      "name": "S2C_119_game_user_bid_price_notify",
+      "category": "game",
+      "realtimeRole": "bid price notify",
+      "fields": [
+        {
+          "number": 1,
+          "name": "UserUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "userUid"
+        },
+        {
+          "number": 2,
+          "name": "GameUid",
+          "type": "string",
+          "repeated": false,
+          "storage": "gameUid"
+        }
+      ]
+    },
+    "125": {
+      "name": "S2C_125_create_sim_game",
+      "category": "related",
+      "realtimeRole": "simulation game snapshot",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "GameData",
+          "type": "Protodata.GameData",
+          "repeated": false,
+          "storage": "gameData"
+        }
+      ]
+    },
+    "127": {
+      "name": "S2C_127_sim_game_bid_price",
+      "category": "simGame",
+      "realtimeRole": "simulation bid result with optional next round snapshot",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "IsWin",
+          "type": "bool",
+          "repeated": false,
+          "storage": "isWin"
+        },
+        {
+          "number": 3,
+          "name": "IsNextRound",
+          "type": "bool",
+          "repeated": false,
+          "storage": "isNextRound"
+        },
+        {
+          "number": 4,
+          "name": "NextRoundGameData",
+          "type": "Protodata.GameData",
+          "repeated": false,
+          "storage": "nextRoundGameData"
+        }
+      ]
+    },
+    "129": {
+      "name": "S2C_129_sim_game_use_item",
+      "category": "simGame",
+      "realtimeRole": "simulation item use updated snapshot",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "UpdateGameData",
+          "type": "Protodata.GameData",
+          "repeated": false,
+          "storage": "updateGameData"
+        }
+      ]
+    },
+    "131": {
+      "name": "S2C_131_get_sim_game_log",
+      "category": "simGame",
+      "realtimeRole": "simulation game log snapshot",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "MaxWinLevel",
+          "type": "int32",
+          "repeated": false,
+          "storage": "maxWinLevel"
+        },
+        {
+          "number": 3,
+          "name": "SimGold",
+          "type": "int32",
+          "repeated": false,
+          "storage": "simGold"
+        },
+        {
+          "number": 4,
+          "name": "GameWinItemList",
+          "type": "int32",
+          "repeated": true,
+          "storage": "gameWinItemList"
+        },
+        {
+          "number": 5,
+          "name": "SimShopStatus",
+          "type": "Protodata.ShopStatusData",
+          "repeated": false,
+          "storage": "simShopStatus"
+        },
+        {
+          "number": 6,
+          "name": "GameData",
+          "type": "Protodata.GameData",
+          "repeated": false,
+          "storage": "gameData"
+        },
+        {
+          "number": 7,
+          "name": "Level",
+          "type": "int32",
+          "repeated": false,
+          "storage": "level"
+        },
+        {
+          "number": 8,
+          "name": "SimSelectItemList",
+          "type": "Protodata.UserSimSelectGameItemData",
+          "repeated": true,
+          "storage": "simSelectItemList"
+        },
+        {
+          "number": 9,
+          "name": "SimBuffItemList",
+          "type": "Protodata.UserSimBuffItemData",
+          "repeated": true,
+          "storage": "simBuffItemList"
+        },
+        {
+          "number": 10,
+          "name": "SelectItemCount",
+          "type": "int32",
+          "repeated": false,
+          "storage": "selectItemCount"
+        },
+        {
+          "number": 11,
+          "name": "RoundCanUseItemCount",
+          "type": "int32",
+          "repeated": false,
+          "storage": "roundCanUseItemCount"
+        },
+        {
+          "number": 12,
+          "name": "GameCarryItemMax",
+          "type": "int32",
+          "repeated": false,
+          "storage": "gameCarryItemMax"
+        },
+        {
+          "number": 13,
+          "name": "GameGoldRateMax",
+          "type": "int32",
+          "repeated": false,
+          "storage": "gameGoldRateMax"
+        }
+      ]
+    },
+    "133": {
+      "name": "S2C_133_sim_game_shop_buy_item",
+      "category": "simGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "ShopStatus",
+          "type": "Protodata.ShopStatusData",
+          "repeated": false,
+          "storage": "shopStatus"
+        }
+      ]
+    },
+    "135": {
+      "name": "S2C_135_sim_game_select_win_item",
+      "category": "simGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "137": {
+      "name": "S2C_137_sim_game_stand_down",
+      "category": "simGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "157": {
+      "name": "S2C_157_sim_game_use_buff_item",
+      "category": "simGame",
+      "realtimeRole": "simulation buff item updated snapshot",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "UpdateGameData",
+          "type": "Protodata.GameData",
+          "repeated": false,
+          "storage": "updateGameData"
+        }
+      ]
+    },
+    "185": {
+      "name": "S2C_185_room_game_start_notify",
+      "category": "roomGame",
+      "realtimeRole": "room game start snapshot",
+      "fields": [
+        {
+          "number": 1,
+          "name": "RoomUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "roomUid"
+        },
+        {
+          "number": 2,
+          "name": "GameData",
+          "type": "Protodata.GameData",
+          "repeated": false,
+          "storage": "gameData"
+        }
+      ]
+    },
+    "187": {
+      "name": "S2C_187_room_game_use_item",
+      "category": "roomGame",
+      "realtimeRole": "room item skill callback",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "ItemSkillLog",
+          "type": "Protodata.GameSkillData",
+          "repeated": true,
+          "storage": "itemSkillLog"
+        }
+      ]
+    },
+    "189": {
+      "name": "S2C_189_room_game_bid",
+      "category": "roomGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "191": {
+      "name": "S2C_191_room_game_next_round_notify",
+      "category": "roomGame",
+      "realtimeRole": "room next round snapshot",
+      "fields": [
+        {
+          "number": 1,
+          "name": "RoomUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "roomUid"
+        },
+        {
+          "number": 2,
+          "name": "GameData",
+          "type": "Protodata.GameData",
+          "repeated": false,
+          "storage": "gameData"
+        }
+      ]
+    },
+    "193": {
+      "name": "S2C_193_room_game_user_bid_price_notify",
+      "category": "roomGame",
+      "realtimeRole": "room bid price notify",
+      "fields": [
+        {
+          "number": 1,
+          "name": "UserUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "userUid"
+        },
+        {
+          "number": 2,
+          "name": "RoomUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "roomUid"
+        }
+      ]
+    },
+    "195": {
+      "name": "S2C_195_quit_room_game",
+      "category": "related",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "197": {
+      "name": "S2C_197_quit_room_game_notify",
+      "category": "roomGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "RoomUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "roomUid"
+        },
+        {
+          "number": 2,
+          "name": "UserUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "userUid"
+        }
+      ]
+    },
+    "199": {
+      "name": "S2C_199_room_game_stand_down",
+      "category": "roomGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "201": {
+      "name": "S2C_201_room_game_stand_down_notify",
+      "category": "roomGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "RoomUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "roomUid"
+        },
+        {
+          "number": 2,
+          "name": "UserUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "userUid"
+        }
+      ]
+    },
+    "203": {
+      "name": "S2C_203_room_game_use_item_to_target_user",
+      "category": "roomGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "205": {
+      "name": "S2C_205_room_game_use_item_to_target_user_notify",
+      "category": "roomGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "RoomUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "roomUid"
+        },
+        {
+          "number": 2,
+          "name": "UserUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "userUid"
+        },
+        {
+          "number": 3,
+          "name": "TargetUserUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "targetUserUid"
+        },
+        {
+          "number": 4,
+          "name": "EmojiCid",
+          "type": "int32",
+          "repeated": false,
+          "storage": "emojiCid"
+        }
+      ]
+    },
+    "207": {
+      "name": "S2C_207_room_game_over_notify",
+      "category": "roomGame",
+      "realtimeRole": "room game over snapshot",
+      "fields": [
+        {
+          "number": 1,
+          "name": "WinUserUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "winUserUid"
+        },
+        {
+          "number": 2,
+          "name": "GameData",
+          "type": "Protodata.GameData",
+          "repeated": false,
+          "storage": "gameData"
+        },
+        {
+          "number": 3,
+          "name": "RoomData",
+          "type": "Protodata.RoomData",
+          "repeated": false,
+          "storage": "roomData"
+        }
+      ]
+    },
+    "209": {
+      "name": "S2C_209_update_room_setting",
+      "category": "related",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "221": {
+      "name": "S2C_221_get_room_list",
+      "category": "related",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "RoomList",
+          "type": "Protodata.RoomData",
+          "repeated": true,
+          "storage": "roomList"
+        },
+        {
+          "number": 3,
+          "name": "CurrentPage",
+          "type": "int32",
+          "repeated": false,
+          "storage": "currentPage"
+        },
+        {
+          "number": 4,
+          "name": "TotalPage",
+          "type": "int32",
+          "repeated": false,
+          "storage": "totalPage"
+        }
+      ]
+    },
+    "223": {
+      "name": "S2C_223_search_room",
+      "category": "related",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "RoomList",
+          "type": "Protodata.RoomData",
+          "repeated": true,
+          "storage": "roomList"
+        }
+      ]
+    },
+    "225": {
+      "name": "S2C_225_tick_user_out_room",
+      "category": "related",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "227": {
+      "name": "S2C_227_tick_user_out_room_notify",
+      "category": "related",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "RoomUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "roomUid"
+        },
+        {
+          "number": 2,
+          "name": "UserUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "userUid"
+        }
+      ]
+    },
+    "229": {
+      "name": "S2C_229_get_now_game_data",
+      "category": "game",
+      "realtimeRole": "current game snapshot",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "GameData",
+          "type": "Protodata.GameData",
+          "repeated": false,
+          "storage": "gameData"
+        }
+      ]
+    },
+    "239": {
+      "name": "S2C_239_game_vote",
+      "category": "game",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "241": {
+      "name": "S2C_241_game_vote_notify",
+      "category": "game",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "GameUid",
+          "type": "string",
+          "repeated": false,
+          "storage": "gameUid"
+        },
+        {
+          "number": 2,
+          "name": "UserUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "userUid"
+        },
+        {
+          "number": 3,
+          "name": "SlotId",
+          "type": "int32",
+          "repeated": false,
+          "storage": "slotId"
+        }
+      ]
+    },
+    "249": {
+      "name": "S2C_249_get_game_preset_list",
+      "category": "game",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "GamePresetList",
+          "type": "Protodata.GamePresetData",
+          "repeated": true,
+          "storage": "gamePresetList"
+        }
+      ]
+    },
+    "251": {
+      "name": "S2C_251_set_game_preset",
+      "category": "game",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "253": {
+      "name": "S2C_253_unlock_game_preset_slot",
+      "category": "game",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "263": {
+      "name": "S2C_263_game_use_emoji",
+      "category": "game",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "265": {
+      "name": "S2C_265_game_use_emoji_notify",
+      "category": "game",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "GameUid",
+          "type": "string",
+          "repeated": false,
+          "storage": "gameUid"
+        },
+        {
+          "number": 2,
+          "name": "UserUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "userUid"
+        },
+        {
+          "number": 3,
+          "name": "EmojiCid",
+          "type": "int32",
+          "repeated": false,
+          "storage": "emojiCid"
+        }
+      ]
+    },
+    "269": {
+      "name": "S2C_269_sim_game_debug_select_buff_item",
+      "category": "simGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "291": {
+      "name": "S2C_291_test_game_cast_skill",
+      "category": "game",
+      "realtimeRole": "test skill cast result",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "ItemSkillLog",
+          "type": "Protodata.GameSkillData",
+          "repeated": true,
+          "storage": "itemSkillLog"
+        },
+        {
+          "number": 3,
+          "name": "NewGameData",
+          "type": "Protodata.GameData",
+          "repeated": false,
+          "storage": "newGameData"
+        },
+        {
+          "number": 4,
+          "name": "HeroSkillLog",
+          "type": "Protodata.GameSkillData",
+          "repeated": true,
+          "storage": "heroSkillLog"
+        },
+        {
+          "number": 5,
+          "name": "MapSkillLog",
+          "type": "Protodata.GameSkillData",
+          "repeated": true,
+          "storage": "mapSkillLog"
+        },
+        {
+          "number": 6,
+          "name": "SkillLog",
+          "type": "Protodata.GameSkillData",
+          "repeated": true,
+          "storage": "skillLog"
+        }
+      ]
+    },
+    "301": {
+      "name": "S2C_301_get_send_auction_game_list",
+      "category": "game",
+      "realtimeRole": "send-auction game list",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        },
+        {
+          "number": 2,
+          "name": "SendAuctionGameDataList",
+          "type": "Protodata.SendAuctionGameData",
+          "repeated": true,
+          "storage": "sendAuctionGameDataList"
+        }
+      ]
+    },
+    "379": {
+      "name": "S2C_379_room_game_ready",
+      "category": "roomGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "381": {
+      "name": "S2C_381_room_game_ready_notify",
+      "category": "roomGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "RoomUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "roomUid"
+        },
+        {
+          "number": 2,
+          "name": "UserUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "userUid"
+        }
+      ]
+    },
+    "383": {
+      "name": "S2C_383_room_game_unready",
+      "category": "roomGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "385": {
+      "name": "S2C_385_room_game_unready_notify",
+      "category": "roomGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "RoomUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "roomUid"
+        },
+        {
+          "number": 2,
+          "name": "UserUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "userUid"
+        }
+      ]
+    },
+    "387": {
+      "name": "S2C_387_room_game_skip",
+      "category": "roomGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "ErrorCode",
+          "type": "Protodata.Error",
+          "repeated": false,
+          "storage": "errorCode"
+        }
+      ]
+    },
+    "389": {
+      "name": "S2C_389_room_game_skip_notify",
+      "category": "roomGame",
+      "realtimeRole": "",
+      "fields": [
+        {
+          "number": 1,
+          "name": "RoomUid",
+          "type": "int64",
+          "repeated": false,
+          "storage": "roomUid"
+        }
+      ]
+    }
+  }
+}
