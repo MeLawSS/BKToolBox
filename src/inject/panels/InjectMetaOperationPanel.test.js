@@ -138,6 +138,89 @@ describe('InjectMetaOperationPanel', () => {
     expect(runAutoOperationCommand).toHaveBeenNthCalledWith(3, 'GetBidState', {});
   });
 
+  it('loads auto collect scheduler state on mount and renders the enabled status', async () => {
+    const runAutoOperationCommand = setupConnectedDesktop(
+      vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          value: {
+            enabled: true,
+            running: false,
+            intervalMs: 10800000,
+            nextCheckInMs: 3600000,
+            lastCheckAtUnixMs: 0,
+            lastResultCode: 'never_run',
+            lastResultMessage: '',
+            lastObservedScreen: '',
+          },
+        }),
+    );
+
+    const wrapper = await mountPanel();
+
+    expect(runAutoOperationCommand).toHaveBeenCalledWith('GetAutoCollectCabinetRewardState', {});
+    expect(wrapper.get('[data-testid="meta-operation-auto-collect-toggle"]').element.checked).toBe(
+      true,
+    );
+    expect(wrapper.get('[data-testid="meta-operation-auto-collect-status"]').text()).toContain(
+      '未运行',
+    );
+  });
+
+  it('toggles the scheduler through the existing command bridge and respects the shared lock', async () => {
+    const runAutoOperationCommand = setupConnectedDesktop(
+      vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          value: {
+            enabled: true,
+            running: false,
+            intervalMs: 10800000,
+            nextCheckInMs: 1000,
+            lastCheckAtUnixMs: 0,
+            lastResultCode: 'never_run',
+            lastResultMessage: '',
+            lastObservedScreen: '',
+          },
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          value: {
+            enabled: false,
+            running: false,
+            intervalMs: 10800000,
+            nextCheckInMs: null,
+            lastCheckAtUnixMs: 1710000000123,
+            lastResultCode: 'disabled',
+            lastResultMessage: 'disabled by user',
+            lastObservedScreen: 'main_lobby',
+          },
+        }),
+    );
+
+    const wrapper = await mountPanel();
+    const toggle = wrapper.get('[data-testid="meta-operation-auto-collect-toggle"]');
+
+    await toggle.setValue(false);
+    await flushPromises();
+    await nextTick();
+
+    expect(runAutoOperationCommand).toHaveBeenNthCalledWith(
+      2,
+      'SetAutoCollectCabinetRewardEnabled',
+      { enabled: false },
+    );
+    expect(wrapper.get('[data-testid="meta-operation-auto-collect-status"]').text()).toContain(
+      '已关闭',
+    );
+
+    wrapper.unmount();
+    const lockedWrapper = await mountPanel({ commandLoading: 'CollectCabinetReward' });
+    expect(
+      lockedWrapper.get('[data-testid="meta-operation-auto-collect-toggle"]').element.disabled,
+    ).toBe(true);
+  });
+
   it('disables the actions and room select when transport is not ready or the shared lock is held', async () => {
     let wrapper = await mountPanel();
 
