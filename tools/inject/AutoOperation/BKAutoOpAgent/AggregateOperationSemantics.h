@@ -97,6 +97,15 @@ inline int ClampAutoAuctionBidAmount(
     return computedAmount > maxAmount ? maxAmount : computedAmount;
 }
 
+inline bool ShouldDisableAutoAuctionPriceUpperLimit(
+    bool toggleFound,
+    bool toggleActive,
+    bool toggleInteractive,
+    bool toggleOn
+) {
+    return toggleFound && toggleActive && toggleInteractive && toggleOn;
+}
+
 inline int ResolveAutoAuctionReportedExpectedPrice(
     int lastExpectedPrice,
     int notifiedExpectedPrice

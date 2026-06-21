@@ -1229,6 +1229,43 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     "InputDevice/Panel1/InputField (TMP)", UI_PATH_EXACT, 1, &inputM);
                 hasActiveBidInput = !inputM.empty() && inputM[0].active;
                 if (hasActiveBidInput) {
+                    bool canContinueBidDialog = true;
+                    std::vector<UiNodeSnapshot> priceUpperLimitM;
+                    ResolveUiNodeMatches(
+                        s2.battleMainTransform,
+                        "InputDevice/Panel1/priceUpperLimit",
+                        UI_PATH_EXACT,
+                        1,
+                        &priceUpperLimitM
+                    );
+                    if (!priceUpperLimitM.empty()) {
+                        bool toggleOn = false;
+                        if (!ReadToggleValue(priceUpperLimitM[0].components, &toggleOn)) {
+                            Logf("AutoAuction round=%d failed to read priceUpperLimit toggle state", roundsEncountered);
+                            canContinueBidDialog = false;
+                        } else if (ShouldDisableAutoAuctionPriceUpperLimit(
+                            true,
+                            priceUpperLimitM[0].active,
+                            priceUpperLimitM[0].interactive,
+                            toggleOn
+                        )) {
+                            std::string toggleErr;
+                            if (!ClickNode(s2.battleMainTransform, "InputDevice/Panel1/priceUpperLimit", 0, &toggleErr)) {
+                                Logf(
+                                    "AutoAuction round=%d failed to disable priceUpperLimit: %s",
+                                    roundsEncountered,
+                                    toggleErr.c_str()
+                                );
+                                canContinueBidDialog = false;
+                            } else {
+                                Logf("AutoAuction round=%d disabled priceUpperLimit", roundsEncountered);
+                                if (!SleepInterruptibly(300)) { stopIfRequested(); return; }
+                            }
+                        }
+                    }
+                    if (!canContinueBidDialog) {
+                        continue;
+                    }
                     const int finalAmount = ClampAutoAuctionBidAmount(amount, 150000);
                     if (finalAmount != amount) {
                         Logf("AutoAuction amount capped: %d -> %d", amount, finalAmount);

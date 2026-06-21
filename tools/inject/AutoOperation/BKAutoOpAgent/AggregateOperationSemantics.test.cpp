@@ -62,6 +62,11 @@ int main() {
     assert(ClampAutoAuctionBidAmount(150000, 150000) == 150000);
     assert(ClampAutoAuctionBidAmount(150001, 150000) == 150000);
     assert(ClampAutoAuctionBidAmount(0, 150000) == 0);
+    assert(!ShouldDisableAutoAuctionPriceUpperLimit(false, true, true, true));
+    assert(!ShouldDisableAutoAuctionPriceUpperLimit(true, false, true, true));
+    assert(!ShouldDisableAutoAuctionPriceUpperLimit(true, true, false, true));
+    assert(!ShouldDisableAutoAuctionPriceUpperLimit(true, true, true, false));
+    assert(ShouldDisableAutoAuctionPriceUpperLimit(true, true, true, true));
 
     return 0;
 }
