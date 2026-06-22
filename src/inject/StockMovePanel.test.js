@@ -1259,10 +1259,17 @@ describe('StockMovePanel', () => {
     await nextTick();
     expect(getCheckedCids(wrapper).sort((a, b) => a - b)).toEqual([1011001, 1032006, 1083009].sort((a, b) => a - b));
 
-    // Click "Invert" — all should become unchecked.
+    // Prime submitError so we can assert it gets cleared.
+    wrapper.vm.submitError = 'some error';
+    await nextTick();
+    expect(wrapper.find('.status-text.is-error').exists()).toBe(true);
+
+    // Click "Invert" — all should become unchecked, submitError cleared, summary reset.
     await wrapper.find('[data-testid="stock-move-invert"]').trigger('click');
     await nextTick();
     expect(getCheckedCids(wrapper)).toEqual([]);
+    expect(wrapper.find('.status-text.is-error').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stock-move-summary"]').exists()).toBe(false);
 
     // Click "Invert" again — all should become checked (empty → full).
     await wrapper.find('[data-testid="stock-move-invert"]').trigger('click');
@@ -1345,5 +1352,42 @@ describe('StockMovePanel', () => {
     await wrapper.find('[data-testid="stock-move-search"]').setValue('');
     await nextTick();
     expect(invertButton.attributes('disabled')).toBeUndefined();
+  });
+
+  it('select-all and clear still work after using invert', async () => {
+    const snapshot = createSortableSnapshot();
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'GetStockContainers') return { ok: true, value: snapshot };
+      throw new Error(`unexpected command: ${command}`);
+    });
+    setupDesktop(runAutoOperationCommand);
+
+    const wrapper = await mountPanel();
+    await wrapper.find('[data-testid="stock-move-load"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+    await wrapper.find('[data-testid="stock-move-source"]').setValue('1');
+    await nextTick();
+
+    // Start empty, invert to select everything.
+    expect(getCheckedCids(wrapper)).toEqual([]);
+    await wrapper.find('[data-testid="stock-move-invert"]').trigger('click');
+    await nextTick();
+    expect(getCheckedCids(wrapper).sort((a, b) => a - b)).toEqual([1011001, 1032006, 1083009].sort((a, b) => a - b));
+
+    // Invert again to deselect everything.
+    await wrapper.find('[data-testid="stock-move-invert"]').trigger('click');
+    await nextTick();
+    expect(getCheckedCids(wrapper)).toEqual([]);
+
+    // Select All should work after invert.
+    await wrapper.find('[data-testid="stock-move-select-all"]').trigger('click');
+    await nextTick();
+    expect(getCheckedCids(wrapper).sort((a, b) => a - b)).toEqual([1011001, 1032006, 1083009].sort((a, b) => a - b));
+
+    // Clear should work after invert.
+    await wrapper.find('[data-testid="stock-move-clear"]').trigger('click');
+    await nextTick();
+    expect(getCheckedCids(wrapper)).toEqual([]);
   });
 });
