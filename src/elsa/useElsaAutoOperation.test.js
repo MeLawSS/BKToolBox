@@ -605,6 +605,54 @@ describe('useElsaAutoOperation', () => {
     }
   });
 
+  it('passes the configured roomId to AutoAuction', async () => {
+    vi.useFakeTimers();
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
+    elsaAutoBidKnownQualityKeys.value = [];
+    let resolveAutoAuction;
+    const autoAuctionPromise = new Promise((resolve) => { resolveAutoAuction = resolve; });
+
+    window.bidkingDesktop = {
+      isDesktop: true,
+      runAutoOperationCommand: vi.fn(async (name, args) => {
+        if (name === 'AutoAuction') return autoAuctionPromise;
+        if (name === 'CancelAutoAuction')
+          return Promise.resolve({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 100000 } });
+        if (name === 'CollectCabinetReward')
+          return Promise.resolve({ ok: true, value: { result: 'success', autoCollectEnabled: false, cabinetRewardCount: 0 } });
+        return Promise.resolve({ ok: true, value: {} });
+      }),
+      writeDataFile: vi.fn(() => Promise.resolve()),
+      showNotification: vi.fn(() => Promise.resolve({ ok: true })),
+    };
+
+    const selectedRoomId = ref('102');
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation({ roomId: selectedRoomId }));
+    try {
+      await result.enable();
+      await flushPromises();
+      await vi.advanceTimersByTimeAsync(4000);
+      await flushPromises();
+      await vi.advanceTimersByTimeAsync(1);
+      await flushPromises();
+
+      const autoAuctionIndex = window.bidkingDesktop.runAutoOperationCommand.mock.calls.findIndex(
+        ([name]) => name === 'AutoAuction',
+      );
+      expect(autoAuctionIndex).toBeGreaterThanOrEqual(0);
+      expect(window.bidkingDesktop.runAutoOperationCommand.mock.calls[autoAuctionIndex]).toEqual([
+        'AutoAuction',
+        { roomId: 102, useExpectedPrice: true },
+      ]);
+    } finally {
+      resolveAutoAuction?.({ ok: true, value: { result: 'canceled', rounds: 0, expectedPrice: 100000 } });
+      wrapper.unmount();
+      vi.useRealTimers();
+    }
+  });
+
   it('lets disable cancel the initial debounce before SetExpectedPrice and AutoAuction fire', async () => {
     vi.useFakeTimers();
     monitorRunning = true;

@@ -1,7 +1,7 @@
 /* @vitest-environment happy-dom */
 import { mount, flushPromises } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ref } from 'vue';
+import { nextTick, ref } from 'vue';
 import ElsaAutoOperationPanel from './ElsaAutoOperationPanel.vue';
 
 const mockEnable = vi.fn();
@@ -140,5 +140,36 @@ describe('ElsaAutoOperationPanel', () => {
     await flushPromises();
     expect(wrapper.find('[data-testid="elsa-auto-operation-agent-status"]').text())
       .toContain('tools.hero.elsaAutoOperationAgentConnected');
+  });
+
+  it('renders room select dropdown defaulting to 101', async () => {
+    const wrapper = mount(ElsaAutoOperationPanel, {
+      attachTo: document.body,
+      global: { stubs: { TopBar: true } },
+    });
+    mountedWrappers.push(wrapper);
+    await nextTick();
+    const select = wrapper.find('[data-testid="elsa-auto-operation-room-select"]');
+    expect(select.exists()).toBe(true);
+    expect(select.element.value).toBe('101');
+  });
+
+  it('disables room select while auto operation is enabled', async () => {
+    isEnabled.value = true;
+    await nextTick();
+    const wrapper = mount(ElsaAutoOperationPanel, {
+      attachTo: document.body,
+      global: { stubs: { TopBar: true } },
+    });
+    mountedWrappers.push(wrapper);
+    await nextTick();
+    const select = wrapper.find('[data-testid="elsa-auto-operation-room-select"]');
+    expect(select.element.disabled).toBe(true);
+
+    isEnabled.value = false;
+    await nextTick();
+    expect(select.element.disabled).toBe(false);
+
+    isEnabled.value = false; // cleanup for other tests
   });
 });
