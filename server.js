@@ -9,8 +9,7 @@ const { CaptureDriverManager } = require('./lib/capture-driver');
 const { MarketPriceStore } = require('./lib/bidking-market-price-store');
 const { PriceHistoryStore } = require('./lib/bidking-price-history-store');
 const { MarketLadderStore } = require('./lib/bidking-market-ladder-store');
-const { ListingFeeConfigStore } = require('./lib/listing-fee-config-store');
-const { buildListingAdvice } = require('./lib/high-price-listing-advisor');
+
 
 const serverLogPath = path.join(os.tmpdir(), 'bidking-server.log');
 
@@ -66,7 +65,7 @@ function createApp(deps = {}) {
     const marketPriceStore = deps.marketPriceStore || monitor.marketPriceStore || new MarketPriceStore();
     const priceHistoryStore = deps.priceHistoryStore || monitor.priceHistoryStore || new PriceHistoryStore();
     const marketLadderStore = deps.marketLadderStore || new MarketLadderStore();
-    const listingFeeConfigStore = deps.listingFeeConfigStore || new ListingFeeConfigStore();
+
     const collectibles = Array.isArray(deps.collectibles) ? deps.collectibles : readCollectibles(logger);
     const services = {
         async stop() {
@@ -244,30 +243,6 @@ function createApp(deps = {}) {
         });
     });
 
-    app.get('/api/exchange-listing-advice/:itemCid', (req, res) => {
-        const itemCid = parsePositiveInteger(String(req.params.itemCid ?? ''));
-        if (itemCid === null) {
-            res.status(400).json({ error: 'itemCid is required' });
-            return;
-        }
-
-        const feeConfig = listingFeeConfigStore.readConfig();
-        if (!feeConfig) {
-            res.status(409).json({ error: 'listing fee and trade tax config is unavailable' });
-            return;
-        }
-
-        const item = findCollectible(itemCid);
-        if (!item) {
-            res.status(404).json({ error: 'item not found' });
-            return;
-        }
-
-        const count = parsePositiveInteger(String(req.query.count ?? '1')) ?? 1;
-        const hours = parsePositiveNumber(req.query.hours ?? 24, 24);
-        const ladders = marketLadderStore.readLadders(itemCid, { hours });
-        res.json(buildListingAdvice({ item, ladders, count, feeConfig }));
-    });
 
     app.get('/api/capture-driver/status', async (_req, res) => {
         try {

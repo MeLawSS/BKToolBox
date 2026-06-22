@@ -130,12 +130,6 @@ class FakeMarketLadderStore {
   }
 }
 
-class FakeListingFeeConfigStore {
-  constructor(config = { listingFeeRate: 0.05, tradeTaxRate: 0.04, source: 'test' }) {
-    this.config = config;
-    this.readConfig = vi.fn(() => this.config);
-  }
-}
 
 function createTestApp(spawnImpl = vi.fn(), monitor = undefined, captureDriver = undefined) {
   return createApp({
@@ -634,73 +628,6 @@ describe('server routes', () => {
     expect(marketLadderStore.readLadders).toHaveBeenCalledWith(1022001, { hours: 12 });
   });
 
-  it('serves listing advice only when fee and tax config is available', async () => {
-    const marketLadderStore = new FakeMarketLadderStore();
-    const listingFeeConfigStore = new FakeListingFeeConfigStore();
-    const app = createApp({
-      spawn: vi.fn(),
-      monitor: new FakeMonitor(),
-      captureDriver: new FakeCaptureDriver(),
-      marketLadderStore,
-      listingFeeConfigStore,
-      logServerEvent: () => {},
-    });
-
-    await request(app)
-      .get('/api/exchange-listing-advice/1022001?count=1&hours=24')
-      .expect(200)
-      .expect(({ body }) => {
-        expect(body.item.itemCid).toBe(1022001);
-        expect(['list_now', 'wait', 'do_not_list', 'probe']).toContain(body.state);
-        expect(body.netRevenuePerItem).toEqual(expect.any(Number));
-      });
-
-    expect(listingFeeConfigStore.readConfig).toHaveBeenCalledTimes(1);
-    expect(marketLadderStore.readLadders).toHaveBeenCalledWith(1022001, { hours: 24 });
-  });
-
-  it('returns 409 for listing advice when fee and tax config is missing', async () => {
-    const app = createApp({
-      spawn: vi.fn(),
-      monitor: new FakeMonitor(),
-      captureDriver: new FakeCaptureDriver(),
-      marketLadderStore: new FakeMarketLadderStore(),
-      listingFeeConfigStore: new FakeListingFeeConfigStore(null),
-      logServerEvent: () => {},
-    });
-
-    await request(app)
-      .get('/api/exchange-listing-advice/1022001')
-      .expect(409)
-      .expect(({ body }) => {
-        expect(body).toEqual({ error: 'listing fee and trade tax config is unavailable' });
-      });
-  });
-
-  it('rejects invalid ladder and listing advice item ids', async () => {
-    const app = createApp({
-      spawn: vi.fn(),
-      monitor: new FakeMonitor(),
-      captureDriver: new FakeCaptureDriver(),
-      marketLadderStore: new FakeMarketLadderStore(),
-      listingFeeConfigStore: new FakeListingFeeConfigStore(),
-      logServerEvent: () => {},
-    });
-
-    await request(app)
-      .get('/api/price-history/ladders/abc')
-      .expect(400)
-      .expect(({ body }) => {
-        expect(body).toEqual({ error: 'itemCid is required' });
-      });
-
-    await request(app)
-      .get('/api/exchange-listing-advice/abc')
-      .expect(400)
-      .expect(({ body }) => {
-        expect(body).toEqual({ error: 'itemCid is required' });
-      });
-  });
 
   it('stops the live monitor when the server handle stops', async () => {
     const monitor = new FakeMonitor();

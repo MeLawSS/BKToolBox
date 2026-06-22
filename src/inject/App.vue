@@ -5,7 +5,7 @@ import InjectCabinetRewardPanel from './panels/InjectCabinetRewardPanel.vue';
 import InjectCollectionScanPanel from './panels/InjectCollectionScanPanel.vue';
 import InjectControllerPanel from './panels/InjectControllerPanel.vue';
 import InjectDelayedPricePanel from './panels/InjectDelayedPricePanel.vue';
-import InjectListingPanel from './panels/InjectListingPanel.vue';
+
 import InjectMetaOperationPanel from './panels/InjectMetaOperationPanel.vue';
 import InjectWarehousePanel from './panels/InjectWarehousePanel.vue';
 import TopBar from '../shared/TopBar.vue';
@@ -35,7 +35,7 @@ const workspaceNavGroups = [
     items: [
       { id: 'warehouse', titleKey: 'inject.nav.warehouse' },
       { id: 'stockMove', titleKey: 'inject.nav.stockMove' },
-      { id: 'listing', titleKey: 'inject.nav.listing' },
+
       { id: 'delayedPrice', titleKey: 'inject.nav.delayedPrice' },
       { id: 'collectionScan', titleKey: 'inject.nav.collectionScan' },
     ],
@@ -199,19 +199,6 @@ onUnmounted(() => {
           <StockMovePanel :collectibles="collectibles" />
         </section>
 
-        <section
-          v-if="renderedPanels.listing"
-          v-show="activePanelId === 'listing'"
-          class="inject-panel workspace-shell__panel"
-          data-testid="inject-panel-listing"
-          :aria-label="t('inject.listingAdvisor')"
-        >
-          <InjectListingPanel
-            :collectibles="collectibles"
-            :command-loading="autoOperationCommandLoading"
-            @command-loading-change="setAutoOperationCommandLoading"
-          />
-        </section>
 
         <section
           v-if="renderedPanels.delayedPrice"
