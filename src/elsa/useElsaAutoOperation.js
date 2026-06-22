@@ -15,7 +15,7 @@ const AUTO_AUCTION_ROOM_ENTRY_LIMIT_RESULT = 'room_entry_limit_reached';
 const AUTO_AUCTION_ROOM_ENTRY_LIMIT_MESSAGE = '检测到今日进入次数已达上限（100/100），已停止自动竞拍。';
 const AUTO_AUCTION_NOTIFICATION_TITLE = 'BKToolBox';
 
-export function useElsaAutoOperation() {
+export function useElsaAutoOperation({ roomId } = {}) {
   const monitor = useMonitorSwitch();
   const agent = useAutoOperationAgentSwitch();
 
@@ -222,7 +222,8 @@ export function useElsaAutoOperation() {
       addLog(`当前估价: ${elsaExpectedPrice.value || '无，将使用底价'}`);
       addLog(`当前自动出价: ${autoBidPrice.value || '无，将使用底价'}`);
 
-      const result = await cmd('AutoAuction', { roomId: 101, useExpectedPrice: true });
+      const effectiveRoomId = Number(roomId?.value) || 101;
+      const result = await cmd('AutoAuction', { roomId: effectiveRoomId, useExpectedPrice: true });
       const status = result?.value?.result || '';
       const rounds = result?.value?.rounds ?? 0;
       const usedPrice = result?.value?.expectedPrice ?? 0;

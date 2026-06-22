@@ -2,12 +2,14 @@
 import { ref, watch, nextTick } from 'vue';
 import { useI18n } from '../shared/i18n.js';
 import { useElsaAutoOperation } from './useElsaAutoOperation.js';
+import { ROOM_OPTIONS } from '../inject/room-options.js';
 
 defineOptions({ name: 'ElsaAutoOperationPanel' });
 
 const { t } = useI18n();
+const selectedRoomId = ref('101');
 const { isEnabled, isBusy, enable, disable, monitorStatus, agentConnected, log } =
-  useElsaAutoOperation();
+  useElsaAutoOperation({ roomId: selectedRoomId });
 
 const logEl = ref(null);
 
@@ -45,22 +47,37 @@ function toggle() {
           </div>
         </header>
 
-        <button
-          class="command-button elsa-auto-operation-toggle"
-          :class="{ 'is-enabled': isEnabled, 'is-disabled': !isEnabled }"
-          type="button"
-          :disabled="isBusy"
-          data-testid="elsa-auto-operation-toggle"
-          @click="toggle"
-        >
-          {{
-            isBusy
-              ? t('tools.hero.elsaAutoOperationBusy')
-              : isEnabled
-                ? t('tools.hero.elsaAutoOperationDisable')
-                : t('tools.hero.elsaAutoOperationEnable')
-          }}
-        </button>
+        <div class="elsa-auto-operation-controls">
+          <label>
+            <span>{{ t('inject.metaOperationRoom') }}</span>
+            <select
+              v-model="selectedRoomId"
+              data-testid="elsa-auto-operation-room-select"
+              :disabled="isEnabled || isBusy"
+            >
+              <option v-for="room in ROOM_OPTIONS" :key="room.value" :value="room.value">
+                {{ room.label }}
+              </option>
+            </select>
+          </label>
+
+          <button
+            class="command-button elsa-auto-operation-toggle"
+            :class="{ 'is-enabled': isEnabled, 'is-disabled': !isEnabled }"
+            type="button"
+            :disabled="isBusy"
+            data-testid="elsa-auto-operation-toggle"
+            @click="toggle"
+          >
+            {{
+              isBusy
+                ? t('tools.hero.elsaAutoOperationBusy')
+                : isEnabled
+                  ? t('tools.hero.elsaAutoOperationDisable')
+                  : t('tools.hero.elsaAutoOperationEnable')
+            }}
+          </button>
+        </div>
       </div>
 
       <div class="elsa-auto-status-grid">
@@ -145,6 +162,33 @@ function toggle() {
 
 .elsa-auto-operation-copy h2 {
   margin: 0;
+}
+
+.elsa-auto-operation-controls {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.elsa-auto-operation-controls label {
+  display: grid;
+  gap: 6px;
+}
+
+.elsa-auto-operation-controls label span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.elsa-auto-operation-controls select {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  padding: 0 10px;
 }
 
 .elsa-auto-operation-summary {
