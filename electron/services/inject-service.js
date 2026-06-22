@@ -25,9 +25,6 @@ function getCabinetRewardPath(documentsDir) {
     return path.join(documentsDir, 'BidKing', 'cabinet-reward.json');
 }
 
-function getExchangeListingsLogPath(documentsDir) {
-    return path.join(documentsDir, 'BidKing', 'exchange-listings.jsonl');
-}
 
 function getStockMoveListsDir(documentsDir) {
     return path.join(documentsDir, 'BidKing', 'stock-move-lists');
@@ -177,43 +174,7 @@ function normalizeSavedStockMoveList(value) {
     };
 }
 
-function getDefaultServerUrl(deps = {}) {
-    return deps.serverUrl ||
-        process.env.BIDKING_SERVER_URL ||
-        `http://127.0.0.1:${process.env.PORT || 3000}`;
-}
 
-async function defaultFetchListingAdvice({ itemCid, count, hours = 24 }, deps = {}) {
-    const fetchImpl = deps.fetch || globalThis.fetch;
-    if (typeof fetchImpl !== 'function') {
-        throw new Error('fetch is not available');
-    }
-
-    const url = new URL(`/api/exchange-listing-advice/${itemCid}`, getDefaultServerUrl(deps));
-    url.searchParams.set('count', String(count));
-    url.searchParams.set('hours', String(hours));
-
-    const response = await fetchImpl(url.toString());
-    let body = null;
-    try {
-        body = await response.json();
-    } catch (_error) {
-        body = null;
-    }
-
-    if (!response.ok) {
-        throw new Error(body?.error || `Failed to fetch listing advice: ${response.status}`);
-    }
-
-    return body;
-}
-
-async function appendListingLog(row, documentsDir) {
-    const logPath = getExchangeListingsLogPath(documentsDir);
-    await fs.promises.mkdir(path.dirname(logPath), { recursive: true });
-    await fs.promises.appendFile(logPath, `${JSON.stringify({ ...row, logPath })}\n`, 'utf8');
-    return logPath;
-}
 
 async function writeJsonFileAtomically(filePath, value) {
     const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
@@ -499,75 +460,6 @@ async function unloadAutoOperationAgent(deps = {}) {
     }
 }
 
-async function confirmHighPriceExchangeListing(request = {}, deps = {}) {
-    const itemCid = parseRequiredPositiveSafeInteger(request.itemCid, 'itemCid is required');
-    const count = request.count === undefined
-        ? 1
-        : parseRequiredPositiveSafeInteger(request.count, 'count is required');
-    const expectedUnitPrice = parseRequiredPositiveSafeInteger(
-        request.expectedUnitPrice,
-        'expectedUnitPrice is required'
-    );
-    const hours = request.hours || 24;
-    const fetchListingAdvice = deps.fetchListingAdvice || defaultFetchListingAdvice;
-    const advice = deps.fetchListingAdvice
-        ? await fetchListingAdvice({ itemCid, count, hours })
-        : await fetchListingAdvice({ itemCid, count, hours }, deps);
-
-    if (advice?.state !== 'list_now') {
-        throw new Error('Listing advice is no longer list_now');
-    }
-    const adviceItemCid = advice.item?.itemCid ?? advice.item?.cid;
-    if (!isFiniteNumber(adviceItemCid) || adviceItemCid !== itemCid || !isFiniteNumber(advice.count) || advice.count !== count) {
-        throw new Error('Listing advice item or count changed');
-    }
-    if (!isFiniteNumber(advice.suggestedUnitPrice) || advice.suggestedUnitPrice !== expectedUnitPrice) {
-        throw new Error('Listing advice price changed');
-    }
-    if (!isFiniteNumber(advice.netRevenuePerItem) || !isFiniteNumber(advice.item?.basePrice)) {
-        throw new Error('Listing advice is missing revenue data');
-    }
-    if (advice.netRevenuePerItem < advice.item.basePrice) {
-        throw new Error('Net revenue is below base price');
-    }
-
-    const commandResult = await (deps.runAutoOperationCommand || runAutoOperationCommand)(
-        'ExchangeItem',
-        { itemCid, count, unitPrice: expectedUnitPrice },
-        deps
-    );
-    const row = {
-        observedAt: new Date().toISOString(),
-        itemCid,
-        name: advice.item?.name || advice.name || null,
-        count,
-        unitPrice: expectedUnitPrice,
-        totalPrice: expectedUnitPrice * count,
-        basePrice: advice.item.basePrice,
-        listingFee: advice.listingFee ?? advice.listingFeePerItem,
-        tradeTax: advice.tradeTax ?? advice.tradeTaxPerItem,
-        netRevenuePerItem: advice.netRevenuePerItem,
-        minimumSafePrice: advice.minimumSafePrice,
-        sellThrough24h: advice.sellThrough24h,
-        expirationRisk: advice.expirationRisk,
-        strategy: advice.strategy || 'high_price_stable_gap',
-        confidence: advice.confidence,
-        reason: advice.reason,
-        marketSnapshot: advice.marketSnapshot || advice.latestLadder || [],
-        result: commandResult?.value || commandResult,
-    };
-
-    const documentsDir = deps.documentsDir || process.env.BIDKING_DOCUMENTS_DIR;
-    if (documentsDir) {
-        try {
-            row.logPath = await appendListingLog(row, documentsDir);
-        } catch (error) {
-            row.logError = error?.message || String(error);
-        }
-    }
-
-    return { ok: true, value: row };
-}
 
 async function waitForAutoOperationPing(deps = {}) {
     const timeoutMs = deps.agentTimeoutMs ?? 8000;
@@ -681,9 +573,6 @@ async function claimCabinetReward(deps = {}) {
 
 module.exports = {
     claimCabinetReward,
-    confirmHighPriceExchangeListing,
-    defaultFetchListingAdvice,
-    getExchangeListingsLogPath,
     getCabinetRewardPath,
     getCollectionPriceScanStatus,
     listStockMoveLists,
