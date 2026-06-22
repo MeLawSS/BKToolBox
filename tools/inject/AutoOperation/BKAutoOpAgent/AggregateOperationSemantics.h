@@ -38,6 +38,17 @@ inline bool ShouldCountAutoAuctionRound(
         confirmBidClicked;
 }
 
+inline bool DidCompleteBidConfirmation(
+    bool primaryConfirmClicked,
+    bool secondaryConfirmRequired,
+    bool secondaryConfirmClicked,
+    bool bidDialogClosed
+) {
+    return primaryConfirmClicked &&
+        (!secondaryConfirmRequired || secondaryConfirmClicked) &&
+        bidDialogClosed;
+}
+
 inline bool IsAutoAuctionCleanupCompleteScreen(const char* screen) {
     return screen && strcmp(screen, "main_lobby") == 0;
 }

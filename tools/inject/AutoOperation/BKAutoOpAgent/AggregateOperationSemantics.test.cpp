@@ -16,6 +16,27 @@ int main() {
     assert(!ShouldCountAutoAuctionRound(true, true, true, false, true));
     assert(!ShouldCountAutoAuctionRound(true, true, true, true, false));
     assert(ShouldCountAutoAuctionRound(true, true, true, true, true));
+    assert(!DidCompleteBidConfirmation(false, false, false, false));
+    assert(!DidCompleteBidConfirmation(true, false, false, false));
+    assert(DidCompleteBidConfirmation(true, false, false, true));
+    assert(DidCompleteBidConfirmation(true, false, true, true));
+    assert(!DidCompleteBidConfirmation(true, true, false, true));
+    assert(!DidCompleteBidConfirmation(true, true, true, false));
+    assert(DidCompleteBidConfirmation(true, true, true, true));
+    assert(!ShouldCountAutoAuctionRound(
+        true,
+        true,
+        true,
+        true,
+        DidCompleteBidConfirmation(true, true, false, true)
+    ));
+    assert(ShouldCountAutoAuctionRound(
+        true,
+        true,
+        true,
+        true,
+        DidCompleteBidConfirmation(true, true, true, true)
+    ));
 
     assert(IsAutoAuctionCleanupCompleteScreen("main_lobby"));
     assert(!IsAutoAuctionCleanupCompleteScreen("auction_lobby_map"));

@@ -644,6 +644,137 @@ static bool IsButtonNodeReady(Il2CppObject* anchor, const char* path) {
     return !m.empty() && m[0].active && m[0].components.button;
 }
 
+struct BidConfirmFlowResult {
+    bool completed = false;
+    bool hardError = false;
+    bool interrupted = false;
+    bool secondaryConfirmRequired = false;
+    bool secondaryConfirmClicked = false;
+    bool bidDialogClosed = false;
+    bool secondaryDialogClosed = false;
+    std::string reason;
+};
+
+static bool HasActiveBidInputDialog(Il2CppObject* battleMainTransform) {
+    if (!battleMainTransform) return false;
+
+    std::vector<UiNodeSnapshot> inputMatches;
+    ResolveUiNodeMatches(
+        battleMainTransform,
+        "InputDevice/Panel1/InputField (TMP)",
+        UI_PATH_EXACT,
+        1,
+        &inputMatches
+    );
+    if (!inputMatches.empty() && inputMatches[0].active) return true;
+
+    std::vector<UiNodeSnapshot> confirmMatches;
+    ResolveUiNodeMatches(
+        battleMainTransform,
+        "InputDevice/Panel1/chujia",
+        UI_PATH_EXACT,
+        1,
+        &confirmMatches
+    );
+    return !confirmMatches.empty() && confirmMatches[0].active;
+}
+
+static BidConfirmFlowResult WaitForBidConfirmationSettled(Il2CppObject* battleMainTransform) {
+    static const int kObserveSecondaryConfirmMs = 1500;
+    static const int kConfirmSettleTimeoutMs = 3000;
+    static const int kPollMs = 100;
+
+    BidConfirmFlowResult result;
+    if (!battleMainTransform) {
+        result.hardError = true;
+        result.reason = "Battle_Main not visible after confirm click";
+        return result;
+    }
+
+    for (int waitedMs = 0; waitedMs <= kConfirmSettleTimeoutMs; waitedMs += kPollMs) {
+        bool messageBoxVisible = false;
+
+        char msgBoxError[128] = {};
+        Il2CppObject* msgBoxTransform = nullptr;
+        UiPanelLookupResult msgBoxResult = FindVisiblePanelTransform(
+            "MessageBox",
+            nullptr,
+            &msgBoxTransform,
+            msgBoxError,
+            sizeof(msgBoxError)
+        );
+        if (msgBoxResult == UI_PANEL_LOOKUP_ERROR) {
+            result.hardError = true;
+            result.reason = msgBoxError;
+            return result;
+        }
+        if (msgBoxResult == UI_PANEL_FOUND) {
+            messageBoxVisible = true;
+            result.secondaryConfirmRequired = true;
+
+            if (!result.secondaryConfirmClicked) {
+                std::vector<UiNodeSnapshot> msgBoxMatches;
+                ResolveUiNodeMatches(
+                    msgBoxTransform,
+                    "Panel/Bottom/Confirm",
+                    UI_PATH_EXACT,
+                    1,
+                    &msgBoxMatches
+                );
+                if (!msgBoxMatches.empty()) {
+                    UiNodeSnapshot& confirmNode = msgBoxMatches[0];
+                    if (confirmNode.active && confirmNode.components.button) {
+                        if (!PerformButtonClick(confirmNode.components.button)) {
+                            result.hardError = true;
+                            result.reason = "secondary confirm click failed";
+                            return result;
+                        }
+                        result.secondaryConfirmClicked = true;
+                    }
+                }
+            }
+        }
+
+        result.bidDialogClosed = !HasActiveBidInputDialog(battleMainTransform);
+        result.secondaryDialogClosed =
+            !result.secondaryConfirmRequired || !messageBoxVisible;
+
+        if (result.secondaryConfirmRequired) {
+            if (DidCompleteBidConfirmation(
+                    true,
+                    true,
+                    result.secondaryConfirmClicked,
+                    result.bidDialogClosed) &&
+                result.secondaryDialogClosed) {
+                result.completed = true;
+                return result;
+            }
+        } else if (waitedMs >= kObserveSecondaryConfirmMs &&
+                   DidCompleteBidConfirmation(true, false, false, result.bidDialogClosed)) {
+            result.completed = true;
+            return result;
+        }
+
+        if (waitedMs >= kConfirmSettleTimeoutMs) break;
+        if (!SleepInterruptibly(kPollMs)) {
+            result.interrupted = true;
+            result.reason = "interrupted";
+            return result;
+        }
+    }
+
+    if (result.secondaryConfirmRequired && !result.secondaryConfirmClicked) {
+        result.reason = "secondary confirm not completed";
+    } else if (result.secondaryConfirmRequired && !result.secondaryDialogClosed) {
+        result.reason = "secondary confirm dialog did not close";
+    } else if (!result.bidDialogClosed) {
+        result.reason = "confirm bid dialog did not close";
+    } else {
+        result.reason = "confirm bid did not settle";
+    }
+    return result;
+}
+
 // GetCurrentScreen: determine which UI screen is currently shown.
 // Returns {"screen":"<name>"} — see DetectScreenState for values.
 void CmdGetCurrentScreen(AgentConn* c, const char* id, const char*) {
@@ -1123,27 +1254,21 @@ void CmdConfirmBid(AgentConn* c, const char* id, const char*) {
         return;
     }
 
-    // After a successful confirm bid, the game may pop up a MessageBox
-    // secondary confirmation dialog when the bid amount exceeds a threshold.
-    // Wait for the popup animation, then auto-confirm it.
-    Sleep(1000);
-
-    {
-        char msgBoxError[128] = {};
-        Il2CppObject* msgBoxTransform = nullptr;
-        UiPanelLookupResult msgBoxResult = FindVisiblePanelTransform(
-            "MessageBox", nullptr, &msgBoxTransform, msgBoxError, sizeof(msgBoxError));
-        if (msgBoxResult == UI_PANEL_FOUND) {
-            std::vector<UiNodeSnapshot> msgBoxMatches;
-            ResolveUiNodeMatches(msgBoxTransform, "Panel/Bottom/Confirm",
-                                 UI_PATH_EXACT, 2, &msgBoxMatches);
-            if (!msgBoxMatches.empty()) {
-                UiNodeSnapshot& confirmNode = msgBoxMatches[0];
-                if (confirmNode.active && confirmNode.components.button) {
-                    PerformButtonClick(confirmNode.components.button);
-                }
-            }
+    BidConfirmFlowResult confirmResult = WaitForBidConfirmationSettled(panelTransform);
+    if (!confirmResult.completed) {
+        if (confirmResult.hardError) {
+            SendResponse(c, id, false, confirmResult.reason.c_str());
+            return;
         }
+        char result[256];
+        snprintf(
+            result,
+            sizeof(result),
+            "{\"clicked\":false,\"reason\":\"%s\"}",
+            confirmResult.reason.c_str()
+        );
+        SendResponse(c, id, true, result);
+        return;
     }
 
     SendResponse(c, id, true, "{\"clicked\":true}");
@@ -1646,7 +1771,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         bool hasBattleMainAfterClick = false;
         bool hasActiveBidInput = false;
         bool setBidAmountSucceeded = false;
-        bool confirmBidClicked = false;
+        bool confirmBidCompleted = false;
 
         if (placeBidClicked) {
             ScreenState s2 = DetectScreenState();
@@ -1704,8 +1829,32 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     setBidAmountSucceeded = PerformSetInputText(inputM[0], amountStr, false, &compName);
                     if (setBidAmountSucceeded) {
                         if (!SleepInterruptibly(500)) { stopIfRequested(); return; }
-                        confirmBidClicked = ClickNode(s2.battleMainTransform, "InputDevice/Panel1/chujia", 0, &clickErr);
-                        if (confirmBidClicked && !SleepInterruptibly(1500)) { stopIfRequested(); return; }
+                        bool primaryConfirmClicked = ClickNode(
+                            s2.battleMainTransform,
+                            "InputDevice/Panel1/chujia",
+                            0,
+                            &clickErr
+                        );
+                        if (primaryConfirmClicked) {
+                            BidConfirmFlowResult confirmResult =
+                                WaitForBidConfirmationSettled(s2.battleMainTransform);
+                            if (confirmResult.interrupted) { stopIfRequested(); return; }
+                            if (!confirmResult.completed) {
+                                Logf(
+                                    "AutoAuction round=%d confirm flow incomplete: %s",
+                                    roundsEncountered,
+                                    confirmResult.reason.c_str()
+                                );
+                            } else {
+                                confirmBidCompleted = true;
+                            }
+                        } else {
+                            Logf(
+                                "AutoAuction round=%d primary confirm click failed: %s",
+                                roundsEncountered,
+                                clickErr.c_str()
+                            );
+                        }
                     }
                 }
             }
@@ -1716,7 +1865,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             hasBattleMainAfterClick,
             hasActiveBidInput,
             setBidAmountSucceeded,
-            confirmBidClicked
+            confirmBidCompleted
         )) {
             lastBidRound = round;
             roundsPlayed++;
