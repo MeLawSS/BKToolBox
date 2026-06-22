@@ -1123,6 +1123,29 @@ void CmdConfirmBid(AgentConn* c, const char* id, const char*) {
         return;
     }
 
+    // After a successful confirm bid, the game may pop up a MessageBox
+    // secondary confirmation dialog when the bid amount exceeds a threshold.
+    // Wait for the popup animation, then auto-confirm it.
+    Sleep(1000);
+
+    {
+        char msgBoxError[128] = {};
+        Il2CppObject* msgBoxTransform = nullptr;
+        UiPanelLookupResult msgBoxResult = FindVisiblePanelTransform(
+            "MessageBox", nullptr, &msgBoxTransform, msgBoxError, sizeof(msgBoxError));
+        if (msgBoxResult == UI_PANEL_FOUND) {
+            std::vector<UiNodeSnapshot> msgBoxMatches;
+            ResolveUiNodeMatches(msgBoxTransform, "Panel/Bottom/Confirm",
+                                 UI_PATH_EXACT, 2, &msgBoxMatches);
+            if (!msgBoxMatches.empty()) {
+                UiNodeSnapshot& confirmNode = msgBoxMatches[0];
+                if (confirmNode.active && confirmNode.components.button) {
+                    PerformButtonClick(confirmNode.components.button);
+                }
+            }
+        }
+    }
+
     SendResponse(c, id, true, "{\"clicked\":true}");
 }
 
