@@ -11,18 +11,22 @@ let isBusy = ref(false);
 let monitorStatus = ref('idle');
 let agentConnected = ref(false);
 let log = ref([]);
+const mockUseElsaAutoOperation = vi.fn();
 
 vi.mock('./useElsaAutoOperation.js', () => ({
-  useElsaAutoOperation: () => ({
-    isEnabled,
-    isBusy,
-    enable: mockEnable,
-    disable: mockDisable,
-    monitorStatus,
-    agentConnected,
-    log,
-    clearLog: vi.fn(),
-  }),
+  useElsaAutoOperation: (...args) => {
+    mockUseElsaAutoOperation(...args);
+    return {
+      isEnabled,
+      isBusy,
+      enable: mockEnable,
+      disable: mockDisable,
+      monitorStatus,
+      agentConnected,
+      log,
+      clearLog: vi.fn(),
+    };
+  },
 }));
 
 vi.mock('../shared/i18n.js', () => ({
@@ -142,7 +146,7 @@ describe('ElsaAutoOperationPanel', () => {
       .toContain('tools.hero.elsaAutoOperationAgentConnected');
   });
 
-  it('renders room select dropdown defaulting to 101', async () => {
+  it('renders room select dropdown defaulting to 101 and passes ref to hook', async () => {
     const wrapper = mount(ElsaAutoOperationPanel, {
       attachTo: document.body,
       global: { stubs: { TopBar: true } },
@@ -152,9 +156,16 @@ describe('ElsaAutoOperationPanel', () => {
     const select = wrapper.find('[data-testid="elsa-auto-operation-room-select"]');
     expect(select.exists()).toBe(true);
     expect(select.element.value).toBe('101');
+
+    // Panel must pass the ref itself (not .value) to useElsaAutoOperation.
+    expect(mockUseElsaAutoOperation).toHaveBeenCalledTimes(1);
+    const callArg = mockUseElsaAutoOperation.mock.calls[0][0];
+    expect(callArg).toBeDefined();
+    expect(callArg.roomId).toBeDefined();
+    expect(callArg.roomId.value).toBe('101');
   });
 
-  it('disables room select while auto operation is enabled', async () => {
+  it('disables room select while auto operation is enabled or busy', async () => {
     isEnabled.value = true;
     await nextTick();
     const wrapper = mount(ElsaAutoOperationPanel, {
@@ -170,6 +181,12 @@ describe('ElsaAutoOperationPanel', () => {
     await nextTick();
     expect(select.element.disabled).toBe(false);
 
+    // Also disabled while busy.
+    isBusy.value = true;
+    await nextTick();
+    expect(select.element.disabled).toBe(true);
+
+    isBusy.value = false;
     isEnabled.value = false; // cleanup for other tests
   });
 });
