@@ -12,6 +12,18 @@ inline bool ShouldOpenWarehouseForCabinetReward(const char* screen) {
     return screen && strcmp(screen, "main_lobby") == 0;
 }
 
+inline bool IsEligibleAutoCollectCabinetRewardScreen(const char* screen) {
+    return ShouldOpenWarehouseForCabinetReward(screen);
+}
+
+inline bool ShouldSkipAutoCollectCabinetRewardForAutoAuction(bool autoAuctionRunning) {
+    return autoAuctionRunning;
+}
+
+inline bool ShouldSkipAutoCollectCabinetRewardForBusyFlow(bool rewardFlowRunning) {
+    return rewardFlowRunning;
+}
+
 inline bool ShouldCountAutoAuctionRound(
     bool placeBidClicked,
     bool hasBattleMainAfterClick,

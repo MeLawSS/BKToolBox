@@ -68,5 +68,17 @@ int main() {
     assert(!ShouldDisableAutoAuctionPriceUpperLimit(true, true, true, false));
     assert(ShouldDisableAutoAuctionPriceUpperLimit(true, true, true, true));
 
+    assert(IsEligibleAutoCollectCabinetRewardScreen("main_lobby"));
+    assert(!IsEligibleAutoCollectCabinetRewardScreen("warehouse"));
+    assert(!IsEligibleAutoCollectCabinetRewardScreen("cabinet_reward_list"));
+    assert(!IsEligibleAutoCollectCabinetRewardScreen(""));
+    assert(!IsEligibleAutoCollectCabinetRewardScreen(nullptr));
+
+    assert(ShouldSkipAutoCollectCabinetRewardForAutoAuction(true));
+    assert(!ShouldSkipAutoCollectCabinetRewardForAutoAuction(false));
+
+    assert(ShouldSkipAutoCollectCabinetRewardForBusyFlow(true));
+    assert(!ShouldSkipAutoCollectCabinetRewardForBusyFlow(false));
+
     return 0;
 }

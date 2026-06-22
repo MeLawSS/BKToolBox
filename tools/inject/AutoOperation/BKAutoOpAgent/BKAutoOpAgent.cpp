@@ -96,6 +96,7 @@ bool                 g_il2cppReady = false;
 static HINSTANCE     g_hModule = NULL;
 static HANDLE        g_agentThread = NULL;
 static HANDLE        g_heartbeatThread = NULL;
+static HANDLE        g_autoCollectCabinetRewardThread = NULL;
 volatile LONG g_shuttingDown = 0;
 static volatile LONG g_unloadScheduled = 0;
 static volatile LONG g_activeConnectionHandlers = 0;
@@ -2699,7 +2700,7 @@ static bool InitIl2cpp() {
     return g_il2cppReady;
 }
 
-static void AttachCurrentThread() {
+void AttachCurrentThread() {
     if (g_il2cppReady && g_thread_attach && g_domain)
         g_thread_attach(g_domain);
 }
@@ -4596,6 +4597,7 @@ static DWORD WINAPI UnloadThread(LPVOID param) {
 
     if (g_agentThread) WaitForSingleObject(g_agentThread, 5000);
     if (g_heartbeatThread) WaitForSingleObject(g_heartbeatThread, 5000);
+    if (g_autoCollectCabinetRewardThread) WaitForSingleObject(g_autoCollectCabinetRewardThread, 5000);
 
     DWORD deadline = GetTickCount() + 10000;
     while (InterlockedCompareExchange(&g_activeConnectionHandlers, 0, 0) > 0 &&
@@ -4610,6 +4612,11 @@ static DWORD WINAPI UnloadThread(LPVOID param) {
         if (g_heartbeatThread && WaitForSingleObject(g_heartbeatThread, 0) == WAIT_OBJECT_0) {
             CloseHandle(g_heartbeatThread);
             g_heartbeatThread = NULL;
+        }
+        if (g_autoCollectCabinetRewardThread &&
+            WaitForSingleObject(g_autoCollectCabinetRewardThread, 0) == WAIT_OBJECT_0) {
+            CloseHandle(g_autoCollectCabinetRewardThread);
+            g_autoCollectCabinetRewardThread = NULL;
         }
         if (!g_agentThread || WaitForSingleObject(g_agentThread, 0) == WAIT_OBJECT_0) {
             if (g_agentThread) {
@@ -4749,6 +4756,8 @@ static const CmdEntry kCommands[] = {
     { "GetCurrentScreen",      CmdGetCurrentScreen      },
     { "CloseCurrentOverlay",   CmdCloseCurrentOverlay   },
     { "CollectCabinetReward",  CmdCollectCabinetReward  },
+    { "GetAutoCollectCabinetRewardState", CmdGetAutoCollectCabinetRewardState },
+    { "SetAutoCollectCabinetRewardEnabled", CmdSetAutoCollectCabinetRewardEnabled },
     { "SetExpectedPrice",      CmdSetExpectedPrice      },
     { "AutoAuction",           CmdAutoAuction           },
     { "CancelAutoAuction",     CmdCancelAutoAuction     },
@@ -4839,10 +4848,17 @@ static DWORD WINAPI AgentMain(LPVOID) {
 
     InitIl2cpp();
     Logf("InitIl2cpp ready=%s domain=%p", g_il2cppReady ? "true" : "false", g_domain);
-    if (g_il2cppReady && g_thread_attach)
-        g_thread_attach(g_domain);
+    AttachCurrentThread();
 
     g_heartbeatThread = CreateThread(NULL, 0, HeartbeatThread, NULL, 0, NULL);
+    g_autoCollectCabinetRewardThread = CreateThread(
+        NULL,
+        0,
+        AutoCollectCabinetRewardThread,
+        NULL,
+        0,
+        NULL
+    );
 
     while (!g_shuttingDown) {
         HANDLE pipe = CreateNamedPipeA(

@@ -1,5 +1,7 @@
 #include "AutoAuctionOpponentCap.h"
 #include "AutoAuctionResponseFormatting.h"
+#include "AutoCollectCabinetRewardStateFormatting.h"
+#include "AutoCollectCabinetRewardSchedulerSemantics.h"
 #include "UiClickComponentSemantics.h"
 
 #include <assert.h>
@@ -49,5 +51,55 @@ int main() {
     assert(ResolveUiClickComponentKind(true, true) == UI_CLICK_COMPONENT_BUTTON);
     assert(BuildAutoAuctionAuthCodeRequiredResult(2, 60000)
            == "{\"result\":\"authcode_required\",\"reason\":\"authcode_detected\",\"rounds\":2,\"expectedPrice\":60000}");
+
+    assert(ConvertWindowsFileTime100nsToUnixMs(116444736000000000ULL) == 0ULL);
+    assert(ConvertWindowsFileTime100nsToUnixMs(116444736010000000ULL) == 1000ULL);
+
+    AutoCollectCabinetRewardStateSnapshot disabledState = {};
+    disabledState.enabled = false;
+    disabledState.running = false;
+    disabledState.intervalMs = 10800000;
+    disabledState.nextCheckInMs = -1;
+    disabledState.lastCheckAtUnixMs = 0;
+    disabledState.lastResultCode = "never_run";
+    disabledState.lastResultMessage = "";
+    disabledState.lastObservedScreen = "";
+    assert(
+        BuildAutoCollectCabinetRewardStateJson(disabledState) ==
+        "{\"enabled\":false,\"running\":false,\"intervalMs\":10800000,\"nextCheckInMs\":null,\"lastCheckAtUnixMs\":0,\"lastResultCode\":\"never_run\",\"lastResultMessage\":\"\",\"lastObservedScreen\":\"\"}"
+    );
+
+    AutoCollectCabinetRewardStateSnapshot enabledState = {};
+    enabledState.enabled = true;
+    enabledState.running = true;
+    enabledState.intervalMs = 10800000;
+    enabledState.nextCheckInMs = 3210;
+    enabledState.lastCheckAtUnixMs = 1710000000123ULL;
+    enabledState.lastResultCode = "running";
+    enabledState.lastResultMessage = "cycle active";
+    enabledState.lastObservedScreen = "main_lobby";
+    assert(
+        BuildAutoCollectCabinetRewardStateJson(enabledState) ==
+        "{\"enabled\":true,\"running\":true,\"intervalMs\":10800000,\"nextCheckInMs\":3210,\"lastCheckAtUnixMs\":1710000000123,\"lastResultCode\":\"running\",\"lastResultMessage\":\"cycle active\",\"lastObservedScreen\":\"main_lobby\"}"
+    );
+
+    bool enabledFlag = false;
+    assert(TryParseStrictJsonBoolField("{\"enabled\":true}", "enabled", &enabledFlag) && enabledFlag);
+    assert(TryParseStrictJsonBoolField("{\"enabled\": false}", "enabled", &enabledFlag) && !enabledFlag);
+    assert(!TryParseStrictJsonBoolField("{\"enabled\":1}", "enabled", &enabledFlag));
+    assert(!TryParseStrictJsonBoolField("{\"enabled\":0}", "enabled", &enabledFlag));
+    assert(!TryParseStrictJsonBoolField("{\"enabled\":\"true\"}", "enabled", &enabledFlag));
+
+    assert(ResolveAutoCollectCabinetRewardDueTick(true, 1000ULL, 10800000ULL) == 10801000ULL);
+    assert(ResolveAutoCollectCabinetRewardDueTick(false, 1000ULL, 10800000ULL) == 0ULL);
+    assert(NextAutoCollectCabinetRewardControlVersion(7ULL) == 8ULL);
+
+    assert(CanAutoCollectCabinetRewardCycleStart(true, 5ULL, 5ULL));
+    assert(!CanAutoCollectCabinetRewardCycleStart(false, 5ULL, 5ULL));
+    assert(!CanAutoCollectCabinetRewardCycleStart(true, 5ULL, 6ULL));
+
+    assert(ShouldAutoCollectCabinetRewardWorkerReschedule(9ULL, 9ULL));
+    assert(!ShouldAutoCollectCabinetRewardWorkerReschedule(9ULL, 10ULL));
+
     return 0;
 }
