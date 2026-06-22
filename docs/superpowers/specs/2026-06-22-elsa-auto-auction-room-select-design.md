@@ -31,15 +31,18 @@ export const ROOM_OPTIONS = [
 ];
 ```
 
-### 2. useElsaAutoOperation 接受 roomId 参数
+### 2. useElsaAutoOperation 接受 roomId Ref
 
-`src/elsa/useElsaAutoOperation.js` — 函数签名加 `roomId` 参数，默认 `101`：
+`src/elsa/useElsaAutoOperation.js` — 接受 `Ref<string>`，在 `enable()` 时读取 `.value`（非顶层解包，避免捕获过期值）：
 
 ```js
 export function useElsaAutoOperation({ roomId } = {}) {
-  const effectiveRoomId = Number(roomId) || 101;
-  // ...
-  const result = await cmd('AutoAuction', { roomId: effectiveRoomId, useExpectedPrice: true });
+  // roomId 是 Ref<string>，不在顶层解包
+  async function enable() {
+    const effectiveRoomId = Number(roomId?.value) || 101;
+    // ... runScript 闭包内使用 effectiveRoomId
+    const result = await cmd('AutoAuction', { roomId: effectiveRoomId, useExpectedPrice: true });
+  }
 }
 ```
 
@@ -49,19 +52,42 @@ export function useElsaAutoOperation({ roomId } = {}) {
 
 - 导入 `ROOM_OPTIONS` from `InjectMetaOperationPanel.vue`
 - 新增 `selectedRoomId` ref，默认 `'101'`
-- 传给 `useElsaAutoOperation({ roomId: selectedRoomId.value })`
-- 模板：在开启/关闭按钮上方插入 `<select v-model="selectedRoomId">`，label 复用 `inject.metaOperationRoom`
+- 传给 `useElsaAutoOperation({ roomId: selectedRoomId })` — **传 ref 本身，非 `.value`**
+- `data-testid="elsa-auto-operation-room-select"`
+- 运行时（`isEnabled || isBusy`）禁用下拉框，防止运行中切换房间
+- label 复用 `inject.metaOperationRoom`
 
 ### 4. 布局
 
-下拉框 + 按钮同排在 `.elsa-auto-operation-toolbar` 内，下拉框在左、按钮在右（或下拉框在上、按钮在下）。
+在 `.elsa-auto-operation-toolbar` 内，`<header>` 下方新增一行 `.elsa-auto-operation-controls`：
+
+```html
+<div class="elsa-auto-operation-controls">
+  <label>
+    <span>{{ t('inject.metaOperationRoom') }}</span>
+    <select
+      v-model="selectedRoomId"
+      data-testid="elsa-auto-operation-room-select"
+      :disabled="isEnabled || isBusy"
+    >
+      <option v-for="room in ROOM_OPTIONS" :key="room.value" :value="room.value">
+        {{ room.label }}
+      </option>
+    </select>
+  </label>
+  <button class="command-button elsa-auto-operation-toggle" ...>
+    <!-- 不变 -->
+  </button>
+</div>
+```
 
 ## 测试
 
 `src/elsa/ElsaAutoOperationPanel.test.js` 新增：
 
-- 默认选中快递盲盒堆
-- 切换到其他地图后，自动竞拍命令携带对应 roomId
+1. **默认值** — 下拉框默认选中 `'101'`（快递盲盒堆）
+2. **切换后启用** — 切换到 `'102'` → 点击启用 → `AutoAuction` 命令携带 `roomId: 102`
+3. **运行时禁用** — 启用后下拉框 disabled，停止后恢复可用
 
 ## 文件变更
 
