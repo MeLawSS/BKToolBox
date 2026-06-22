@@ -32,15 +32,21 @@
 function invertSelection() {
   const visibleCids = new Set(visibleSourceGroups.value.map((g) => g.itemCid));
   const currentSet = new Set(selectedItemCids.value);
-  selectedItemCids.value = [
-    ...visibleSourceGroups.value
-      .filter((g) => !currentSet.has(g.itemCid))
-      .map((g) => g.itemCid),
-  ];
+  // Preserve selections hidden by the search filter; toggle only visible groups.
+  const hiddenSelected = selectedItemCids.value.filter((cid) => !visibleCids.has(cid));
+  const visibleUnselected = visibleSourceGroups.value
+    .filter((g) => !currentSet.has(g.itemCid))
+    .map((g) => g.itemCid);
+  selectedItemCids.value = [...hiddenSelected, ...visibleUnselected];
+  submitError.value = '';
+  resetSummary();
 }
 ```
 
-逻辑：遍历可见分组，将不在当前选中集合中的 itemCid 收集为新选中数组。
+逻辑：
+- 保留被搜索筛选隐藏的已选分组（不被反选影响）
+- 可见分组中已选的取消、未选的选中
+- 与 `selectAllItems()` / `clearSelection()` 一致，重置 submit 状态
 
 ### 2. 模板按钮
 
@@ -62,14 +68,18 @@ function invertSelection() {
 
 ### 3. i18n
 
-`src/shared/messages.js` 新增 key `inject.stockMoveInvert`，中文值为 `反选`。
+`src/shared/messages.js` 新增 key `inject.stockMoveInvert`：
+
+- `zh-CN`: `反选`
+- `en`: `Invert`
 
 ## 测试
 
 `src/inject/StockMovePanel.test.js` 补至少两条用例：
 
-- 反选将已选项取消、未选项选中
-- 搜索筛选后反选仅作用于可见分组
+- 反选将可见分组的已选项取消、未选项选中
+- 搜索筛选后反选仅作用于可见分组，保留被隐藏的已选分组
+- 反选后重置 submitError 和 summary（与全选/清空行为一致）
 
 ## 文件变更清单
 
