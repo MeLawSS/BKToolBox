@@ -6,7 +6,6 @@ export const messages = {
       ahmed: 'Ahmed',
       ethan: 'Ethan',
       monitor: 'Monitor',
-      price: 'Price',
       inject: 'Inject',
       switchThemeToDark: '当前为白天模式，点击切换到夜间模式',
       switchThemeToLight: '当前为夜间模式，点击切换到白天模式',
@@ -27,7 +26,7 @@ export const messages = {
       ahmedText: '当前藏品件数组合计算页',
       ethanText: '按格数条件估算期望价值合计',
       monitorText: '实时抓取并解析 BidKing 对局技能数据',
-      priceText: '查看交易所最低价历史趋势和高倍售价藏品',
+
       injectText: '管理 BidKing 注入式自动化操作',
     },
     inject: {
@@ -852,7 +851,6 @@ export const messages = {
       ahmed: 'Ahmed',
       ethan: 'Ethan',
       monitor: 'Monitor',
-      price: 'Price',
       inject: 'Inject',
       switchThemeToDark: 'Light mode. Switch to dark mode',
       switchThemeToLight: 'Dark mode. Switch to light mode',
@@ -873,7 +871,7 @@ export const messages = {
       ahmedText: 'Current collectible count combination calculator',
       ethanText: 'Estimate expected value totals from cell constraints',
       monitorText: 'Capture and parse live BidKing match skill data',
-      priceText: 'Review exchange low-price history and high-multiple listings',
+
       injectText: 'Manage BidKing injection-based automation',
     },
     inject: {

@@ -147,7 +147,7 @@ describe('server routes', () => {
     await request(app).get('/').expect(200).expect('Content-Type', /html/);
     await request(app).get('/Tools').expect(200).expect('Content-Type', /html/);
     await request(app).get('/Monitor').expect(200).expect('Content-Type', /html/);
-    await request(app).get('/Price').expect(200).expect('Content-Type', /html/);
+
     await request(app).get('/Inject').expect(200).expect('Content-Type', /html/);
 
     await request(app).get('/Elsa').expect(302).expect('Location', '/Tools');
@@ -158,7 +158,7 @@ describe('server routes', () => {
     await request(app).get('/Ethan').expect(302).expect('Location', '/Tools?tab=ethan');
     await request(app).get('/ethan').expect(302).expect('Location', '/Tools?tab=ethan');
     await request(app).get('/monitor').expect(302).expect('Location', '/Monitor');
-    await request(app).get('/price').expect(302).expect('Location', '/Price');
+
     await request(app).get('/inject').expect(302).expect('Location', '/Inject');
   });
 

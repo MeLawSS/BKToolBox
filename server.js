@@ -155,14 +155,6 @@ function createApp(deps = {}) {
         res.sendFile(path.join(projectRoot, 'public', 'monitor', 'index.html'));
     });
 
-    app.get(['/price', '/Price'], (req, res) => {
-        if (req.path === '/price') {
-            res.redirect('/Price');
-            return;
-        }
-
-        res.sendFile(path.join(projectRoot, 'public', 'price', 'index.html'));
-    });
 
     app.get(['/inject', '/Inject'], (req, res) => {
         if (req.path === '/inject') {

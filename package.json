@@ -44,15 +44,14 @@
     "@vitejs/plugin-vue": "^6.0.7",
     "@vitest/coverage-v8": "^4.1.6",
     "@vue/test-utils": "^2.4.10",
-    "chart.js": "^4.5.1",
+
     "electron": "^37.0.0",
     "electron-builder": "^26.8.1",
     "happy-dom": "^20.9.0",
     "supertest": "^7.2.2",
     "vite": "^8.0.13",
     "vitest": "^4.1.6",
-    "vue": "^3.5.34",
-    "vue-chartjs": "^5.3.3"
+    "vue": "^3.5.34"
   },
   "build": {
     "appId": "com.bktoolbox.desktop",

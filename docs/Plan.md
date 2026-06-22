@@ -43,9 +43,9 @@
 
 验收：
 
-- `server.js` 提供 canonical 页面路由 `/`、`/Tools`、`/Monitor`、`/Price`、`/Inject`
+- `server.js` 提供 canonical 页面路由 `/`、`/Tools`、`/Monitor`、`/Inject`
 - `server.js` 兼容 `/Elsa -> /Tools`、`/Ahmed -> /Tools?tab=ahmed`、`/Ethan -> /Tools?tab=ethan`，以及其余 lowercase 到 canonical 的重定向
-- Vite 构建入口覆盖 `src/home`、`src/elsa`、`src/ahmed`、`src/ethan`、`src/monitor`、`src/price`、`src/inject`
+- Vite 构建入口覆盖 `src/home`、`src/elsa`、`src/ahmed`、`src/ethan`、`src/monitor`、`src/inject`
 - 页面变更后，`npm run build:pages` 可在安全条件下通过
 
 验证命令：
@@ -55,7 +55,7 @@
 - `curl -I http://127.0.0.1:3000/Ahmed`
 - `curl -I http://127.0.0.1:3000/Ethan`
 - `curl -I http://127.0.0.1:3000/Monitor`
-- `curl -I http://127.0.0.1:3000/Price`
+- 
 - `curl -I http://127.0.0.1:3000/Inject`
 
 停止并修复：
@@ -119,7 +119,7 @@
 验收：
 
 - 文档覆盖 `lib/bidking-live-monitor.js`、`lib/capture-driver.js`、`electron/services/inject-service.js`
-- 文档覆盖 `/api/bidking-monitor/*`、`/api/price-history/*`、`/api/market-prices/*`、`/api/capture-driver/*`、`/api/exchange-listing-advice/:itemCid`
+- 文档覆盖 `/api/bidking-monitor/*`、`/api/price-history/*`、`/api/market-prices/*`、`/api/capture-driver/*`、
 - 文档说明桌面 monitor 默认只走 `dumpcap` 抓包链路，`tools/WiresharkPortable64/` 是唯一的本地抓包源目录
 
 验证命令：

@@ -9,14 +9,14 @@
 ## 当前状态
 
 - 项目是一个 `Electron + Express + Vue 3/Vite` 混合应用
-- 当前构建保留 7 个页面入口 bundle：`Home`、`Tools`、`Ahmed`、`Ethan`、`Monitor`、`Price`、`Inject`
-- 当前用户可见的 canonical 工作面共有 5 个：`Home`、`Tools`、`Monitor`、`Price`、`Inject`
+- 当前构建保留 7 个页面入口 bundle：`Home`、`Tools`、`Ahmed`、`Ethan`、`Monitor`、`Inject`
+- 当前用户可见的 canonical 工作面共有 5 个：`Home`、`Tools`、`Monitor`、`Inject`
 - `Tools` 是 `Elsa / Ethan / Ahmed` 的 canonical 入口
 - 兼容旧入口：
   - `/elsa`、`/Elsa` -> `/Tools`
   - `/ahmed`、`/Ahmed` -> `/Tools?tab=ahmed`
   - `/ethan`、`/Ethan` -> `/Tools?tab=ethan`
-  - `/tools`、`/monitor`、`/price`、`/inject` -> 对应的大写 canonical 路径
+  - `/tools`、`/monitor`、、`/inject` -> 对应的大写 canonical 路径
 - Electron 主进程入口是 `electron/main.js`
 - Express 入口是 `server.js`
 - 运行时路径 helper 是 `runtime-paths.js`
@@ -27,7 +27,7 @@
 
 - `Home`
   - 仅做导航工作台，不直接承载截图或求解逻辑
-  - 只暴露 `Tools`、`Monitor`、`Price`、`Inject` 四个入口卡片
+  - 只暴露 `Tools`、`Monitor`、`Inject` 四个入口卡片
 - `Tools`
   - 由 `3` 个 hero tabs 和 `9` 个 solver tabs 组成
   - hero tabs 顺序固定为 `Elsa · 期望价值`、`Ethan · 期望价值`、`Ahmed · 组合计算器`
@@ -61,7 +61,7 @@
 - `GET /`
 - `GET /Tools`
 - `GET /Monitor`
-- `GET /Price`
+
 - `GET /Inject`
 
 ### 兼容路由
@@ -95,7 +95,7 @@
 - `GET /api/price-history/collections`
 - `GET /api/price-history/item/:itemCid`
 - `GET /api/price-history/ladders/:itemCid`
-- `GET /api/exchange-listing-advice/:itemCid`
+
 
 ## 求解链路事实
 
@@ -162,7 +162,7 @@
 
 ## 价格与自动化事实
 
-- `Tools` 内 `Elsa / Ethan / Ahmed` panels，以及 `Monitor`、`Price`、`Inject` 页面会请求 `/data/collectibles.json`
+- `Tools` 内 `Elsa / Ethan / Ahmed` panels，以及 `Monitor`、`Inject` 页面会请求 `/data/collectibles.json`
 - 其中 `/data/collectibles.json` 由服务端映射到 runtime root 下的 `collectibles.json`
 - `Price` 页通过：
   - `/api/price-history/latest`
@@ -189,7 +189,7 @@
 
 - `src/shared/useMonitorSwitch.js` 现在是 renderer 侧唯一的 monitor runtime owner：集中负责 `/api/bidking-monitor/status`、`start/stop` 和唯一一条 `/api/bidking-monitor/events` SSE 连接。
 - `src/shared/useAutoOperationAgentSwitch.js` 现在是 renderer 侧唯一的 AutoOperation Agent runtime owner：集中负责桌面能力探测、`Ping` 探活以及 `load/unload BKAutoOpAgent.dll` 的并发保护。
-- `src/shared/TopBar.vue` 只保留 `Home`、`Tools`、`Monitor`、`Price`、`Inject` 五个导航项，并常驻渲染 `Monitor switch`；`Agent switch` 仅在桌面桥同时提供 `startAutoOperationAgent()` 与 `runAutoOperationCommand()` 时显示。
+- `src/shared/TopBar.vue` 只保留 `Home`、`Tools`、`Monitor`、`Inject` 五个导航项，并常驻渲染 `Monitor switch`；`Agent switch` 仅在桌面桥同时提供 `startAutoOperationAgent()` 与 `runAutoOperationCommand()` 时显示。
 - `Ethan` / `Elsa` 共用的 `src/hero-estimator/useHeroEstimatorPanel.js` 不再自己管理 monitor 开关或 SSE，只订阅共享 runtime 并保留英雄专属事件解释逻辑。
 - `/Monitor` 页面现在与 TopBar 共用同一份 monitor status / SSE；当页面已打开时，点击顶栏 Monitor switch 会沿用当前表单里的 `remoteAddress / port / batchSeconds / gameRoot / outputDir` 配置，并同步更新页面状态和事件列表。
 - `/Inject` 页面现在与 TopBar 共用同一份 agent status；无论点击页内按钮还是顶栏 Agent switch，`AutoOperation Agent` 状态文案都会同步。
@@ -313,16 +313,14 @@
 - 2026-06-04：`bash tools/inject/AutoOperation/BKAutoOpAgent/build.sh` 通过，说明本轮主仓库 stock layout 识别修复后的 agent DLL 可正常重编译。
 - 2026-06-04：`g++ -std=c++11 tools/inject/AutoOperation/BKAutoOpAgent/WarehouseLayoutSource.test.cpp -o /tmp/bk_warehouse_layout_source_test && /tmp/bk_warehouse_layout_source_test` 通过，覆盖 `GetStockContainers` 的仓库布局来源选择：优先 `PlayerManager.GetWareHouseDatas()`，缺失时回退到 `PlayerGameData.wareHouses`。
 - 2026-06-04：`npx vitest run src/inject/App.test.js src/inject/stock-move.test.js src/inject/StockMovePanel.test.js electron/services/inject-service.test.mjs` 通过，覆盖 Inject 批量移仓面板集成、放置扫描 helper、批量移动摘要统计，以及 `GetStockContainers` / `MoveStockItem` 的 service timeout。
-- 2026-06-06：`npx vitest run src/price/App.test.js src/price/ListingModal.test.js` 通过；`npm run build:price` 通过。当前 `Price` 页仓库 panel 已改为复用 `GetStockContainers` 的主仓快照语义：只显示主仓库存在的交易所藏品，但保留跨仓总数量，并继续覆盖占用格数显示、仓库筛选和 `占用格数 / 仓库数量 / 本身价格 / 最新最低价` 四列的升降序排序行为。
 - 2026-06-03：`npx vitest run electron/services/inject-service.test.mjs` 通过，覆盖了 AutoOperation Agent 的“复用现有 pipe 而不是重复注入”、`UnloadAgent` 等待 agent 真正停止响应，以及超时失败分支。
 - 2026-06-03：`npx vitest run src/shared/useMonitorSwitch.test.js src/shared/useAutoOperationAgentSwitch.test.js src/shared/TopBar.test.js src/hero-estimator/HeroEstimatorPanel.test.js src/monitor/App.test.js src/inject/App.test.js` 通过，覆盖了共享 monitor runtime、共享 agent runtime、顶栏开关、Hero Estimator、`/Monitor`、`/Inject` 的同步行为。
 - 2026-06-03：`npm run build:pages` 通过，`home / elsa / ahmed / ethan / monitor / price / inject` 七个入口均完成重建，说明本轮 TopBar runtime 改动没有破坏页面构建。
 - 2026-06-03：`npm run pack` 在当前机器仍失败，失败点仍是 `dist/win-unpacked/resources/runtime/tools/inject/AutoOperation/BKAutoOpAgent/BKAutoOpAgent.dll`。额外用 `cmd.exe /c del ...BKAutoOpAgent.dll` 验证时，Windows 返回“拒绝访问”；同时 `BidKing.exe` 仍在运行，说明这次失败是旧打包目录里的 agent DLL 仍被游戏进程持有，不是 electron-builder 配置本身的新错误。
 - 2026-06-03：`npx vitest run src/price/App.test.js src/price/ListingModal.test.js` 通过，当前 `Price` 页仓库 panel 已覆盖占用格数显示，以及 `占用格数 / 仓库数量 / 本身价格 / 最新最低价` 四列的升降序排序行为。
-- 2026-06-03：`npm run build:price` 通过，产物更新到 `public/price/`，说明本轮 `Price` 页面改动可正常构建。
 - 2026-06-03：`git diff --check` 无输出，说明本轮文档补录未引入空白或补丁格式问题。
 - 2026-06-03：人工核对 `src/elsa/App.vue`、`src/elsa/ElsaHeroPanel.vue`、`src/ethan/App.vue`、`src/ahmed/AhmedPanel.vue`、`src/hero-estimator/hero-profiles.js`、`src/hero-estimator/useHeroEstimatorPanel.js`，确认当时 current-state 为 `Tools = 3 hero tabs + 9 solver tabs`，且 `src/hero-estimator/` 与 shared `AhmedPanel` 已分别作为 `Ethan/Elsa` 与 `Ahmed` 的共用层落地。
-- 2026-06-02：使用 Node route dump 脚本枚举 `server.js` 路由，确认当前页面路由和 API 路由与文档一致，实际包含 `/Monitor`、`/Price`、`/Inject` 及相关 `/api/*` 接口，以及各页面的小写兼容重定向。
+- 2026-06-02：使用 Node route dump 脚本枚举 `server.js` 路由，确认当前页面路由和 API 路由与文档一致，实际包含 `/Monitor`、、`/Inject` 及相关 `/api/*` 接口，以及各页面的小写兼容重定向。
 - 2026-06-02：`git diff --check` 无输出，说明本轮文档修改未引入空白/补丁格式问题。
 - 2026-06-02：`npm test` 在当前环境失败。
   - Vitest 汇总：`45` 个测试文件中 `41` 个通过、`4` 个失败；`511` 个测试中 `488` 个通过、`23` 个失败，另有 `18` 个未处理错误。

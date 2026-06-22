@@ -45,14 +45,12 @@ describe('Home App', () => {
     expect(wrapper.findAll('.launcher-link').map((link) => link.attributes('href'))).toEqual([
       '/Tools',
       '/Monitor',
-      '/Price',
       '/Inject',
     ]);
     expect(wrapper.find('.launcher').text()).toContain('Tools');
     expect(wrapper.find('.launcher').text()).not.toContain('Ahmed');
     expect(wrapper.find('.launcher').text()).not.toContain('Ethan');
     expect(wrapper.find('.launcher').text()).toContain('Monitor');
-    expect(wrapper.find('.launcher').text()).toContain('Price');
     expect(wrapper.find('.launcher').text()).toContain('Inject');
     expect(wrapper.find('.capture').exists()).toBe(false);
     expect(wrapper.find('.action-button').exists()).toBe(false);

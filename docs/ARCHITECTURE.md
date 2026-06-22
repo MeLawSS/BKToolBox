@@ -6,7 +6,7 @@ BKToolBox 目前不是单一计算页，而是一个 `Electron + Express + Vue 3
 
 - Electron 提供桌面运行、截图、AutoOperation 注入和嵌入式本地服务
 - Express 提供页面路由、SSE 求解入口、实时监控 API、价格历史 API 和抓包驱动 API
-- Vue 构建保留 `Home`、`Tools`、`Ahmed`、`Ethan`、`Monitor`、`Price`、`Inject` 七个入口 bundle；用户可见的 canonical 工作面是 `Home`、`Tools`、`Monitor`、`Price`、`Inject`
+- Vue 构建保留 `Home`、`Tools`、`Ahmed`、`Ethan`、`Monitor`、`Inject` 七个入口 bundle；用户可见的 canonical 工作面是 `Home`、`Tools`、`Monitor`、`Inject`
 - 求解脚本、实时抓包、价格历史和自动化服务在 Node 侧独立维护
 
 应用显示名和 Windows 打包产品名为 `BKToolBox`。为了兼容既有页面状态、主题和桌面桥接，`bidking-theme`、`bidking-page-state:*`、`window.bidkingDesktop` 等内部 key/API 继续沿用旧命名。
@@ -32,8 +32,7 @@ BKToolBox/
 │   ├── bidking-market-*.js
 │   ├── bidking-price-history-store.js
 │   ├── capture-driver.js
-│   ├── high-price-listing-advisor.js
-│   ├── listing-fee-config-store.js
+
 │   └── trade-info-history-recorder.js
 ├── src/
 │   ├── home/
@@ -42,7 +41,6 @@ BKToolBox/
 │   ├── ethan/
 │   ├── hero-estimator/
 │   ├── monitor/
-│   ├── price/
 │   ├── inject/
 │   │   └── panels/
 │   └── shared/
@@ -52,7 +50,6 @@ BKToolBox/
 │   ├── ahmed/
 │   ├── ethan/
 │   ├── monitor/
-│   ├── price/
 │   ├── inject/
 │   ├── elsa/
 │   ├── index.html
@@ -89,7 +86,7 @@ BKToolBox/
 - `/`
 - `/Tools`
 - `/Monitor`
-- `/Price`
+
 - `/Inject`
 
 当前兼容重定向：
@@ -97,7 +94,7 @@ BKToolBox/
 - `/elsa`、`/Elsa` -> `/Tools`
 - `/ahmed`、`/Ahmed` -> `/Tools?tab=ahmed`
 - `/ethan`、`/Ethan` -> `/Tools?tab=ethan`
-- `/tools`、`/monitor`、`/price`、`/inject` -> 对应的大写 canonical 路由
+- `/tools`、`/monitor`、、`/inject` -> 对应的大写 canonical 路由
 
 当前主要 API：
 
@@ -120,7 +117,7 @@ BKToolBox/
   - `GET /api/price-history/collections`
   - `GET /api/price-history/item/:itemCid`
   - `GET /api/price-history/ladders/:itemCid`
-  - `GET /api/exchange-listing-advice/:itemCid`
+
 - Runtime data
   - `GET /data/collectibles.json`
 
@@ -189,7 +186,7 @@ BKToolBox/
 职责：
 
 - 只做工作区入口页
-- 提供 `Tools`、`Monitor`、`Price`、`Inject` 四个入口卡片
+- 提供 `Tools`、`Monitor`、`Inject` 四个入口卡片
 - 复用共享顶栏、主题切换和语言切换
 - 不再在 `Home` 或 `TopBar` 暴露独立 `Ahmed` / `Ethan`
 
@@ -321,7 +318,7 @@ BKToolBox/
 
 当前关键行为：
 
-- 顶栏只保留 `Home`、`Tools`、`Monitor`、`Price`、`Inject` 五个导航项
+- 顶栏只保留 `Home`、`Tools`、`Monitor`、`Inject` 五个导航项
 - `Monitor switch` 常驻显示；`Agent switch` 仅在桌面桥同时提供 `startAutoOperationAgent()` 与 `runAutoOperationCommand()` 时显示
 - `/Monitor`、`/Inject` 和 `src/hero-estimator/useHeroEstimatorPanel.js` 都订阅这两份共享 runtime，而不再各自维护独立 owner
 
