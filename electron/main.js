@@ -4,7 +4,6 @@ const path = require('path');
 const { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, Notification, screen } = require('electron');
 const {
     claimCabinetReward,
-    confirmHighPriceExchangeListing,
     getCollectionPriceScanStatus,
     listStockMoveLists,
     queryCabinetReward,
@@ -645,16 +644,7 @@ function registerIpc() {
             return { ok: false, error: error.message };
         }
     });
-    ipcMain.handle('inject:confirmHighPriceExchangeListing', async (_event, request) => {
-        try {
-            return await confirmHighPriceExchangeListing(request, {
-                documentsDir: app.getPath('documents'),
-                serverUrl,
-            });
-        } catch (error) {
-            return { ok: false, error: error.message };
-        }
-    });
+
     ipcMain.handle('inject:startCollectionPriceScan', async (_event, config) => {
         try {
             return await startCollectionPriceScan(config || {}, { controller: collectionPriceScanController });

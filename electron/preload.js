@@ -21,7 +21,7 @@ contextBridge.exposeInMainWorld('bidkingDesktop', {
     startAutoOperationAgent: () => ipcRenderer.invoke('inject:startAutoOperationAgent'),
     runAutoOperationCommand: (command, args = {}) => ipcRenderer.invoke('inject:runAutoOperationCommand', command, args),
     refreshItemTradeInfo: (itemCid) => ipcRenderer.invoke('inject:refreshItemTradeInfo', itemCid),
-    confirmHighPriceExchangeListing: (request) => ipcRenderer.invoke('inject:confirmHighPriceExchangeListing', request),
+
     startCollectionPriceScan: (config) => ipcRenderer.invoke('inject:startCollectionPriceScan', config),
     stopCollectionPriceScan: () => ipcRenderer.invoke('inject:stopCollectionPriceScan'),
     getCollectionPriceScanStatus: () => ipcRenderer.invoke('inject:getCollectionPriceScanStatus'),
