@@ -46,6 +46,7 @@ const {
     isEthanUrl,
 } = require('./desktop-utils');
 const { showDesktopNotification } = require('./services/desktop-notification');
+const { raiseAndFocusWindow } = require('./services/window-focus');
 const startupLogPath = path.join(os.tmpdir(), 'bidking-electron.log');
 const screenshotHotkey = process.env.BIDKING_SCREENSHOT_HOTKEY || 'CommandOrControl+Shift+A';
 const regionScreenshotHotkey =
@@ -717,11 +718,7 @@ function registerIpc() {
         if (!mainWindow || mainWindow.isDestroyed()) {
             return { ok: false, error: 'no window' };
         }
-        if (mainWindow.isMinimized()) {
-            mainWindow.restore();
-        }
-        mainWindow.show();
-        mainWindow.focus();
+        raiseAndFocusWindow(mainWindow);
         return { ok: true };
     });
 }
