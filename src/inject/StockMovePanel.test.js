@@ -1393,6 +1393,12 @@ describe('StockMovePanel', () => {
 
     // Should now have all three: original 1011001 + 1083009, plus 1032006 from list.
     expect(getCheckedCids(wrapper).sort((a, b) => a - b)).toEqual([1011001, 1032006, 1083009].sort((a, b) => a - b));
+
+    // Apply the same list again — all CIDs already selected, no change, no error.
+    await wrapper.find('[data-testid="stock-move-apply-list-saved-1"]').trigger('click');
+    await nextTick();
+    expect(getCheckedCids(wrapper).sort((a, b) => a - b)).toEqual([1011001, 1032006, 1083009].sort((a, b) => a - b));
+    expect(wrapper.find('[data-testid="stock-move-saved-lists-error"]').exists()).toBe(false);
   });
 
   it('preserves existing selection when applying a saved list with no matches', async () => {
