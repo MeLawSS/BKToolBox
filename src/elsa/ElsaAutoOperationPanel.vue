@@ -156,6 +156,7 @@ function toggle() {
 .elsa-auto-operation-toggle {
   min-width: 132px;
   min-height: 42px;
+  border: none;
   border-radius: 999px;
   box-shadow: 0 10px 24px rgba(57, 168, 149, 0.18);
 }
