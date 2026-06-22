@@ -199,6 +199,13 @@ function getVisibleGroupCids(wrapper) {
     .map((row) => row.attributes('data-testid').replace('stock-move-row-group-', ''));
 }
 
+function getCheckedCids(wrapper) {
+  return wrapper
+    .findAll('tbody input[type="checkbox"]')
+    .filter((checkbox) => checkbox.element.checked)
+    .map((checkbox) => Number(checkbox.element.value));
+}
+
 describe('StockMovePanel', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -1227,5 +1234,116 @@ describe('StockMovePanel', () => {
     await wrapper.find('[data-testid="stock-move-source"]').setValue('2');
     await nextTick();
     expect(wrapper.find('[data-testid="stock-move-saved-list-match-saved-1"]').text()).toBe('0');
+  });
+
+  it('invert selection toggles checked state for visible groups and preserves hidden selections', async () => {
+    const snapshot = createSortableSnapshot();
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'GetStockContainers') return { ok: true, value: snapshot };
+      throw new Error(`unexpected command: ${command}`);
+    });
+    setupDesktop(runAutoOperationCommand);
+
+    const wrapper = await mountPanel();
+    await wrapper.find('[data-testid="stock-move-load"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+    await wrapper.find('[data-testid="stock-move-source"]').setValue('1');
+    await nextTick();
+
+    // Initially nothing is checked.
+    expect(getCheckedCids(wrapper)).toEqual([]);
+
+    // Click "Select All" — all visible groups should be checked.
+    await wrapper.find('[data-testid="stock-move-select-all"]').trigger('click');
+    await nextTick();
+    expect(getCheckedCids(wrapper).sort((a, b) => a - b)).toEqual([1011001, 1032006, 1083009].sort((a, b) => a - b));
+
+    // Click "Invert" — all should become unchecked.
+    await wrapper.find('[data-testid="stock-move-invert"]').trigger('click');
+    await nextTick();
+    expect(getCheckedCids(wrapper)).toEqual([]);
+
+    // Click "Invert" again — all should become checked (empty → full).
+    await wrapper.find('[data-testid="stock-move-invert"]').trigger('click');
+    await nextTick();
+    expect(getCheckedCids(wrapper).sort((a, b) => a - b)).toEqual([1011001, 1032006, 1083009].sort((a, b) => a - b));
+
+    // Manually uncheck only the first group.
+    await wrapper.find('[data-testid="stock-move-item-group-1032006"]').setValue(false);
+    await nextTick();
+    expect(getCheckedCids(wrapper).sort((a, b) => a - b)).toEqual([1011001, 1083009].sort((a, b) => a - b));
+
+    // Invert: 1011001 and 1083009 become unchecked; 1032006 becomes checked.
+    await wrapper.find('[data-testid="stock-move-invert"]').trigger('click');
+    await nextTick();
+    expect(getCheckedCids(wrapper)).toEqual([1032006]);
+  });
+
+  it('invert selection with search filter preserves hidden selections', async () => {
+    const snapshot = createSortableSnapshot();
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'GetStockContainers') return { ok: true, value: snapshot };
+      throw new Error(`unexpected command: ${command}`);
+    });
+    setupDesktop(runAutoOperationCommand);
+
+    const wrapper = await mountPanel();
+    await wrapper.find('[data-testid="stock-move-load"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+    await wrapper.find('[data-testid="stock-move-source"]').setValue('1');
+    await nextTick();
+
+    // Select all groups.
+    await wrapper.find('[data-testid="stock-move-select-all"]').trigger('click');
+    await nextTick();
+    expect(getCheckedCids(wrapper).sort((a, b) => a - b)).toEqual([1011001, 1032006, 1083009].sort((a, b) => a - b));
+
+    // Search to filter down to only 1032006 (Boots).
+    await wrapper.find('[data-testid="stock-move-search"]').setValue('boot');
+    await nextTick();
+    expect(getVisibleGroupCids(wrapper)).toEqual(['1032006']);
+
+    // Invert — 1032006 becomes unchecked; hidden rows are not in the DOM so getCheckedCids sees nothing.
+    await wrapper.find('[data-testid="stock-move-invert"]').trigger('click');
+    await nextTick();
+    expect(getCheckedCids(wrapper)).toEqual([]);
+
+    // Clear search filter.
+    await wrapper.find('[data-testid="stock-move-search"]').setValue('');
+    await nextTick();
+    expect(getVisibleGroupCids(wrapper).sort()).toEqual(['1032006', '1083009', '1011001'].sort());
+    // 1011001 and 1083009 still checked (preserved), 1032006 is unchecked.
+    expect(getCheckedCids(wrapper).sort((a, b) => a - b)).toEqual([1011001, 1083009].sort((a, b) => a - b));
+  });
+
+  it('invert selection button is disabled when no visible groups', async () => {
+    const snapshot = createSnapshot();
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'GetStockContainers') return { ok: true, value: snapshot };
+      throw new Error(`unexpected command: ${command}`);
+    });
+    setupDesktop(runAutoOperationCommand);
+
+    const wrapper = await mountPanel();
+    await wrapper.find('[data-testid="stock-move-load"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+    await wrapper.find('[data-testid="stock-move-source"]').setValue('1');
+    await nextTick();
+
+    // Filter to a non-existent item — no visible groups.
+    await wrapper.find('[data-testid="stock-move-search"]').setValue('nonexistent');
+    await nextTick();
+    expect(getVisibleGroupCids(wrapper)).toEqual([]);
+
+    const invertButton = wrapper.find('[data-testid="stock-move-invert"]');
+    expect(invertButton.attributes('disabled')).toBeDefined();
+
+    // Clear filter — button should be enabled again.
+    await wrapper.find('[data-testid="stock-move-search"]').setValue('');
+    await nextTick();
+    expect(invertButton.attributes('disabled')).toBeUndefined();
   });
 });
