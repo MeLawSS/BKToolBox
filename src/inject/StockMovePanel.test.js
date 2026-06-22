@@ -1480,4 +1480,54 @@ describe('StockMovePanel', () => {
     await nextTick();
     expect(getCheckedCids(wrapper)).toEqual([]);
   });
+
+  it('applying a saved list while search-filtered adds hidden matching CIDs from full source groups', async () => {
+    const snapshot = createSortableSnapshot();
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'GetStockContainers') return { ok: true, value: snapshot };
+      throw new Error(`unexpected command: ${command}`);
+    });
+    const listStockMoveLists = vi.fn(async () => ({
+      ok: true,
+      value: [
+        {
+          id: 'saved-1',
+          name: 'Boots 列表',
+          savedAt: '2026-06-05T03:04:05.000Z',
+          itemCids: [1032006],
+          items: [],
+        },
+      ],
+    }));
+    setupDesktop(runAutoOperationCommand, { listStockMoveLists, saveStockMoveList: vi.fn() });
+
+    const wrapper = await mountPanel();
+    await wrapper.find('[data-testid="stock-move-load"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+    await wrapper.find('[data-testid="stock-move-source"]').setValue('1');
+    await nextTick();
+
+    // Pre-select 1011001 (Data Cable).
+    await wrapper.find('[data-testid="stock-move-item-group-1011001"]').setValue(true);
+    await nextTick();
+    expect(getCheckedCids(wrapper)).toEqual([1011001]);
+
+    // Search to filter — 1032006 (Boots) matches "boot", 1011001 is hidden.
+    await wrapper.find('[data-testid="stock-move-search"]').setValue('boot');
+    await nextTick();
+    expect(getVisibleGroupCids(wrapper)).toEqual(['1032006']);
+
+    // Apply saved list containing 1032006 — should be added even though hidden.
+    await wrapper.find('[data-testid="stock-move-apply-list-saved-1"]').trigger('click');
+    await nextTick();
+
+    // Only 1032006 checkbox is visible in DOM.
+    expect(getCheckedCids(wrapper)).toEqual([1032006]);
+
+    // Clear search filter — both 1011001 and 1032006 should be checked.
+    await wrapper.find('[data-testid="stock-move-search"]').setValue('');
+    await nextTick();
+    expect(getCheckedCids(wrapper).sort((a, b) => a - b)).toEqual([1011001, 1032006].sort((a, b) => a - b));
+  });
 });
