@@ -1684,6 +1684,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             continue;
         }
 
+        // First round hard floor: never bid below 17000.
+        if (roundsEncountered == 1 && amount < 17000) {
+            amount = 17000;
+        }
+
         const int originalBid = amount;
 
         if (useExpectedPrice && roundsEncountered >= 2 && roundsEncountered <= 5) {
