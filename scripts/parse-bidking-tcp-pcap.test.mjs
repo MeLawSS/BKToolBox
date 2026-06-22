@@ -291,6 +291,38 @@ describe('BidKing TCP pcap parser', () => {
         });
     });
 
+    it('keeps Elsa complete-reveal hero skills even when they have no hit boxes', () => {
+        const summaries = [{
+            msgId: 37,
+            kind: 'game_next_round',
+            gameData: {
+                gameUid: 'game-1',
+                round: 2,
+                heroSkills: [
+                    { uid: 'elsa-purple-empty', heroCid: 103, skillCid: 1001031, castRound: 2 },
+                    { uid: 'elsa-blue-empty', heroCid: 103, skillCid: 1001032, castRound: 2 },
+                    { uid: 'elsa-green-empty', heroCid: 103, skillCid: 1001033, castRound: 2 },
+                    { uid: 'elsa-white-empty', heroCid: 103, skillCid: 1001034, castRound: 2 },
+                    { uid: 'other-empty-skill', heroCid: 999, skillCid: 123456, castRound: 2 },
+                ],
+            },
+        }];
+
+        const events = extractBidKingRealtimeEvents(summaries);
+
+        expect(events).toHaveLength(4);
+        expect(events.map((event) => event.key)).toEqual([
+            'skill:elsa-purple-empty',
+            'skill:elsa-blue-empty',
+            'skill:elsa-green-empty',
+            'skill:elsa-white-empty',
+        ]);
+        expect(events.every((event) => event.group === 'hero')).toBe(true);
+        expect(events.every((event) => event.skill.hitBoxCount === 0)).toBe(true);
+        expect(events.every((event) => event.skill.fullHitBoxCount === 0)).toBe(true);
+        expect(events.every((event) => event.skill.qualityOnlyHitBoxCount === 0)).toBe(true);
+    });
+
     it('scans pktmon-prefixed packets for the IPv4 header', () => {
         const packet = buildIpTcpPacket({
             prefixLength: 34,

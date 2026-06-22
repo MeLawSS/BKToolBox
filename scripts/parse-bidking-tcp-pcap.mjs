@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import heroProfilesModule from '../lib/bidking-hero-profiles.js';
 import {
     buildGameTableMetadata,
     enrichSkillData,
@@ -11,11 +12,13 @@ import {
     summarizePlayback
 } from './watch-bidking-game-log.mjs';
 
+const { ELSA_MONITOR_PROFILE } = heroProfilesModule;
 const DEFAULT_PORT = 10000;
 const DOWNSTREAM_HEADER_BYTES = 16;
 const UPSTREAM_HEADER_BYTES = 12;
 const MARKET_PRICE_REQUEST_MSG_ID = 58;
 const MARKET_PRICE_RESPONSE_MSG_ID = 59;
+const ELSA_COMPLETE_REVEAL_SKILL_CIDS = new Set(ELSA_MONITOR_PROFILE.completeRevealHeroSkillCids ?? []);
 const KNOWN_GAME_DATA_MESSAGES = new Map([
     [33, 'game_start'],
     [37, 'game_next_round'],
@@ -488,7 +491,9 @@ function summarizeGameData(gameData, { metadata }) {
 
 function buildSkillEvent(summary, game, group, skill) {
     const hitBoxList = skill.hitBoxList ?? [];
-    const hasUsefulPayload = hitBoxList.length > 0
+    const keepsEmptyElsaCompleteReveal = group === 'hero' && isElsaCompleteRevealSkill(skill);
+    const hasUsefulPayload = keepsEmptyElsaCompleteReveal
+        || hitBoxList.length > 0
         || skill.totalHitBoxIndex !== undefined
         || skill.hitItemTotalPrice !== undefined
         || skill.allHitItemAvgPrice !== undefined
@@ -521,6 +526,10 @@ function buildSkillEvent(summary, game, group, skill) {
             qualityOnlyHitBoxCount: Math.max(0, qualityHitBoxCount - fullHitBoxCount)
         }
     };
+}
+
+function isElsaCompleteRevealSkill(skill) {
+    return Number(skill?.heroCid) === 103 && ELSA_COMPLETE_REVEAL_SKILL_CIDS.has(Number(skill?.skillCid));
 }
 
 function buildMarketPriceEvent(summary) {

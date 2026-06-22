@@ -809,6 +809,33 @@ describe('HeroEstimatorPanel', () => {
     expect(wrapper.findAll('.monitor-outline')).toHaveLength(0);
   });
 
+  it('shows a zero purple placeholder when Elsa purple complete reveal arrives without hit boxes', async () => {
+    const wrapper = mount(HeroEstimatorPanel, {
+      props: { profile: elsaProfile, embedded: true },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    const monitorSource = FakeEventSource.instances.find((source) => source.url === '/api/bidking-monitor/events');
+
+    monitorSource.emitEvent('event', {
+      key: 'elsa-empty-purple-complete-reveal',
+      gameUid: 'game-1',
+      group: 'hero',
+      skill: {
+        uid: 'elsa-empty-purple-complete-reveal-skill',
+        heroCid: 103,
+        skillCid: 1001031,
+      },
+    });
+    await nextTick();
+
+    expect(wrapper.find('#elsa-cells-purple').attributes('placeholder')).toBe('0');
+    expect(wrapper.findAll('.monitor-outline')).toHaveLength(0);
+  });
+
   it('does not restore Elsa results derived from monitor total-cells placeholder after remount without fresh monitor context', async () => {
     const wrapper = mount(HeroEstimatorPanel, {
       props: { profile: elsaProfile, embedded: true },
