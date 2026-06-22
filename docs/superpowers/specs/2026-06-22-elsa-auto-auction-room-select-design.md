@@ -89,7 +89,7 @@ export function useElsaAutoOperation({ roomId } = {}) {
 </div>
 ```
 
-**CSS 新增：**
+**CSS 新增（Elsa 不加载 inject.css，需自包含样式）：**
 
 ```css
 .elsa-auto-operation-controls {
@@ -98,9 +98,19 @@ export function useElsaAutoOperation({ roomId } = {}) {
   align-items: center;
   flex-wrap: wrap;
 }
+
+.elsa-auto-operation-controls select {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  padding: 0 10px;
+}
 ```
 
-工具栏 grid 结构变为 `<header>` + `.elsa-auto-operation-controls` 两行（grid 原有 `grid-template-columns` 不变，controls 行占据第二列/新行）。
+工具栏 grid 结构变为 `<header>` + `.elsa-auto-operation-controls` 两行。
 
 ## 测试
 
