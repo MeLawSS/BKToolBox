@@ -1594,6 +1594,40 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         if (!found) { SendResponse(c, id, false, "timeout waiting for auction_lobby_room"); return; }
     }
 
+    {
+        Il2CppObject* battlePrevTransform = nullptr;
+        char lookupError[128] = {};
+        UiPanelLookupResult panelResult = FindVisiblePanelTransform(
+            "BattlePrevPanel_Main",
+            nullptr,
+            &battlePrevTransform,
+            lookupError,
+            sizeof(lookupError)
+        );
+        if (panelResult == UI_PANEL_FOUND && battlePrevTransform) {
+            std::string countText;
+            std::string roomEntryLimitResult;
+            const int reportedExpectedPrice = ResolveAutoAuctionReportedExpectedPrice(
+                lastExpectedPrice,
+                g_notifiedExpectedPrice.load()
+            );
+            if (ReadExactNodeText(battlePrevTransform, "Panel_1/MapPanel/countTxt", &countText) &&
+                TryBuildAutoAuctionRoomEntryLimitReachedResultFromCountText(
+                    countText,
+                    roundsPlayed,
+                    reportedExpectedPrice,
+                    &roomEntryLimitResult
+                )) {
+                Logf(
+                    "AutoAuction stopped: lobby room daily entry limit reached countTxt=%s",
+                    countText.c_str()
+                );
+                SendResponse(c, id, true, roomEntryLimitResult.c_str());
+                return;
+            }
+        }
+    }
+
     // Step 4: OpenSkillConfig → SelectRole → StartAction
     if (!clickOnPanel("BattlePrevPanel_Main", "Panel_1/MapPanel/battleSet/Hero/Button", 1500)) {
         if (stopIfRequested()) return;

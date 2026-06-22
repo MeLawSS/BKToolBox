@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ctype.h>
 #include <string.h>
 #include <string>
 
@@ -110,6 +111,85 @@ inline bool ShouldAttemptLegacyAutoBid(
     const std::string& lastBidRound
 ) {
     return secs < 15 && !round.empty() && round != lastBidRound;
+}
+
+inline std::string StripAutoAuctionLobbyRoomEntryCounterFormatting(const std::string& text) {
+    std::string plainText;
+    plainText.reserve(text.size());
+    bool insideTag = false;
+    for (size_t i = 0; i < text.size(); ++i) {
+        const char ch = text[i];
+        if (insideTag) {
+            if (ch == '>') {
+                insideTag = false;
+            }
+            continue;
+        }
+        if (ch == '<') {
+            insideTag = true;
+            continue;
+        }
+        plainText.push_back(ch);
+    }
+    return plainText;
+}
+
+inline bool TryParseAutoAuctionLobbyRoomEntryCounterText(
+    const std::string& text,
+    int* currentCount,
+    int* limitCount
+) {
+    if (currentCount) *currentCount = 0;
+    if (limitCount) *limitCount = 0;
+
+    const std::string plainText = StripAutoAuctionLobbyRoomEntryCounterFormatting(text);
+    for (size_t i = 0; i < plainText.size(); ++i) {
+        if (!isdigit((unsigned char)plainText[i])) {
+            continue;
+        }
+
+        int parsedCurrentCount = 0;
+        size_t j = i;
+        while (j < plainText.size() && isdigit((unsigned char)plainText[j])) {
+            parsedCurrentCount = parsedCurrentCount * 10 + (plainText[j] - '0');
+            ++j;
+        }
+
+        while (j < plainText.size() && isspace((unsigned char)plainText[j])) {
+            ++j;
+        }
+        if (j >= plainText.size() || plainText[j] != '/') {
+            continue;
+        }
+        ++j;
+
+        while (j < plainText.size() && isspace((unsigned char)plainText[j])) {
+            ++j;
+        }
+        if (j >= plainText.size() || !isdigit((unsigned char)plainText[j])) {
+            continue;
+        }
+
+        int parsedLimitCount = 0;
+        while (j < plainText.size() && isdigit((unsigned char)plainText[j])) {
+            parsedLimitCount = parsedLimitCount * 10 + (plainText[j] - '0');
+            ++j;
+        }
+
+        if (currentCount) *currentCount = parsedCurrentCount;
+        if (limitCount) *limitCount = parsedLimitCount;
+        return true;
+    }
+
+    return false;
+}
+
+inline bool IsAutoAuctionLobbyRoomEntryLimitReachedText(const std::string& text) {
+    int currentCount = 0;
+    int limitCount = 0;
+    return TryParseAutoAuctionLobbyRoomEntryCounterText(text, &currentCount, &limitCount) &&
+        currentCount == 100 &&
+        limitCount == 100;
 }
 
 inline int ClampAutoAuctionBidAmount(

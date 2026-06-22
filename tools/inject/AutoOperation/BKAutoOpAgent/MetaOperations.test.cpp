@@ -51,6 +51,31 @@ int main() {
     assert(ResolveUiClickComponentKind(true, true) == UI_CLICK_COMPONENT_BUTTON);
     assert(BuildAutoAuctionAuthCodeRequiredResult(2, 60000)
            == "{\"result\":\"authcode_required\",\"reason\":\"authcode_detected\",\"rounds\":2,\"expectedPrice\":60000}");
+    assert(BuildAutoAuctionRoomEntryLimitReachedResult(0, 50000)
+           == "{\"result\":\"room_entry_limit_reached\",\"reason\":\"daily_room_entry_limit_reached\",\"rounds\":0,\"expectedPrice\":50000}");
+    std::string roomEntryLimitResult;
+    assert(TryBuildAutoAuctionRoomEntryLimitReachedResultFromCountText(
+        "今日次数：<color=#FF0000>100/100",
+        0,
+        50000,
+        &roomEntryLimitResult
+    ));
+    assert(roomEntryLimitResult
+           == "{\"result\":\"room_entry_limit_reached\",\"reason\":\"daily_room_entry_limit_reached\",\"rounds\":0,\"expectedPrice\":50000}");
+    assert(!TryBuildAutoAuctionRoomEntryLimitReachedResultFromCountText(
+        "今日次数：100/1000",
+        0,
+        50000,
+        &roomEntryLimitResult
+    ));
+    assert(roomEntryLimitResult.empty());
+    assert(!TryBuildAutoAuctionRoomEntryLimitReachedResultFromCountText(
+        "今日次数：99/100",
+        0,
+        50000,
+        &roomEntryLimitResult
+    ));
+    assert(roomEntryLimitResult.empty());
 
     assert(ConvertWindowsFileTime100nsToUnixMs(116444736000000000ULL) == 0ULL);
     assert(ConvertWindowsFileTime100nsToUnixMs(116444736010000000ULL) == 1000ULL);

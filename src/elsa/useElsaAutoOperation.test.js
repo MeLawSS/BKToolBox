@@ -449,6 +449,47 @@ describe('useElsaAutoOperation', () => {
     }
   });
 
+  it('stops auto operation and shows a desktop notification when AutoAuction hits the lobby-room daily entry limit', async () => {
+    vi.useFakeTimers();
+    monitorRunning = true;
+    mockLoadAgent.mockImplementation(() => { agentConnected = true; return Promise.resolve(); });
+    elsaExpectedPrice.value = 50000;
+    let autoAuctionCalls = 0;
+    window.bidkingDesktop.runAutoOperationCommand.mockImplementation((name) => {
+      if (name === 'AutoAuction') {
+        autoAuctionCalls += 1;
+        if (autoAuctionCalls === 1) {
+          return Promise.resolve({
+            ok: true,
+            value: { result: 'room_entry_limit_reached', rounds: 0, expectedPrice: 50000 },
+            response: {},
+          });
+        }
+        return new Promise(() => {});
+      }
+      return Promise.resolve({ ok: true, value: {}, response: {} });
+    });
+    const { result, wrapper } = withSetup(() => useElsaAutoOperation());
+    try {
+      await result.enable();
+      await flushPromises();
+      await advanceInitialExpectedPriceSync();
+
+      expect(autoAuctionCalls).toBe(1);
+      expect(result.isEnabled.value).toBe(false);
+      expect(mockUnloadAgent).toHaveBeenCalledTimes(1);
+      expect(window.bidkingDesktop.showNotification).toHaveBeenCalledWith(
+        'BKToolBox',
+        expect.stringContaining('次数已达上限'),
+      );
+      expect(window.bidkingDesktop.focusMainWindow).toHaveBeenCalled();
+      expect(result.log.value.some(e => e.message.includes('次数已达上限'))).toBe(true);
+    } finally {
+      wrapper.unmount();
+      vi.useRealTimers();
+    }
+  });
+
   it('does not propagate focusMainWindow rejection when captcha is detected', async () => {
     vi.useFakeTimers();
     monitorRunning = true;

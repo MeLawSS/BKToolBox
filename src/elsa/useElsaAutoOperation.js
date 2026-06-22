@@ -11,6 +11,8 @@ import {
 const MAX_LOG = 200;
 const AUTO_AUCTION_AUTH_CODE_RESULT = 'authcode_required';
 const AUTO_AUCTION_AUTH_CODE_MESSAGE = '检测到验证界面，已停止自动竞拍，请手动完成验证。';
+const AUTO_AUCTION_ROOM_ENTRY_LIMIT_RESULT = 'room_entry_limit_reached';
+const AUTO_AUCTION_ROOM_ENTRY_LIMIT_MESSAGE = '检测到今日进入次数已达上限（100/100），已停止自动竞拍。';
 const AUTO_AUCTION_NOTIFICATION_TITLE = 'BKToolBox';
 
 export function useElsaAutoOperation() {
@@ -168,6 +170,17 @@ export function useElsaAutoOperation() {
     }
   }
 
+  async function stopAutomationWithAttention(message) {
+    addLog(message, 'warn');
+    await stopAutomation({ requestCancel: false });
+    await showDesktopNotification(AUTO_AUCTION_NOTIFICATION_TITLE, message);
+    try {
+      await window.bidkingDesktop?.focusMainWindow?.();
+    } catch (_e) {
+      // focus is best-effort; never block the shutdown flow
+    }
+  }
+
   async function stopAutomation(options = {}) {
     const { requestCancel = true } = options;
     if (!isEnabled.value || isBusy.value) return;
@@ -218,14 +231,11 @@ export function useElsaAutoOperation() {
         return;
       }
       if (status === AUTO_AUCTION_AUTH_CODE_RESULT) {
-        addLog(AUTO_AUCTION_AUTH_CODE_MESSAGE, 'warn');
-        await stopAutomation({ requestCancel: false });
-        await showDesktopNotification(AUTO_AUCTION_NOTIFICATION_TITLE, AUTO_AUCTION_AUTH_CODE_MESSAGE);
-        try {
-          await window.bidkingDesktop?.focusMainWindow?.();
-        } catch (_e) {
-          // focus is best-effort; never block the shutdown flow
-        }
+        await stopAutomationWithAttention(AUTO_AUCTION_AUTH_CODE_MESSAGE);
+        return;
+      }
+      if (status === AUTO_AUCTION_ROOM_ENTRY_LIMIT_RESULT) {
+        await stopAutomationWithAttention(AUTO_AUCTION_ROOM_ENTRY_LIMIT_MESSAGE);
         return;
       }
       addLog(`竞拍完成，共出价 ${rounds} 轮，使用出价 ${usedPrice}`);

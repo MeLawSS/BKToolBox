@@ -76,6 +76,31 @@ int main() {
     assert(!ShouldAttemptLegacyAutoBid(15, "第1轮", ""));
     assert(ShouldAttemptLegacyAutoBid(14, "第1轮", ""));
     assert(!ShouldAttemptLegacyAutoBid(14, "第1轮", "第1轮"));
+    int currentCount = 0;
+    int limitCount = 0;
+    assert(TryParseAutoAuctionLobbyRoomEntryCounterText("100/100", &currentCount, &limitCount));
+    assert(currentCount == 100 && limitCount == 100);
+    assert(TryParseAutoAuctionLobbyRoomEntryCounterText(
+        "今日次数：<color=#FF0000>100/100",
+        &currentCount,
+        &limitCount
+    ));
+    assert(currentCount == 100 && limitCount == 100);
+    assert(TryParseAutoAuctionLobbyRoomEntryCounterText(
+        "今日次数： <color=#FF0000> 100 / 100 </color>",
+        &currentCount,
+        &limitCount
+    ));
+    assert(currentCount == 100 && limitCount == 100);
+    assert(TryParseAutoAuctionLobbyRoomEntryCounterText("100/1000", &currentCount, &limitCount));
+    assert(currentCount == 100 && limitCount == 1000);
+    assert(!TryParseAutoAuctionLobbyRoomEntryCounterText("今日次数：无", &currentCount, &limitCount));
+    assert(IsAutoAuctionLobbyRoomEntryLimitReachedText("100/100"));
+    assert(IsAutoAuctionLobbyRoomEntryLimitReachedText("今日次数：<color=#FF0000>100/100"));
+    assert(IsAutoAuctionLobbyRoomEntryLimitReachedText("今日次数： <color=#FF0000> 100 / 100 </color>"));
+    assert(!IsAutoAuctionLobbyRoomEntryLimitReachedText("100/1000"));
+    assert(!IsAutoAuctionLobbyRoomEntryLimitReachedText("99/100"));
+    assert(!IsAutoAuctionLobbyRoomEntryLimitReachedText(""));
 
     assert(ResolveAutoAuctionReportedExpectedPrice(80000, 11119) == 80000);
     assert(ResolveAutoAuctionReportedExpectedPrice(0, 11119) == 11119);
