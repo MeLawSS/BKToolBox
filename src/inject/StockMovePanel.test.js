@@ -1354,6 +1354,90 @@ describe('StockMovePanel', () => {
     expect(invertButton.attributes('disabled')).toBeUndefined();
   });
 
+  it('applying a saved list merges into the current selection instead of replacing it', async () => {
+    const snapshot = createSortableSnapshot();
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'GetStockContainers') return { ok: true, value: snapshot };
+      throw new Error(`unexpected command: ${command}`);
+    });
+    const listStockMoveLists = vi.fn(async () => ({
+      ok: true,
+      value: [
+        {
+          id: 'saved-1',
+          name: 'Boots 列表',
+          savedAt: '2026-06-05T03:04:05.000Z',
+          itemCids: [1032006],
+          items: [],
+        },
+      ],
+    }));
+    setupDesktop(runAutoOperationCommand, { listStockMoveLists, saveStockMoveList: vi.fn() });
+
+    const wrapper = await mountPanel();
+    await wrapper.find('[data-testid="stock-move-load"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+    await wrapper.find('[data-testid="stock-move-source"]').setValue('1');
+    await nextTick();
+
+    // Manually check 1011001 (Data Cable) and 1083009 (Intake Manifold).
+    await wrapper.find('[data-testid="stock-move-item-group-1011001"]').setValue(true);
+    await wrapper.find('[data-testid="stock-move-item-group-1083009"]').setValue(true);
+    await nextTick();
+    expect(getCheckedCids(wrapper).sort((a, b) => a - b)).toEqual([1011001, 1083009].sort((a, b) => a - b));
+
+    // Apply saved list containing 1032006 (Boots).
+    await wrapper.find('[data-testid="stock-move-apply-list-saved-1"]').trigger('click');
+    await nextTick();
+
+    // Should now have all three: original 1011001 + 1083009, plus 1032006 from list.
+    expect(getCheckedCids(wrapper).sort((a, b) => a - b)).toEqual([1011001, 1032006, 1083009].sort((a, b) => a - b));
+  });
+
+  it('preserves existing selection when applying a saved list with no matches', async () => {
+    const snapshot = createSortableSnapshot();
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'GetStockContainers') return { ok: true, value: snapshot };
+      throw new Error(`unexpected command: ${command}`);
+    });
+    const listStockMoveLists = vi.fn(async () => ({
+      ok: true,
+      value: [
+        {
+          id: 'saved-1',
+          name: '无匹配列表',
+          savedAt: '2026-06-05T03:04:05.000Z',
+          itemCids: [9999999],
+          items: [],
+        },
+      ],
+    }));
+    setupDesktop(runAutoOperationCommand, { listStockMoveLists, saveStockMoveList: vi.fn() });
+
+    const wrapper = await mountPanel();
+    await wrapper.find('[data-testid="stock-move-load"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+    await wrapper.find('[data-testid="stock-move-source"]').setValue('1');
+    await nextTick();
+
+    // Manually check 1032006.
+    await wrapper.find('[data-testid="stock-move-item-group-1032006"]').setValue(true);
+    await nextTick();
+    expect(getCheckedCids(wrapper)).toEqual([1032006]);
+
+    // Apply a saved list with only non-matching CIDs.
+    await wrapper.find('[data-testid="stock-move-apply-list-saved-1"]').trigger('click');
+    await nextTick();
+
+    // Error message should appear.
+    expect(wrapper.find('[data-testid="stock-move-saved-lists-error"]').text()).toContain('没有匹配');
+
+    // Existing selection should be preserved.
+    expect(getCheckedCids(wrapper)).toEqual([1032006]);
+  });
+
   it('select-all and clear still work after using invert', async () => {
     const snapshot = createSortableSnapshot();
     const runAutoOperationCommand = vi.fn(async (command) => {

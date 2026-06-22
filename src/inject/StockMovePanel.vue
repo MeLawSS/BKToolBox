@@ -384,7 +384,7 @@ function applySavedList(savedList) {
     return;
   }
 
-  selectedItemCids.value = nextSelection;
+  selectedItemCids.value = [...new Set([...selectedItemCids.value, ...nextSelection])];
   savedListsError.value = '';
   submitError.value = '';
   resetSummary();
