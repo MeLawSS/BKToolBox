@@ -89,6 +89,19 @@ export function useElsaAutoOperation({ roomId } = {}) {
 </div>
 ```
 
+**CSS 新增：**
+
+```css
+.elsa-auto-operation-controls {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+```
+
+工具栏 grid 结构变为 `<header>` + `.elsa-auto-operation-controls` 两行（grid 原有 `grid-template-columns` 不变，controls 行占据第二列/新行）。
+
 ## 测试
 
 ### ElsaAutoOperationPanel.test.js （UI 层）
