@@ -112,6 +112,11 @@ export function useElsaAutoOperation({ roomId } = {}) {
 
 工具栏 grid 结构变为 `<header>` + `.elsa-auto-operation-controls` 两行。
 
+**已有 CSS 需同步调整：**
+
+- `.elsa-auto-operation-toolbar`（第 131 行）— `grid-template-columns: minmax(0, 1fr) auto` 保持，但子元素从 `header + button` 变为 `header + controls-row`
+- `@media (max-width: 720px)`（第 278 行）— `.elsa-auto-operation-toolbar` 的 `grid-template-columns: minmax(0, 1fr)` 保持，追加 `.elsa-auto-operation-toggle { width: 100%; }` 已有无需改动
+
 ## 测试
 
 ### ElsaAutoOperationPanel.test.js （UI 层）
