@@ -396,6 +396,20 @@ function clearSelection() {
   resetSummary();
 }
 
+function invertSelection() {
+  const visibleCids = new Set(visibleSourceGroups.value.map((g) => g.itemCid));
+  const currentSet = new Set(selectedItemCids.value);
+  const hiddenSelected = selectedItemCids.value.filter((cid) => !visibleCids.has(cid));
+  const visibleUnselected = [...new Set(
+    visibleSourceGroups.value
+      .filter((g) => !currentSet.has(g.itemCid))
+      .map((g) => g.itemCid),
+  )];
+  selectedItemCids.value = [...hiddenSelected, ...visibleUnselected];
+  submitError.value = '';
+  resetSummary();
+}
+
 function selectAllItems() {
   selectedItemCids.value = visibleSourceGroups.value.map((group) => group.itemCid);
   submitError.value = '';
@@ -658,6 +672,15 @@ onMounted(() => {
           @click="clearSelection"
         >
           {{ t('inject.stockMoveClear') }}
+        </button>
+        <button
+          class="command-button stock-move-secondary-button stock-move-secondary-button--compact"
+          type="button"
+          data-testid="stock-move-invert"
+          :disabled="!visibleSourceGroups.length"
+          @click="invertSelection"
+        >
+          {{ t('inject.stockMoveInvert') }}
         </button>
       </div>
       <button
