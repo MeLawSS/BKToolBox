@@ -2,6 +2,7 @@
 #include "AggregateOperationSemantics.h"
 #include "AutoAuctionOpponentCap.h"
 #include "AutoAuctionResponseFormatting.h"
+#include "AutoCollectCabinetRewardSchedulerSemantics.h"
 #include "AutoCollectCabinetRewardStateFormatting.h"
 #include <atomic>
 
@@ -12,6 +13,7 @@ static std::atomic<bool> g_autoAuctionCancelRequested{false};
 static std::atomic<bool> g_autoCollectCabinetRewardEnabled{true};
 static std::atomic<bool> g_autoCollectCabinetRewardRunning{false};
 static std::atomic<unsigned long long> g_autoCollectCabinetRewardNextDueTick{0ULL};
+static std::atomic<unsigned long long> g_autoCollectCabinetRewardControlVersion{1ULL};
 static CRITICAL_SECTION g_autoCollectCabinetRewardStateCs;
 static volatile LONG g_autoCollectCabinetRewardStateCsInit = 0;
 static uint64_t g_autoCollectCabinetRewardLastCheckAtUnixMs = 0;
@@ -62,7 +64,28 @@ static void UpdateAutoCollectCabinetRewardCycleState(
 
 static void ScheduleNextAutoCollectCabinetRewardCycleFromNow() {
     g_autoCollectCabinetRewardNextDueTick.store(
-        GetTickCount64() + kAutoCollectCabinetRewardIntervalMs,
+        ResolveAutoCollectCabinetRewardDueTick(
+            true,
+            GetTickCount64(),
+            kAutoCollectCabinetRewardIntervalMs
+        ),
+        std::memory_order_relaxed
+    );
+}
+
+static unsigned long long AdvanceAutoCollectCabinetRewardControlVersion() {
+    return g_autoCollectCabinetRewardControlVersion.fetch_add(1ULL, std::memory_order_relaxed) + 1ULL;
+}
+
+static void SetAutoCollectCabinetRewardEnabledState(bool enabled) {
+    AdvanceAutoCollectCabinetRewardControlVersion();
+    g_autoCollectCabinetRewardEnabled.store(enabled, std::memory_order_relaxed);
+    g_autoCollectCabinetRewardNextDueTick.store(
+        ResolveAutoCollectCabinetRewardDueTick(
+            enabled,
+            GetTickCount64(),
+            kAutoCollectCabinetRewardIntervalMs
+        ),
         std::memory_order_relaxed
     );
 }
@@ -140,7 +163,11 @@ static bool SleepInterruptibly(int totalMs, int sliceMs = 50) {
 // ==========================================================================
 
 static bool GetBattleMainPanel(AgentConn* c, const char* id, Il2CppObject** out);
-static bool ExecuteCollectCabinetRewardFlow(const char* sourceTag, std::string* errorMessage);
+static bool ExecuteCollectCabinetRewardFlow(
+    const char* sourceTag,
+    std::string* errorMessage,
+    const unsigned long long* expectedControlVersion = nullptr
+);
 
 // ==========================================================================
 // Meta-operations
@@ -660,7 +687,11 @@ void CmdCloseCurrentOverlay(AgentConn* c, const char* id, const char*) {
 // Aggregate Operations
 // ==========================================================================
 
-static bool ExecuteCollectCabinetRewardFlow(const char* sourceTag, std::string* errorMessage) {
+static bool ExecuteCollectCabinetRewardFlow(
+    const char* sourceTag,
+    std::string* errorMessage,
+    const unsigned long long* expectedControlVersion
+) {
     if (errorMessage) errorMessage->clear();
     if (IsAgentShuttingDown()) {
         if (errorMessage) *errorMessage = "shutting down";
@@ -670,6 +701,14 @@ static bool ExecuteCollectCabinetRewardFlow(const char* sourceTag, std::string* 
     ScopedAutoCollectCabinetRewardRunGuard runGuard(&g_autoCollectCabinetRewardRunning);
     if (!runGuard.IsAcquired()) {
         if (errorMessage) *errorMessage = "collect cabinet reward already running";
+        return false;
+    }
+    if (expectedControlVersion &&
+        !CanAutoCollectCabinetRewardCycleStart(
+            g_autoCollectCabinetRewardEnabled.load(std::memory_order_relaxed),
+            *expectedControlVersion,
+            g_autoCollectCabinetRewardControlVersion.load(std::memory_order_relaxed))) {
+        if (errorMessage) *errorMessage = "scheduler control changed";
         return false;
     }
 
@@ -858,17 +897,15 @@ void CmdGetAutoCollectCabinetRewardState(AgentConn* c, const char* id, const cha
 
 void CmdSetAutoCollectCabinetRewardEnabled(AgentConn* c, const char* id, const char* json) {
     bool enabled = false;
-    if (!JsonGetBool(json, "enabled", &enabled)) {
+    if (!TryParseStrictJsonBoolField(json, "enabled", &enabled)) {
         SendResponse(c, id, false, "enabled must be boolean");
         return;
     }
 
-    g_autoCollectCabinetRewardEnabled.store(enabled, std::memory_order_relaxed);
+    SetAutoCollectCabinetRewardEnabledState(enabled);
     if (enabled) {
-        ScheduleNextAutoCollectCabinetRewardCycleFromNow();
         Logf("AutoCollectCabinetReward enabled by UI");
     } else {
-        g_autoCollectCabinetRewardNextDueTick.store(0ULL, std::memory_order_relaxed);
         Logf("AutoCollectCabinetReward disabled by UI");
     }
 
@@ -906,6 +943,27 @@ DWORD WINAPI AutoCollectCabinetRewardThread(LPVOID) {
 
         if (IsAgentShuttingDown()) break;
 
+        const unsigned long long cycleControlVersion =
+            g_autoCollectCabinetRewardControlVersion.load(std::memory_order_relaxed);
+        if (!CanAutoCollectCabinetRewardCycleStart(
+                g_autoCollectCabinetRewardEnabled.load(std::memory_order_relaxed),
+                cycleControlVersion,
+                g_autoCollectCabinetRewardControlVersion.load(std::memory_order_relaxed))) {
+            continue;
+        }
+
+        auto shouldReschedule = [&]() {
+            return ShouldAutoCollectCabinetRewardWorkerReschedule(
+                cycleControlVersion,
+                g_autoCollectCabinetRewardControlVersion.load(std::memory_order_relaxed)
+            );
+        };
+        auto scheduleIfUnchanged = [&]() {
+            if (shouldReschedule()) {
+                ScheduleNextAutoCollectCabinetRewardCycleFromNow();
+            }
+        };
+
         UpdateAutoCollectCabinetRewardCycleState(ReadUnixTimeMs(), nullptr, nullptr, nullptr);
 
         if (ShouldSkipAutoCollectCabinetRewardForAutoAuction(
@@ -916,7 +974,7 @@ DWORD WINAPI AutoCollectCabinetRewardThread(LPVOID) {
                 "auto auction running",
                 nullptr
             );
-            ScheduleNextAutoCollectCabinetRewardCycleFromNow();
+            scheduleIfUnchanged();
             Logf("AutoCollectCabinetReward skipped: auto auction running");
             continue;
         }
@@ -929,7 +987,7 @@ DWORD WINAPI AutoCollectCabinetRewardThread(LPVOID) {
                 "collect cabinet reward already running",
                 nullptr
             );
-            ScheduleNextAutoCollectCabinetRewardCycleFromNow();
+            scheduleIfUnchanged();
             Logf("AutoCollectCabinetReward skipped: collect already running");
             continue;
         }
@@ -943,13 +1001,17 @@ DWORD WINAPI AutoCollectCabinetRewardThread(LPVOID) {
                 state.screen ? state.screen : "",
                 nullptr
             );
-            ScheduleNextAutoCollectCabinetRewardCycleFromNow();
+            scheduleIfUnchanged();
             Logf("AutoCollectCabinetReward skipped: screen=%s", state.screen ? state.screen : "");
             continue;
         }
 
         std::string errorMessage;
-        const bool ok = ExecuteCollectCabinetRewardFlow("scheduler", &errorMessage);
+        const bool ok = ExecuteCollectCabinetRewardFlow(
+            "scheduler",
+            &errorMessage,
+            &cycleControlVersion
+        );
         if (ok) {
             UpdateAutoCollectCabinetRewardCycleState(UINT64_MAX, "success", "", nullptr);
         } else if (errorMessage == "collect cabinet reward already running") {
@@ -960,6 +1022,8 @@ DWORD WINAPI AutoCollectCabinetRewardThread(LPVOID) {
                 nullptr
             );
             Logf("AutoCollectCabinetReward skipped: collect already running");
+        } else if (errorMessage == "scheduler control changed") {
+            continue;
         } else {
             UpdateAutoCollectCabinetRewardCycleState(
                 UINT64_MAX,
@@ -973,7 +1037,7 @@ DWORD WINAPI AutoCollectCabinetRewardThread(LPVOID) {
             }
         }
 
-        ScheduleNextAutoCollectCabinetRewardCycleFromNow();
+        scheduleIfUnchanged();
         if (!ok && errorMessage == "shutting down") break;
     }
 

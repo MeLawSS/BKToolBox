@@ -1,6 +1,7 @@
 #include "AutoAuctionOpponentCap.h"
 #include "AutoAuctionResponseFormatting.h"
 #include "AutoCollectCabinetRewardStateFormatting.h"
+#include "AutoCollectCabinetRewardSchedulerSemantics.h"
 #include "UiClickComponentSemantics.h"
 
 #include <assert.h>
@@ -81,5 +82,24 @@ int main() {
         BuildAutoCollectCabinetRewardStateJson(enabledState) ==
         "{\"enabled\":true,\"running\":true,\"intervalMs\":10800000,\"nextCheckInMs\":3210,\"lastCheckAtUnixMs\":1710000000123,\"lastResultCode\":\"running\",\"lastResultMessage\":\"cycle active\",\"lastObservedScreen\":\"main_lobby\"}"
     );
+
+    bool enabledFlag = false;
+    assert(TryParseStrictJsonBoolField("{\"enabled\":true}", "enabled", &enabledFlag) && enabledFlag);
+    assert(TryParseStrictJsonBoolField("{\"enabled\": false}", "enabled", &enabledFlag) && !enabledFlag);
+    assert(!TryParseStrictJsonBoolField("{\"enabled\":1}", "enabled", &enabledFlag));
+    assert(!TryParseStrictJsonBoolField("{\"enabled\":0}", "enabled", &enabledFlag));
+    assert(!TryParseStrictJsonBoolField("{\"enabled\":\"true\"}", "enabled", &enabledFlag));
+
+    assert(ResolveAutoCollectCabinetRewardDueTick(true, 1000ULL, 10800000ULL) == 10801000ULL);
+    assert(ResolveAutoCollectCabinetRewardDueTick(false, 1000ULL, 10800000ULL) == 0ULL);
+    assert(NextAutoCollectCabinetRewardControlVersion(7ULL) == 8ULL);
+
+    assert(CanAutoCollectCabinetRewardCycleStart(true, 5ULL, 5ULL));
+    assert(!CanAutoCollectCabinetRewardCycleStart(false, 5ULL, 5ULL));
+    assert(!CanAutoCollectCabinetRewardCycleStart(true, 5ULL, 6ULL));
+
+    assert(ShouldAutoCollectCabinetRewardWorkerReschedule(9ULL, 9ULL));
+    assert(!ShouldAutoCollectCabinetRewardWorkerReschedule(9ULL, 10ULL));
+
     return 0;
 }

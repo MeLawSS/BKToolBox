@@ -192,9 +192,9 @@ describe('InjectMetaOperationPanel', () => {
             intervalMs: 10800000,
             nextCheckInMs: null,
             lastCheckAtUnixMs: 1710000000123,
-            lastResultCode: 'disabled',
-            lastResultMessage: 'disabled by user',
-            lastObservedScreen: 'main_lobby',
+            lastResultCode: 'never_run',
+            lastResultMessage: '',
+            lastObservedScreen: '',
           },
         }),
     );
