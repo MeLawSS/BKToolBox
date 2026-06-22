@@ -113,7 +113,7 @@ app 侧继续立即写 `Price` 文件，保持现有兼容性。
 
 就允许立刻进入现有出价流程。
 
-非 `useExpectedPrice` 的 legacy `bidAmount` 模式不在本轮改变，仍然保留 `secs < 15` 门槛。
+非 `useExpectedPrice` 的 legacy `bidAmount` 模式不在本轮改变（`secs < 15` 门槛），但两种模式均在第一轮受到 17000 硬下限约束。
 
 ### 决策 5: 同一轮仍然最多只出价一次
 

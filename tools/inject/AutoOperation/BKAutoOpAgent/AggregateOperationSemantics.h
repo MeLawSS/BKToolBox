@@ -120,6 +120,19 @@ inline int ClampAutoAuctionBidAmount(
     return computedAmount > maxAmount ? maxAmount : computedAmount;
 }
 
+// Hard floor for the first observed round — ensures the opening bid is competitive.
+// roundsEncountered is the script-observed counter (not the game's round number).
+inline int ClampAutoAuctionFirstRoundBid(
+    int amount,
+    int roundsEncountered,
+    int floorAmount
+) {
+    if (roundsEncountered == 1 && amount < floorAmount) {
+        return floorAmount;
+    }
+    return amount;
+}
+
 inline bool ShouldDisableAutoAuctionPriceUpperLimit(
     bool toggleFound,
     bool toggleActive,

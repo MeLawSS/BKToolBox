@@ -13,7 +13,7 @@
 
 - No TypeScript — plain `.js` / `.vue` files; Vue 3 `<script setup>` throughout
 - Activity log strings in `useElsaAutoOperation.js` are hardcoded (not i18n'd)
-- `AutoAuction` backward compatibility: `bidAmount` default (25000) and existing behavior are unchanged. `useExpectedPrice` is opt-in — absent means false
+- `AutoAuction` backward compatibility: `bidAmount` default (25000) and existing behavior are unchanged. `useExpectedPrice` is opt-in — absent means false. Both paths apply a hard floor of 17000 on the first observed round (`roundsEncountered == 1`).
 - DLL global state uses `std::atomic<int>` for thread safety
 - App-side price watcher active only while `isEnabled` is true; torn down in `disable()`
 - `runScript` runs `AutoAuction` exactly once; on resolve or reject, `.finally(() => disable())` is called — `disable()` is idempotent (guards on `!isEnabled.value`)

@@ -83,6 +83,18 @@ int main() {
     assert(ClampAutoAuctionBidAmount(150000, 150000) == 150000);
     assert(ClampAutoAuctionBidAmount(150001, 150000) == 150000);
     assert(ClampAutoAuctionBidAmount(0, 150000) == 0);
+
+    // First round floor: clamp amounts below 17000, leave others unchanged
+    assert(ClampAutoAuctionFirstRoundBid(11119, 1, 17000) == 17000);
+    assert(ClampAutoAuctionFirstRoundBid(15000, 1, 17000) == 17000);
+    assert(ClampAutoAuctionFirstRoundBid(16999, 1, 17000) == 17000);
+    assert(ClampAutoAuctionFirstRoundBid(17000, 1, 17000) == 17000);
+    assert(ClampAutoAuctionFirstRoundBid(25000, 1, 17000) == 25000);
+    assert(ClampAutoAuctionFirstRoundBid(80000, 1, 17000) == 80000);
+    // Not first round: no clamping
+    assert(ClampAutoAuctionFirstRoundBid(11119, 2, 17000) == 11119);
+    assert(ClampAutoAuctionFirstRoundBid(11119, 3, 17000) == 11119);
+    assert(ClampAutoAuctionFirstRoundBid(11119, 0, 17000) == 11119);
     assert(!ShouldDisableAutoAuctionPriceUpperLimit(false, true, true, true));
     assert(!ShouldDisableAutoAuctionPriceUpperLimit(true, false, true, true));
     assert(!ShouldDisableAutoAuctionPriceUpperLimit(true, true, false, true));
