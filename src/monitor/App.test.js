@@ -28,47 +28,8 @@ class FakeEventSource {
 
 FakeEventSource.instances = [];
 
-const defaultMarketLatest = [{
-  observedAt: '2026-05-28T12:24:37.000Z',
-  itemCid: 1022001,
-  minPrice: 1155,
-  maxPrice: 1502,
-  totalCount: 355,
-  tierCount: 8,
-  source: 'tcp-passive',
-}];
-
-const defaultMarketHistory = {
-  1022001: [{
-    observedAt: '2026-05-28T12:24:37.000Z',
-    itemCid: 1022001,
-    minPrice: 1155,
-    maxPrice: 1502,
-    totalCount: 355,
-    tierCount: 8,
-    tiers: [
-      { price: 1155, count: 105 },
-      { price: 1502, count: 5 },
-    ],
-    source: 'tcp-passive',
-  }],
-};
-
-function createDeferred() {
-  let resolve;
-  let reject;
-  const promise = new Promise((promiseResolve, promiseReject) => {
-    resolve = promiseResolve;
-    reject = promiseReject;
-  });
-  return { promise, resolve, reject };
-}
-
 function mockFetch() {
   vi.stubGlobal('fetch', vi.fn(async (url, options = {}) => {
-    const marketLatest = globalThis.__marketLatest ?? defaultMarketLatest;
-    const marketHistory = globalThis.__marketHistory ?? defaultMarketHistory;
-    const marketHistoryResponses = globalThis.__marketHistoryResponses ?? {};
     const driverStatus = globalThis.__driverStatus ?? { state: 'missing', installed: false, usable: false, message: 'Npcap is not installed' };
 
     if (String(url).endsWith('/api/bidking-monitor/status')) {
@@ -96,29 +57,6 @@ function mockFetch() {
           image: '/assets/bidking/icons/icon_1022001.png',
           size: { width: 2, height: 2, key: '2x2' },
         }],
-      };
-    }
-
-    if (String(url).endsWith('/api/market-prices/latest')) {
-      return {
-        ok: true,
-        json: async () => ({
-          items: marketLatest,
-        }),
-      };
-    }
-
-    if (String(url).includes('/api/market-prices/history')) {
-      const itemCid = new URL(String(url), 'http://localhost').searchParams.get('itemCid');
-      const delayedResponse = marketHistoryResponses[itemCid];
-      return {
-        ok: true,
-        json: async () => delayedResponse
-          ? delayedResponse
-          : {
-              itemCid: Number(itemCid),
-              history: marketHistory[itemCid] ?? [],
-            },
       };
     }
 
@@ -170,9 +108,6 @@ describe('Monitor App', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     window.localStorage.clear();
-    delete globalThis.__marketLatest;
-    delete globalThis.__marketHistory;
-    delete globalThis.__marketHistoryResponses;
     delete globalThis.__driverStatus;
     FakeEventSource.reset();
     vi.stubGlobal('EventSource', FakeEventSource);
@@ -231,7 +166,7 @@ describe('Monitor App', () => {
     const wrapper = await mountApp();
 
     expect(wrapper.text()).toContain('信息监控');
-    expect(wrapper.text()).toContain('监控 BidKing 信息流，展示捕获到的事件、交易所价格和解析状态。');
+    expect(wrapper.text()).toContain('监控 BidKing 信息流，展示捕获到的事件和解析状态。');
     expect(wrapper.text()).toContain('事件');
     expect(wrapper.text()).not.toContain('实时对局监控');
     expect(wrapper.text()).not.toContain('通过 Windows pktmon 分批抓取 BidKing TCP 明文流，解析对局中的技能揭露信息。');
@@ -437,129 +372,18 @@ describe('Monitor App', () => {
     expect(wrapper.find('#monitor-events').text()).toContain('测试藏品');
   });
 
-  it('renders latest market sale prices and selected price tiers', async () => {
+  it('does not render the market sale panel or fetch market price data on mount', async () => {
     const wrapper = await mountApp();
 
-    expect(fetch).toHaveBeenCalledWith('/api/market-prices/latest');
+    expect(fetch.mock.calls.some(([url]) => String(url).startsWith('/api/market-prices/'))).toBe(false);
     expect(fetch).toHaveBeenCalledWith('/data/collectibles.json');
-    expect(wrapper.find('#market-price-table').text()).toContain('交易所售卖价');
-    expect(wrapper.find('#market-price-table').text()).toContain('急救毯');
-    expect(wrapper.find('#market-price-table').text()).not.toContain('1022001');
-    expect(wrapper.find('#market-price-table').text()).toContain('1,155');
-    expect(wrapper.find('#market-price-table').text()).toContain('1,502');
-    expect(wrapper.find('#market-price-detail').text()).toContain('售卖价');
-    expect(wrapper.find('#market-price-detail').text()).toContain('105');
+    expect(wrapper.find('#market-price-table').exists()).toBe(false);
+    expect(wrapper.find('#market-price-detail').exists()).toBe(false);
+    expect(wrapper.find('#monitor-detail').exists()).toBe(true);
   });
 
-  it('fetches market sale price history when selecting another latest row', async () => {
-    globalThis.__marketLatest = [
-      ...defaultMarketLatest,
-      {
-        observedAt: '2026-05-28T12:30:00.000Z',
-        itemCid: 1022002,
-        itemName: '钛合金工具箱',
-        minPrice: 2200,
-        maxPrice: 2750,
-        totalCount: 44,
-        tierCount: 2,
-        source: 'tcp-passive',
-      },
-    ];
-    globalThis.__marketHistory = {
-      ...defaultMarketHistory,
-      1022002: [{
-        observedAt: '2026-05-28T12:30:00.000Z',
-        itemCid: 1022002,
-        itemName: '钛合金工具箱',
-        minPrice: 2200,
-        maxPrice: 2750,
-        totalCount: 44,
-        tierCount: 2,
-        tiers: [
-          { price: 2200, count: 33 },
-          { price: 2750, count: 11 },
-        ],
-        source: 'tcp-passive',
-      }],
-    };
+  it('keeps market_price SSE events visible in the event table without market panel refreshes', async () => {
     const wrapper = await mountApp();
-
-    const rows = wrapper.findAll('#market-price-table tbody tr');
-    await rows[1].trigger('click');
-    await flushPromises();
-    await nextTick();
-
-    expect(fetch).toHaveBeenCalledWith('/api/market-prices/history?itemCid=1022002&limit=50');
-    expect(wrapper.find('#market-price-detail').text()).toContain('钛合金工具箱');
-    expect(wrapper.find('#market-price-detail').text()).toContain('售卖价');
-    expect(wrapper.find('#market-price-detail').text()).toContain('2,200');
-    expect(wrapper.find('#market-price-detail').text()).toContain('33');
-    expect(wrapper.find('#market-price-detail').text()).toContain('2,750');
-    expect(wrapper.find('#market-price-detail').text()).toContain('44');
-  });
-
-  it('does not let stale market sale price history overwrite the current selection', async () => {
-    const staleHistory = createDeferred();
-    globalThis.__marketLatest = [
-      ...defaultMarketLatest,
-      {
-        observedAt: '2026-05-28T12:30:00.000Z',
-        itemCid: 1022002,
-        itemName: '钛合金工具箱',
-        minPrice: 2200,
-        maxPrice: 2750,
-        totalCount: 44,
-        tierCount: 2,
-        source: 'tcp-passive',
-      },
-    ];
-    globalThis.__marketHistoryResponses = {
-      1022001: staleHistory.promise,
-      1022002: Promise.resolve({
-        itemCid: 1022002,
-        history: [{
-          observedAt: '2026-05-28T12:30:00.000Z',
-          itemCid: 1022002,
-          itemName: '钛合金工具箱',
-          minPrice: 2200,
-          maxPrice: 2750,
-          totalCount: 44,
-          tierCount: 2,
-          tiers: [
-            { price: 2200, count: 33 },
-            { price: 2750, count: 11 },
-          ],
-          source: 'tcp-passive',
-        }],
-      }),
-    };
-    const wrapper = await mountApp();
-
-    await wrapper.findAll('#market-price-table tbody tr')[1].trigger('click');
-    await flushPromises();
-    await nextTick();
-
-    expect(wrapper.find('#market-price-detail').text()).toContain('钛合金工具箱');
-    expect(wrapper.find('#market-price-detail').text()).toContain('2,200');
-    expect(wrapper.find('#market-price-detail').text()).toContain('33');
-
-    staleHistory.resolve({
-      itemCid: 1022001,
-      history: defaultMarketHistory[1022001],
-    });
-    await flushPromises();
-    await nextTick();
-
-    expect(wrapper.find('#market-price-detail').text()).toContain('钛合金工具箱');
-    expect(wrapper.find('#market-price-detail').text()).toContain('2,200');
-    expect(wrapper.find('#market-price-detail').text()).toContain('33');
-    expect(wrapper.find('#market-price-detail').text()).not.toContain('1,155');
-    expect(wrapper.find('#market-price-detail').text()).not.toContain('105');
-  });
-
-  it('refreshes latest market sale prices when a market price SSE event arrives', async () => {
-    const wrapper = await mountApp();
-    const initialLatestFetches = fetch.mock.calls.filter(([url]) => url === '/api/market-prices/latest').length;
 
     FakeEventSource.instances[0].emit('event', {
       key: 'market:1022001:99',
@@ -567,17 +391,32 @@ describe('Monitor App', () => {
         type: 'market_price',
         key: 'market:1022001:99',
         itemCid: 1022001,
-        itemName: '急救毯',
+        minPrice: 1155,
+        maxPrice: 1502,
+        totalCount: 355,
+        prices: [
+          { price: 1155, count: 105 },
+          { price: 1502, count: 5 },
+        ],
       },
     });
     await flushPromises();
     await nextTick();
 
-    const latestFetches = fetch.mock.calls.filter(([url]) => url === '/api/market-prices/latest');
-    expect(latestFetches).toHaveLength(initialLatestFetches + 1);
-    expect(wrapper.find('#market-price-table').text()).toContain('交易所售卖价');
+    expect(fetch.mock.calls.some(([url]) => String(url).startsWith('/api/market-prices/'))).toBe(false);
     expect(wrapper.find('#monitor-events').text()).toContain('急救毯');
     expect(wrapper.find('#monitor-events').text()).not.toContain('1022001');
+    expect(wrapper.find('#monitor-events').text()).toContain('355');
+    expect(wrapper.find('#monitor-events').text()).toContain('1,155 - 1,502');
+    expect(wrapper.find('#monitor-detail').text()).toContain('最近最低价');
+    expect(wrapper.find('#monitor-detail').text()).toContain('最高价');
+    expect(wrapper.find('#monitor-detail').text()).toContain('挂单总数');
+    expect(wrapper.find('#monitor-detail').text()).toContain('价格档位数');
+    expect(wrapper.find('#monitor-detail').text()).toContain('档位 1');
+    expect(wrapper.find('#monitor-detail').text()).toContain('1,155');
+    expect(wrapper.find('#monitor-detail').text()).toContain('105');
+    expect(wrapper.find('#market-price-table').exists()).toBe(false);
+    expect(wrapper.find('#market-price-detail').exists()).toBe(false);
   });
 
   it('keeps same raw event keys from different games visible and selectable', async () => {
