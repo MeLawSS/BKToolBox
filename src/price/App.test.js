@@ -1688,6 +1688,59 @@ describe('Price App', () => {
     expect(warehouseText).toContain(getTestCollectible(1022001).name);
   });
 
+  it('retries GetCollectionItemCids on a later warehouse refresh after an initial failure', async () => {
+    const snapshot = createWarehouseSnapshot([
+      createWarehouseContainer({
+        stockId: 0,
+        items: [
+          createWarehouseStockItem({ itemUid: 'main-1022002', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+          createWarehouseStockItem({ itemUid: 'main-1022001', itemCid: 1022001, stockId: 0, pos: 1, count: 1 }),
+        ],
+      }),
+    ]);
+
+    let collectionAttempt = 0;
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'GetCollectionItemCids') {
+        collectionAttempt += 1;
+        if (collectionAttempt === 1) {
+          throw new Error('temporary collection failure');
+        }
+        return { ok: true, value: { cids: [1022002], count: 1 } };
+      }
+      if (command === 'GetStockContainers') {
+        return { ok: true, value: snapshot };
+      }
+      throw new Error(`unexpected command: ${command}`);
+    });
+    window.bidkingDesktop = { isDesktop: true, runAutoOperationCommand };
+    const wrapper = await mountApp();
+
+    await wrapper.find('[data-testid="price-tab-warehouse"]').trigger('click');
+    await nextTick();
+
+    await wrapper.find('[data-testid="price-warehouse-refresh"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    let warehouseText = wrapper.find('[data-testid="price-warehouse"]').text();
+    expect(warehouseText).toContain(getTestCollectible(1022002).name);
+    expect(warehouseText).toContain(getTestCollectible(1022001).name);
+
+    await wrapper.find('[data-testid="price-warehouse-refresh"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    warehouseText = wrapper.find('[data-testid="price-warehouse"]').text();
+    expect(warehouseText).toContain(getTestCollectible(1022002).name);
+    expect(warehouseText).not.toContain(getTestCollectible(1022001).name);
+
+    const collectionCalls = runAutoOperationCommand.mock.calls.filter(
+      ([command]) => command === 'GetCollectionItemCids'
+    );
+    expect(collectionCalls).toHaveLength(2);
+  });
+
   it('shows empty warehouse when collection is empty', async () => {
     const runAutoOperationCommand = createWarehouseMocks({
       collectionCids: [],

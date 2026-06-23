@@ -381,7 +381,8 @@ async function refreshWarehouseItems() {
   isRefreshingWarehouse.value = true;
   warehouseError.value = '';
 
-  // Lazily fetch live collection CIDs once per page lifetime
+  // Cache only a successful live-collection fetch.
+  // If the bridge fails transiently, leave the state retryable for the next refresh.
   if (liveCollectionCids.value === undefined) {
     try {
       const cidResponse = await window.bidkingDesktop.runAutoOperationCommand('GetCollectionItemCids', {});
@@ -389,12 +390,9 @@ async function refreshWarehouseItems() {
         liveCollectionCids.value = new Set(
           cidResponse.value.cids.map(Number).filter(Number.isSafeInteger)
         );
-      } else {
-        liveCollectionCids.value = null;
       }
     } catch (error) {
       console.error('GetCollectionItemCids failed:', error);
-      liveCollectionCids.value = null;
     }
   }
 
