@@ -74,7 +74,7 @@ inline bool IsAutoAuctionVerificationScreen(const char* screen) {
 }
 
 inline int GetAutoAuctionCleanupMaxAttempts() {
-    return 40;
+    return 200;  // ~40s budget at 200ms poll (was 40 × 1000ms)
 }
 
 inline const char* PickAutoAuctionEndedPrimaryActionPath(
@@ -245,12 +245,12 @@ inline int GetAutoAuctionBidRetryCooldownMs() {
 }
 
 // Step 5 staged-polling intervals (spec §Timeouts and Polling Policy):
-//   Fast initial window (first 3000ms):  100ms poll interval
-//   Medium window (3000ms – 15000ms):    500ms poll interval
-//   Sustained wait (>15000ms):          1500ms poll interval
-inline int GetWaitForAuctionInProgressFastWindowMs()   { return 3000; }
-inline int GetWaitForAuctionInProgressMediumWindowMs() { return 15000; }
-inline int GetWaitForAuctionInProgressPollFastMs()     { return 100; }
+//   Fast initial window (first 10000ms):  200ms poll interval
+//   Medium window (10000ms – 30000ms):    500ms poll interval
+//   Sustained wait (>30000ms):           1500ms poll interval
+inline int GetWaitForAuctionInProgressFastWindowMs()   { return 10000; }
+inline int GetWaitForAuctionInProgressMediumWindowMs() { return 30000; }
+inline int GetWaitForAuctionInProgressPollFastMs()     { return 200; }
 inline int GetWaitForAuctionInProgressPollMediumMs()   { return 500; }
 inline int GetWaitForAuctionInProgressPollSlowMs()     { return 1500; }
 

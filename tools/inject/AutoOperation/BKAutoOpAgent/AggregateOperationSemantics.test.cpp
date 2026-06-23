@@ -54,7 +54,7 @@ int main() {
     assert(!IsAutoAuctionCleanupRecoverableScreen("warehouse"));
     assert(IsAutoAuctionVerificationScreen("authcode"));
     assert(!IsAutoAuctionVerificationScreen("auction_in_progress"));
-    assert(GetAutoAuctionCleanupMaxAttempts() == 40);
+    assert(GetAutoAuctionCleanupMaxAttempts() == 200);  // ~40s at 200ms poll
     assert(strcmp(PickAutoAuctionEndedPrimaryActionPath(true, false), "EndPanel/tuichu/receiveBtn") == 0);
     assert(strcmp(PickAutoAuctionEndedPrimaryActionPath(false, true), "EndPanel/tuichu/continueBtn") == 0);
     assert(strcmp(PickAutoAuctionEndedPrimaryActionPath(true, true), "EndPanel/tuichu/receiveBtn") == 0);
@@ -148,9 +148,9 @@ int main() {
     assert(GetAutoAuctionBidRetryCooldownMs() == 1000);
 
     // Step 5 staged polling constants
-    assert(GetWaitForAuctionInProgressFastWindowMs() == 3000);
-    assert(GetWaitForAuctionInProgressMediumWindowMs() == 15000);
-    assert(GetWaitForAuctionInProgressPollFastMs() == 100);
+    assert(GetWaitForAuctionInProgressFastWindowMs() == 10000);
+    assert(GetWaitForAuctionInProgressMediumWindowMs() == 30000);
+    assert(GetWaitForAuctionInProgressPollFastMs() == 200);
     assert(GetWaitForAuctionInProgressPollMediumMs() == 500);
     assert(GetWaitForAuctionInProgressPollSlowMs() == 1500);
 

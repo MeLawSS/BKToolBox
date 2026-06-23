@@ -960,6 +960,124 @@ static BidConfirmFlowResult WaitForBidConfirmationSettled(Il2CppObject* battleMa
     return result;
 }
 
+// Authcode-aware wrapper: same confirmation logic as WaitForBidConfirmationSettled
+// but injects DetectScreenState + authcode check at every poll cycle so the
+// confirmation stage is never an authcode blind spot.
+// Returns an extra field: authcodeDetected.
+struct AuthCodeAwareBidConfirmResult {
+    BidConfirmFlowResult confirm;
+    bool authcodeDetected = false;
+};
+
+static AuthCodeAwareBidConfirmResult WaitForBidConfirmationSettledWithAuthCode(
+    Il2CppObject* battleMainTransform)
+{
+    static const int kObserveSecondaryConfirmMs = 1500;
+    static const int kConfirmSettleTimeoutMs = 3000;
+    static const int kPollMs = 100;
+
+    AuthCodeAwareBidConfirmResult wrapper;
+    BidConfirmFlowResult& result = wrapper.confirm;
+
+    if (!battleMainTransform) {
+        result.hardError = true;
+        result.reason = "Battle_Main not visible after confirm click";
+        return wrapper;
+    }
+
+    for (int waitedMs = 0; waitedMs <= kConfirmSettleTimeoutMs; waitedMs += kPollMs) {
+        // --- authcode check every cycle ---
+        {
+            ScreenState sc = DetectScreenState();
+            if (IsAutoAuctionVerificationScreen(sc.screen)) {
+                wrapper.authcodeDetected = true;
+                return wrapper;
+            }
+        }
+
+        bool messageBoxVisible = false;
+
+        char msgBoxError[128] = {};
+        Il2CppObject* msgBoxTransform = nullptr;
+        UiPanelLookupResult msgBoxResult = FindVisiblePanelTransform(
+            "MessageBox",
+            nullptr,
+            &msgBoxTransform,
+            msgBoxError,
+            sizeof(msgBoxError)
+        );
+        if (msgBoxResult == UI_PANEL_LOOKUP_ERROR) {
+            result.hardError = true;
+            result.reason = msgBoxError;
+            return wrapper;
+        }
+        if (msgBoxResult == UI_PANEL_FOUND) {
+            messageBoxVisible = true;
+            result.secondaryConfirmRequired = true;
+
+            if (!result.secondaryConfirmClicked) {
+                std::vector<UiNodeSnapshot> msgBoxMatches;
+                ResolveUiNodeMatches(
+                    msgBoxTransform,
+                    "Panel/Bottom/Confirm",
+                    UI_PATH_EXACT,
+                    1,
+                    &msgBoxMatches
+                );
+                if (!msgBoxMatches.empty()) {
+                    UiNodeSnapshot& confirmNode = msgBoxMatches[0];
+                    if (confirmNode.active && confirmNode.components.button) {
+                        if (!PerformButtonClick(confirmNode.components.button)) {
+                            result.hardError = true;
+                            result.reason = "secondary confirm click failed";
+                            return wrapper;
+                        }
+                        result.secondaryConfirmClicked = true;
+                    }
+                }
+            }
+        }
+
+        result.bidDialogClosed = !HasActiveBidInputDialog(battleMainTransform);
+        result.secondaryDialogClosed =
+            !result.secondaryConfirmRequired || !messageBoxVisible;
+
+        if (result.secondaryConfirmRequired) {
+            if (DidCompleteBidConfirmation(
+                    true,
+                    true,
+                    result.secondaryConfirmClicked,
+                    result.bidDialogClosed) &&
+                result.secondaryDialogClosed) {
+                result.completed = true;
+                return wrapper;
+            }
+        } else if (waitedMs >= kObserveSecondaryConfirmMs &&
+                   DidCompleteBidConfirmation(true, false, false, result.bidDialogClosed)) {
+            result.completed = true;
+            return wrapper;
+        }
+
+        if (waitedMs >= kConfirmSettleTimeoutMs) break;
+        if (!SleepInterruptibly(kPollMs)) {
+            result.interrupted = true;
+            result.reason = "interrupted";
+            return wrapper;
+        }
+    }
+
+    if (result.secondaryConfirmRequired && !result.secondaryConfirmClicked) {
+        result.reason = "secondary confirm not completed";
+    } else if (result.secondaryConfirmRequired && !result.secondaryDialogClosed) {
+        result.reason = "secondary confirm dialog did not close";
+    } else if (!result.bidDialogClosed) {
+        result.reason = "confirm bid dialog did not close";
+    } else {
+        result.reason = "confirm bid did not settle";
+    }
+    return wrapper;
+}
+
 // GetCurrentScreen: determine which UI screen is currently shown.
 // Returns {"screen":"<name>"} — see DetectScreenState for values.
 void CmdGetCurrentScreen(AgentConn* c, const char* id, const char*) {
@@ -1749,7 +1867,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             SendResponse(c, id, false, errBuf[0] ? errBuf : "auto_auction_ui_error:wait_lobby_map"); return;
         }
         std::string clickErr;
-        ClickNode(t, "MainPanel/mask/Button", 0, &clickErr);
+        if (!ClickNode(t, "MainPanel/mask/Button", 0, &clickErr)) {
+            if (stopIfRequested()) return;
+            snprintf(errBuf, sizeof(errBuf), "auto_auction_ui_error:wait_lobby_map_click_failed: %s", clickErr.c_str());
+            SendResponse(c, id, false, errBuf); return;
+        }
         PollWaitResult wr = WaitForScreen("auction_lobby_map", 15000, 100);
         if (wr.result == POLL_AUTHCODE) {
             Logf("AutoAuction interrupted: AuthCode_Main detected while waiting for auction_lobby_map");
@@ -1773,7 +1895,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             SendResponse(c, id, false, errBuf[0] ? errBuf : "auto_auction_ui_error:wait_lobby_room"); return;
         }
         std::string clickErr;
-        ClickNode(t, roomPath, 0, &clickErr);
+        if (!ClickNode(t, roomPath, 0, &clickErr)) {
+            if (stopIfRequested()) return;
+            snprintf(errBuf, sizeof(errBuf), "auto_auction_ui_error:wait_lobby_room_click_failed: %s", clickErr.c_str());
+            SendResponse(c, id, false, errBuf); return;
+        }
         PollWaitResult wr = WaitForScreen("auction_lobby_room", 15000, 100);
         if (wr.result == POLL_AUTHCODE) {
             Logf("AutoAuction interrupted: AuthCode_Main detected while waiting for auction_lobby_room");
@@ -1804,7 +1930,17 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                 lastExpectedPrice,
                 g_notifiedExpectedPrice.load()
             );
-            if (ReadExactNodeText(battlePrevTransform, "Panel_1/MapPanel/countTxt", &countText) &&
+            // countTxt may render late after screen transition — short polling
+            // window to avoid skipping room_entry_limit_reached on late text.
+            bool countTextResolved = false;
+            for (int settleAttempt = 0; settleAttempt < 10; settleAttempt++) {
+                if (ReadExactNodeText(battlePrevTransform, "Panel_1/MapPanel/countTxt", &countText)) {
+                    countTextResolved = true;
+                    break;
+                }
+                if (!SleepInterruptibly(50)) { stopIfRequested(); return; }
+            }
+            if (countTextResolved &&
                 TryBuildAutoAuctionRoomEntryLimitReachedResultFromCountText(
                     countText,
                     roundsPlayed,
@@ -1830,7 +1966,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             SendResponse(c, id, false, "auto_auction_ui_error:wait_skill_config"); return;
         }
         std::string clickErr;
-        ClickNode(t, "Panel_1/MapPanel/battleSet/Hero/Button", 0, &clickErr);
+        if (!ClickNode(t, "Panel_1/MapPanel/battleSet/Hero/Button", 0, &clickErr)) {
+            if (stopIfRequested()) return;
+            snprintf(errBuf, sizeof(errBuf), "auto_auction_ui_error:wait_skill_config_click_failed: %s", clickErr.c_str());
+            SendResponse(c, id, false, errBuf); return;
+        }
         PollWaitResult wr = WaitForNodeReady("BattlePrevPanel_Main",
             "Panel_1/MapPanel/battleSet/HeroChoose/ScrollView/Viewport/Content/herochooseItem_103/button",
             3000, 100);
@@ -1852,7 +1992,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             SendResponse(c, id, false, "auto_auction_ui_error:wait_skill_config"); return;
         }
         std::string clickErr;
-        ClickNode(t, "Panel_1/MapPanel/battleSet/HeroChoose/ScrollView/Viewport/Content/herochooseItem_103/button", 0, &clickErr);
+        if (!ClickNode(t, "Panel_1/MapPanel/battleSet/HeroChoose/ScrollView/Viewport/Content/herochooseItem_103/button", 0, &clickErr)) {
+            if (stopIfRequested()) return;
+            snprintf(errBuf, sizeof(errBuf), "auto_auction_ui_error:wait_skill_config_click_failed: %s", clickErr.c_str());
+            SendResponse(c, id, false, errBuf); return;
+        }
         PollWaitResult wr = WaitForNodeReady("BattlePrevPanel_Main",
             "Panel_1/MapPanel/Button",
             3000, 100);
@@ -1876,7 +2020,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             SendResponse(c, id, false, "auto_auction_ui_error:wait_skill_config"); return;
         }
         std::string clickErr;
-        ClickNode(t, "Panel_1/MapPanel/Button", 0, &clickErr);
+        if (!ClickNode(t, "Panel_1/MapPanel/Button", 0, &clickErr)) {
+            if (stopIfRequested()) return;
+            snprintf(errBuf, sizeof(errBuf), "auto_auction_ui_error:wait_skill_config_click_failed: %s", clickErr.c_str());
+            SendResponse(c, id, false, errBuf); return;
+        }
         // Short post-click settle: poll briefly to avoid reading stale BattlePrevPanel_Main
         for (int i = 0; i < 5; i++) {
             if (!SleepInterruptibly(200)) { stopIfRequested(); return; }
@@ -1944,6 +2092,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
     std::string lastRoundSeen;
     std::string lastBidAttemptRound;
     DWORD lastBidAttemptMs = 0;
+    DWORD newRoundFirstSeenMs = 0;
     int roundsEncountered = 0;
 
     for (;;) {
@@ -1968,6 +2117,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         if (ShouldRecordAutoAuctionRoundSeen(round, lastRoundSeen)) {
             lastRoundSeen = round;
             roundsEncountered++;
+            newRoundFirstSeenMs = GetTickCount();
         }
 
         int amount = 0;
@@ -2010,6 +2160,19 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         if (useExpectedPrice && roundsEncountered >= 2 && roundsEncountered <= 5) {
                 std::string fallbackReason;
                 std::string opponentName;
+
+                // Bounded settle window for opponent-cap UI on new rounds.
+                // On a fresh round the player-name and previous-bid widgets may
+                // still be rendering. Give them a short window (up to 500ms at
+                // 100ms polls) before giving up and falling back to uncapped bid.
+                {
+                    DWORD roundAgeMs = GetTickCount() - newRoundFirstSeenMs;
+                    static const DWORD kSettleWindowMs = 500;
+                    if (roundAgeMs < kSettleWindowMs) {
+                        // Skip this iteration — let the UI settle before first read
+                        continue;
+                    }
+                }
 
                 std::string player1Name;
                 std::string player2Name;
@@ -2195,19 +2358,16 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                             &clickErr
                         );
                         if (primaryConfirmClicked) {
-                            // Authcode-aware wrapper around WaitForBidConfirmationSettled
-                            BidConfirmFlowResult confirmResult =
-                                WaitForBidConfirmationSettled(s2.battleMainTransform);
-                            if (confirmResult.interrupted) { stopIfRequested(); return; }
-                            // After confirm settles, check authcode immediately
-                            {
-                                ScreenState confirmSc = DetectScreenState();
-                                if (IsAutoAuctionVerificationScreen(confirmSc.screen)) {
-                                    Logf("AutoAuction interrupted: AuthCode_Main detected after bid confirmation");
-                                    sendAuthCodeRequired();
-                                    return;
-                                }
+                            // Authcode-aware confirmation: polls authcode every 100ms cycle
+                            AuthCodeAwareBidConfirmResult wrapper =
+                                WaitForBidConfirmationSettledWithAuthCode(s2.battleMainTransform);
+                            if (wrapper.authcodeDetected) {
+                                Logf("AutoAuction interrupted: AuthCode_Main detected during bid confirmation settle");
+                                sendAuthCodeRequired();
+                                return;
                             }
+                            BidConfirmFlowResult& confirmResult = wrapper.confirm;
+                            if (confirmResult.interrupted) { stopIfRequested(); return; }
                             if (!confirmResult.completed) {
                                 Logf(
                                     "AutoAuction round=%d confirm flow incomplete: %s",
@@ -2247,7 +2407,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         bool shouldWaitForQuickRecycle = false;
         bool winnerResolved = false;
         std::string resolvedWinnerName;
-        for (int attempt = 0; attempt < 30; ++attempt) {
+        for (int attempt = 0; attempt < 150; ++attempt) {  // ~30s budget at 200ms poll
             if (stopIfRequested()) return;
             ScreenState se = DetectScreenState();
             if (IsAutoAuctionVerificationScreen(se.screen)) {
