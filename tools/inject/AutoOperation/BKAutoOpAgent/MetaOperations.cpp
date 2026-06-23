@@ -803,32 +803,6 @@ static PollWaitResult WaitForToggleState(
     }
 }
 
-// Click a node and then poll until the target screen is reached.
-// Returns the PollWaitResult from the post-click wait.
-// If click itself fails, sets *clickOk=false and returns immediately.
-static PollWaitResult ClickAndWait(
-    Il2CppObject* transform,
-    const char* nodePath,
-    const char* targetScreen,
-    int timeoutMs,
-    int pollIntervalMs,
-    bool* clickOk,
-    std::string* clickErr)
-{
-    bool ok = ClickNode(transform, nodePath, 0, clickErr);
-    if (clickOk) *clickOk = ok;
-    if (!ok) {
-        PollWaitResult r = { POLL_TIMEOUT, 0 };
-        return r;
-    }
-    if (targetScreen && targetScreen[0]) {
-        return WaitForScreen(targetScreen, timeoutMs, pollIntervalMs);
-    }
-    // No target screen to wait for — return OK immediately after click
-    PollWaitResult r = { POLL_OK, 0 };
-    return r;
-}
-
 struct BidConfirmFlowResult {
     bool completed = false;
     bool hardError = false;
@@ -1869,8 +1843,8 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         std::string clickErr;
         if (!ClickNode(t, "MainPanel/mask/Button", 0, &clickErr)) {
             if (stopIfRequested()) return;
-            snprintf(errBuf, sizeof(errBuf), "auto_auction_ui_error:wait_lobby_map_click_failed: %s", clickErr.c_str());
-            SendResponse(c, id, false, errBuf); return;
+            Logf("AutoAuction GoToBattlePrev click failed: %s", clickErr.c_str());
+            SendResponse(c, id, false, "auto_auction_ui_error:wait_lobby_map_click_failed"); return;
         }
         PollWaitResult wr = WaitForScreen("auction_lobby_map", 15000, 100);
         if (wr.result == POLL_AUTHCODE) {
@@ -1897,8 +1871,8 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         std::string clickErr;
         if (!ClickNode(t, roomPath, 0, &clickErr)) {
             if (stopIfRequested()) return;
-            snprintf(errBuf, sizeof(errBuf), "auto_auction_ui_error:wait_lobby_room_click_failed: %s", clickErr.c_str());
-            SendResponse(c, id, false, errBuf); return;
+            Logf("AutoAuction EnterRoom click failed: %s", clickErr.c_str());
+            SendResponse(c, id, false, "auto_auction_ui_error:wait_lobby_room_click_failed"); return;
         }
         PollWaitResult wr = WaitForScreen("auction_lobby_room", 15000, 100);
         if (wr.result == POLL_AUTHCODE) {
@@ -1968,8 +1942,8 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         std::string clickErr;
         if (!ClickNode(t, "Panel_1/MapPanel/battleSet/Hero/Button", 0, &clickErr)) {
             if (stopIfRequested()) return;
-            snprintf(errBuf, sizeof(errBuf), "auto_auction_ui_error:wait_skill_config_click_failed: %s", clickErr.c_str());
-            SendResponse(c, id, false, errBuf); return;
+            Logf("AutoAuction skill config click failed: %s", clickErr.c_str());
+            SendResponse(c, id, false, "auto_auction_ui_error:wait_skill_config_click_failed"); return;
         }
         PollWaitResult wr = WaitForNodeReady("BattlePrevPanel_Main",
             "Panel_1/MapPanel/battleSet/HeroChoose/ScrollView/Viewport/Content/herochooseItem_103/button",
@@ -1994,8 +1968,8 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         std::string clickErr;
         if (!ClickNode(t, "Panel_1/MapPanel/battleSet/HeroChoose/ScrollView/Viewport/Content/herochooseItem_103/button", 0, &clickErr)) {
             if (stopIfRequested()) return;
-            snprintf(errBuf, sizeof(errBuf), "auto_auction_ui_error:wait_skill_config_click_failed: %s", clickErr.c_str());
-            SendResponse(c, id, false, errBuf); return;
+            Logf("AutoAuction skill config click failed: %s", clickErr.c_str());
+            SendResponse(c, id, false, "auto_auction_ui_error:wait_skill_config_click_failed"); return;
         }
         PollWaitResult wr = WaitForNodeReady("BattlePrevPanel_Main",
             "Panel_1/MapPanel/Button",
@@ -2022,8 +1996,8 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         std::string clickErr;
         if (!ClickNode(t, "Panel_1/MapPanel/Button", 0, &clickErr)) {
             if (stopIfRequested()) return;
-            snprintf(errBuf, sizeof(errBuf), "auto_auction_ui_error:wait_skill_config_click_failed: %s", clickErr.c_str());
-            SendResponse(c, id, false, errBuf); return;
+            Logf("AutoAuction skill config click failed: %s", clickErr.c_str());
+            SendResponse(c, id, false, "auto_auction_ui_error:wait_skill_config_click_failed"); return;
         }
         // Short post-click settle: poll briefly to avoid reading stale BattlePrevPanel_Main
         for (int i = 0; i < 5; i++) {
@@ -2142,15 +2116,13 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             continue;
         }
 
-        // --- Same-round retry throttle ---
+        // --- Same-round retry throttle (gate only — timestamp written at click time) ---
         {
             DWORD nowMs = GetTickCount();
             if (!ShouldAttemptAutoBidRetry(round, lastBidAttemptRound, lastBidAttemptMs, nowMs)) {
                 // Throttled: observation loop continues but we skip the click this iteration
                 continue;
             }
-            lastBidAttemptRound = round;
-            lastBidAttemptMs = nowMs;
         }
 
         amount = ClampAutoAuctionFirstRoundBid(amount, roundsEncountered, 17000);
@@ -2167,8 +2139,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                 // 100ms polls) before giving up and falling back to uncapped bid.
                 {
                     DWORD roundAgeMs = GetTickCount() - newRoundFirstSeenMs;
-                    static const DWORD kSettleWindowMs = 500;
-                    if (roundAgeMs < kSettleWindowMs) {
+                    if (roundAgeMs < (DWORD)GetAutoAuctionOpponentCapSettleWindowMs()) {
                         // Skip this iteration — let the UI settle before first read
                         continue;
                     }
@@ -2250,6 +2221,10 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         }
 
         // --- Click "Gaming/chujia" then wait for bid input dialog ---
+        // Record throttle timestamp only now — after settle gate and opponent-cap
+        // logic have passed, so the 1000ms cooldown starts from the actual click.
+        lastBidAttemptRound = round;
+        lastBidAttemptMs = GetTickCount();
         std::string clickErr;
         bool placeBidClicked = ClickNode(s.battleMainTransform, "Gaming/chujia", 0, &clickErr);
         bool hasBattleMainAfterClick = false;

@@ -162,6 +162,19 @@ int main() {
     assert(ShouldAttemptAutoBidRetry("第1轮", "第1轮", 0, 1500)); // same round, >1000ms
     assert(!ShouldAttemptAutoBidRetry("", "第1轮", 0, 5000));     // empty round
 
+    // Regression: settle-window ordering — a new round MUST pass the throttle
+    // gate BEFORE any click timestamp is written. The throttle gate itself
+    // must not record the attempt; that is done at click time later.
+    // If round advanced and no click has been recorded for this round yet,
+    // the gate fires on round change alone, regardless of lastBidAttemptMs age.
+    assert(ShouldAttemptAutoBidRetry("第3轮", "第1轮", 100, 150));
+    // After the first click on round 3 is recorded (lastBidAttemptRound="第3轮",
+    // lastBidAttemptMs=5000), a retry <1000ms later on the same round is blocked:
+    assert(!ShouldAttemptAutoBidRetry("第3轮", "第3轮", 5000, 5500));
+
+    // Opponent-cap settle window constant
+    assert(GetAutoAuctionOpponentCapSettleWindowMs() == 500);
+
     // AutoAuction error code formatting
     assert(BuildAutoAuctionTimeoutError("wait_main_lobby") == "auto_auction_timeout:wait_main_lobby");
     assert(BuildAutoAuctionTimeoutError("wait_lobby_map") == "auto_auction_timeout:wait_lobby_map");

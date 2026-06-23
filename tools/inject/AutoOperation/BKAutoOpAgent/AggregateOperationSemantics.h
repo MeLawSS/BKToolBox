@@ -244,6 +244,13 @@ inline int GetAutoAuctionBidRetryCooldownMs() {
     return 1000;
 }
 
+// Opponent-cap settle window: minimum time the UI must have been on a new
+// round before first-attempt reads of opponent name / previous-round bid.
+// Shorter than the cooldown; only gates the first read after round change.
+inline int GetAutoAuctionOpponentCapSettleWindowMs() {
+    return 500;
+}
+
 // Step 5 staged-polling intervals (spec §Timeouts and Polling Policy):
 //   Fast initial window (first 10000ms):  200ms poll interval
 //   Medium window (10000ms – 30000ms):    500ms poll interval
