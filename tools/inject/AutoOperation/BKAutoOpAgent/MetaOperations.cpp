@@ -1832,29 +1832,100 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         }
     }
 
-    // Step 4: OpenSkillConfig → SelectRole → StartAction
-    if (!clickOnPanel("BattlePrevPanel_Main", "Panel_1/MapPanel/battleSet/Hero/Button", 1500)) {
-        if (stopIfRequested()) return;
-        SendResponse(c, id, false, errBuf[0] ? errBuf : "OpenSkillConfig failed"); return;
-    }
-    if (!clickOnPanel("BattlePrevPanel_Main",
+    // Step 4: OpenSkillConfig → SelectRole → StartAction (polling-based)
+    // 4a: Click skill config, wait for hero button to be ready
+    {
+        Il2CppObject* t = nullptr;
+        if (FindVisiblePanelTransform("BattlePrevPanel_Main", nullptr, &t, errBuf, sizeof(errBuf)) != UI_PANEL_FOUND || !t) {
+            if (stopIfRequested()) return;
+            SendResponse(c, id, false, "auto_auction_ui_error:wait_skill_config"); return;
+        }
+        std::string clickErr;
+        ClickNode(t, "Panel_1/MapPanel/battleSet/Hero/Button", 0, &clickErr);
+        PollWaitResult wr = WaitForNodeReady("BattlePrevPanel_Main",
             "Panel_1/MapPanel/battleSet/HeroChoose/ScrollView/Viewport/Content/herochooseItem_103/button",
-            1500)) {
-        if (stopIfRequested()) return;
-        SendResponse(c, id, false, errBuf[0] ? errBuf : "SelectRole failed"); return;
+            3000, 100);
+        if (wr.result == POLL_AUTHCODE) {
+            Logf("AutoAuction interrupted: AuthCode_Main detected during skill config");
+            sendAuthCodeRequired();
+            return;
+        }
+        if (wr.result == POLL_INTERRUPTED) { stopIfRequested(); return; }
+        if (wr.result == POLL_TIMEOUT) {
+            SendResponse(c, id, false, "auto_auction_timeout:wait_skill_config"); return;
+        }
     }
-    if (!clickOnPanel("BattlePrevPanel_Main", "Panel_1/MapPanel/Button", 2000)) {
-        if (stopIfRequested()) return;
-        SendResponse(c, id, false, errBuf[0] ? errBuf : "StartAction failed"); return;
+    // 4b: Click hero, wait for start button to be ready
+    {
+        Il2CppObject* t = nullptr;
+        if (FindVisiblePanelTransform("BattlePrevPanel_Main", nullptr, &t, errBuf, sizeof(errBuf)) != UI_PANEL_FOUND || !t) {
+            if (stopIfRequested()) return;
+            SendResponse(c, id, false, "auto_auction_ui_error:wait_skill_config"); return;
+        }
+        std::string clickErr;
+        ClickNode(t, "Panel_1/MapPanel/battleSet/HeroChoose/ScrollView/Viewport/Content/herochooseItem_103/button", 0, &clickErr);
+        PollWaitResult wr = WaitForNodeReady("BattlePrevPanel_Main",
+            "Panel_1/MapPanel/Button",
+            3000, 100);
+        if (wr.result == POLL_AUTHCODE) {
+            Logf("AutoAuction interrupted: AuthCode_Main detected during hero select");
+            sendAuthCodeRequired();
+            return;
+        }
+        if (wr.result == POLL_INTERRUPTED) { stopIfRequested(); return; }
+        if (wr.result == POLL_TIMEOUT) {
+            SendResponse(c, id, false, "auto_auction_timeout:wait_skill_config"); return;
+        }
+    }
+    // 4c: Click start action — no fixed wait. The long wait for auction_in_progress
+    //     is entirely handled by Step 5 below. A short poll (200ms × 5 = 1000ms) avoids
+    //     immediately reading stale state without creating an independent failure boundary.
+    {
+        Il2CppObject* t = nullptr;
+        if (FindVisiblePanelTransform("BattlePrevPanel_Main", nullptr, &t, errBuf, sizeof(errBuf)) != UI_PANEL_FOUND || !t) {
+            if (stopIfRequested()) return;
+            SendResponse(c, id, false, "auto_auction_ui_error:wait_skill_config"); return;
+        }
+        std::string clickErr;
+        ClickNode(t, "Panel_1/MapPanel/Button", 0, &clickErr);
+        // Short post-click settle: poll briefly to avoid reading stale BattlePrevPanel_Main
+        for (int i = 0; i < 5; i++) {
+            if (!SleepInterruptibly(200)) { stopIfRequested(); return; }
+            ScreenState settleCheck = DetectScreenState();
+            if (IsAutoAuctionVerificationScreen(settleCheck.screen)) {
+                Logf("AutoAuction interrupted: AuthCode_Main detected after start action");
+                sendAuthCodeRequired();
+                return;
+            }
+            // If screen has already changed, stop settling early
+            if (strcmp(settleCheck.screen, "auction_lobby_room") != 0) break;
+        }
     }
 
-    // Step 5: wait for auction_in_progress
+    // Step 5: wait for auction_in_progress (staged-backoff polling)
+    // Total budget: 120s. Staged polling: fast (100ms) → medium (500ms) → slow (1500ms).
     {
+        static const int kFastWindowMs   = GetWaitForAuctionInProgressFastWindowMs();    // 3000ms
+        static const int kMediumWindowMs = GetWaitForAuctionInProgressMediumWindowMs();  // 15000ms
+        static const int kTotalTimeoutMs = 120000;
+        static const int kPollFastMs     = GetWaitForAuctionInProgressPollFastMs();      // 100ms
+        static const int kPollMediumMs   = GetWaitForAuctionInProgressPollMediumMs();    // 500ms
+        static const int kPollSlowMs     = GetWaitForAuctionInProgressPollSlowMs();      // 1500ms
+
         bool found = false;
-        for (int i = 0; i < 80; i++) {
-            if (!SleepInterruptibly(1500)) { stopIfRequested(); return; }
+        DWORD startedAt = GetTickCount();
+        for (;;) {
+            if (stopIfRequested()) return;
+            DWORD elapsed = GetTickCount() - startedAt;
+            if ((int)elapsed >= kTotalTimeoutMs) break;
+
             ScreenState state = DetectScreenState();
             const char* sc = state.screen;
+            if (IsAutoAuctionVerificationScreen(sc)) {
+                Logf("AutoAuction interrupted: AuthCode_Main detected while waiting for auction_in_progress");
+                sendAuthCodeRequired();
+                return;
+            }
             if (strcmp(sc, "auction_in_progress") == 0) { found = true; break; }
             if (strcmp(sc, "auction_ended") == 0) {
                 char earlyResult[128];
@@ -1863,13 +1934,20 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     ResolveAutoAuctionReportedExpectedPrice(lastExpectedPrice, g_notifiedExpectedPrice.load()));
                 SendResponse(c, id, true, earlyResult); return;
             }
-            if (IsAutoAuctionVerificationScreen(sc)) {
-                Logf("AutoAuction interrupted: AuthCode_Main detected while waiting for auction_in_progress");
-                sendAuthCodeRequired();
-                return;
+
+            // Staged poll interval selection
+            int pollMs = kPollSlowMs;
+            if ((int)elapsed < kFastWindowMs) {
+                pollMs = kPollFastMs;
+            } else if ((int)elapsed < kMediumWindowMs) {
+                pollMs = kPollMediumMs;
             }
+            if (!SleepInterruptibly(pollMs)) { stopIfRequested(); return; }
         }
-        if (!found) { SendResponse(c, id, false, "timeout waiting for auction_in_progress"); return; }
+        if (!found) {
+            SendResponse(c, id, false, "auto_auction_timeout:wait_auction_in_progress");
+            return;
+        }
     }
 
     // Step 6: bid loop
