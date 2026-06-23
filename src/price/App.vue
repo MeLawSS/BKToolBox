@@ -782,7 +782,7 @@ onMounted(() => {
               class="ghost-button"
               type="button"
               data-testid="price-collections-capture"
-              :disabled="isCapturingCollections || isRefreshingCollections"
+              :disabled="!canCaptureCollections || isCapturingCollections || isRefreshingCollections"
               @click="captureCollectionsToFile"
             >
               {{ isCapturingCollections ? t('price.capturingCollections') : t('price.captureCollections') }}

@@ -857,6 +857,17 @@ describe('Price App', () => {
     expect(wrapper.find('[data-testid="price-collections"]').text()).toContain(getTestCollectible(1022003).name);
   });
 
+  it('disables collections capture when the desktop bridge is unavailable', async () => {
+    delete window.bidkingDesktop;
+    const wrapper = await mountApp();
+
+    await wrapper.find('[data-testid="price-tab-collections"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="price-collections-capture"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.find('[data-testid="price-collections-refresh"]').attributes('disabled')).toBeUndefined();
+  });
+
   it('disables collections capture and refresh while writing collection cids', async () => {
     const deferred = createDeferred();
     const captureCollectionCidsToFile = vi.fn(() => deferred.promise);
@@ -884,6 +895,10 @@ describe('Price App', () => {
       },
     });
     await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="price-collections-capture"]').attributes('disabled')).toBeUndefined();
+    expect(wrapper.find('[data-testid="price-collections-refresh"]').attributes('disabled')).toBeUndefined();
   });
 
   it('shows an error and skips refresh when collections capture fails', async () => {
@@ -901,6 +916,25 @@ describe('Price App', () => {
     await nextTick();
 
     expect(wrapper.text()).toContain('capture failed');
+    expect(fetch.mock.calls.filter(([url]) => String(url).endsWith('/api/price-history/collections'))).toHaveLength(1);
+    expect(fetch.mock.calls.filter(([url]) => String(url).endsWith('/api/price-history/latest'))).toHaveLength(1);
+  });
+
+  it('shows an error and skips refresh when the collections capture bridge resolves with ok false', async () => {
+    window.bidkingDesktop = {
+      isDesktop: true,
+      runAutoOperationCommand: vi.fn(),
+      captureCollectionCidsToFile: vi.fn().mockResolvedValue({ ok: false, error: 'bridge failed' }),
+    };
+    const wrapper = await mountApp();
+
+    await wrapper.find('[data-testid="price-tab-collections"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="price-collections-capture"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.text()).toContain('bridge failed');
     expect(fetch.mock.calls.filter(([url]) => String(url).endsWith('/api/price-history/collections'))).toHaveLength(1);
     expect(fetch.mock.calls.filter(([url]) => String(url).endsWith('/api/price-history/latest'))).toHaveLength(1);
   });

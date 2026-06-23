@@ -780,12 +780,28 @@ describe('single item trade info refresh', () => {
   it('propagates collection capture command failures', async () => {
     const startAutoOperationAgent = vi.fn().mockResolvedValue({ ok: true });
     const runAutoOperationCommand = vi.fn().mockRejectedValue(new Error('native failed'));
+    const recordCollectionCids = vi.fn();
 
     await expect(service.captureCollectionCidsToFile({
       startAutoOperationAgent,
       runAutoOperationCommand,
-      recordCollectionCids: vi.fn(),
+      recordCollectionCids,
     })).rejects.toThrow('native failed');
+    expect(recordCollectionCids).not.toHaveBeenCalled();
+  });
+
+  it('propagates Agent startup failures before querying collection cids', async () => {
+    const startAutoOperationAgent = vi.fn().mockRejectedValue(new Error('agent failed'));
+    const runAutoOperationCommand = vi.fn();
+    const recordCollectionCids = vi.fn();
+
+    await expect(service.captureCollectionCidsToFile({
+      startAutoOperationAgent,
+      runAutoOperationCommand,
+      recordCollectionCids,
+    })).rejects.toThrow('agent failed');
+    expect(runAutoOperationCommand).not.toHaveBeenCalled();
+    expect(recordCollectionCids).not.toHaveBeenCalled();
   });
 });
 
