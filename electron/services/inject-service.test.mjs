@@ -743,6 +743,50 @@ describe('single item trade info refresh', () => {
       recordTradeInfoSnapshot: vi.fn().mockReturnValue({ ok: false, error: 'invalid trade info snapshot' }),
     })).rejects.toThrow('invalid trade info snapshot');
   });
+
+  it('starts the Agent, captures collection cids, writes them to file, and returns the written summary', async () => {
+    const startAutoOperationAgent = vi.fn().mockResolvedValue({ ok: true });
+    const runAutoOperationCommand = vi.fn().mockResolvedValue({
+      ok: true,
+      value: {
+        cids: [1032006, 1013007, 1032006],
+      },
+    });
+    const recordCollectionCids = vi.fn().mockReturnValue({
+      written: true,
+      itemCids: [1032006, 1013007],
+      outputPath: 'C:/Users/test/Documents/BKPriceHistory/Cids.json',
+    });
+
+    const result = await service.captureCollectionCidsToFile({
+      startAutoOperationAgent,
+      runAutoOperationCommand,
+      recordCollectionCids,
+    });
+
+    expect(startAutoOperationAgent).toHaveBeenCalledTimes(1);
+    expect(runAutoOperationCommand).toHaveBeenCalledWith('GetCollectionItemCids', {}, expect.any(Object));
+    expect(recordCollectionCids).toHaveBeenCalledWith([1032006, 1013007, 1032006], expect.any(Object));
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        itemCids: [1032006, 1013007],
+        count: 2,
+        outputPath: 'C:/Users/test/Documents/BKPriceHistory/Cids.json',
+      },
+    });
+  });
+
+  it('propagates collection capture command failures', async () => {
+    const startAutoOperationAgent = vi.fn().mockResolvedValue({ ok: true });
+    const runAutoOperationCommand = vi.fn().mockRejectedValue(new Error('native failed'));
+
+    await expect(service.captureCollectionCidsToFile({
+      startAutoOperationAgent,
+      runAutoOperationCommand,
+      recordCollectionCids: vi.fn(),
+    })).rejects.toThrow('native failed');
+  });
 });
 
 describe('collection price scan desktop helpers', () => {

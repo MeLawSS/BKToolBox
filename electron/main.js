@@ -3,6 +3,7 @@ const os = require('os');
 const path = require('path');
 const { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, Notification, screen } = require('electron');
 const {
+    captureCollectionCidsToFile,
     claimCabinetReward,
     getCollectionPriceScanStatus,
     listStockMoveLists,
@@ -640,6 +641,13 @@ function registerIpc() {
     ipcMain.handle('inject:refreshItemTradeInfo', async (_event, itemCid) => {
         try {
             return await refreshItemTradeInfo(itemCid);
+        } catch (error) {
+            return { ok: false, error: error.message };
+        }
+    });
+    ipcMain.handle('inject:captureCollectionCidsToFile', async () => {
+        try {
+            return await captureCollectionCidsToFile();
         } catch (error) {
             return { ok: false, error: error.message };
         }

@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('bidkingDesktop', {
     claimCabinetReward: () => ipcRenderer.invoke('inject:claimCabinetReward'),
     startAutoOperationAgent: () => ipcRenderer.invoke('inject:startAutoOperationAgent'),
     runAutoOperationCommand: (command, args = {}) => ipcRenderer.invoke('inject:runAutoOperationCommand', command, args),
+    captureCollectionCidsToFile: () => ipcRenderer.invoke('inject:captureCollectionCidsToFile'),
     refreshItemTradeInfo: (itemCid) => ipcRenderer.invoke('inject:refreshItemTradeInfo', itemCid),
 
     startCollectionPriceScan: (config) => ipcRenderer.invoke('inject:startCollectionPriceScan', config),
