@@ -162,5 +162,16 @@ int main() {
     assert(ShouldAttemptAutoBidRetry("第1轮", "第1轮", 0, 1500)); // same round, >1000ms
     assert(!ShouldAttemptAutoBidRetry("", "第1轮", 0, 5000));     // empty round
 
+    // AutoAuction error code formatting
+    assert(BuildAutoAuctionTimeoutError("wait_main_lobby") == "auto_auction_timeout:wait_main_lobby");
+    assert(BuildAutoAuctionTimeoutError("wait_lobby_map") == "auto_auction_timeout:wait_lobby_map");
+    assert(BuildAutoAuctionTimeoutError("wait_lobby_room") == "auto_auction_timeout:wait_lobby_room");
+    assert(BuildAutoAuctionTimeoutError("wait_skill_config") == "auto_auction_timeout:wait_skill_config");
+    assert(BuildAutoAuctionUiError("wait_skill_config") == "auto_auction_ui_error:wait_skill_config");
+    assert(BuildAutoAuctionUiError("winner_recycle") == "auto_auction_ui_error:winner_recycle");
+    assert(BuildAutoAuctionUnexpectedScreenError("warehouse") == "auto_auction_unexpected_screen:warehouse");
+    assert(BuildAutoAuctionUnexpectedScreenError("") == "auto_auction_unexpected_screen:null");
+    assert(BuildAutoAuctionUnexpectedScreenError(nullptr) == "auto_auction_unexpected_screen:null");
+
     return 0;
 }

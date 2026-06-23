@@ -269,6 +269,27 @@ inline bool ShouldAttemptAutoBidRetry(
     return elapsed >= (unsigned long)GetAutoAuctionBidRetryCooldownMs();
 }
 
+// --- AutoAuction error code formatting ---
+// These produce stable, machine-readable stage codes per the spec's
+// Response and Error Semantics section.
+inline std::string BuildAutoAuctionTimeoutError(const char* stage) {
+    std::string result = "auto_auction_timeout:";
+    result += stage;
+    return result;
+}
+
+inline std::string BuildAutoAuctionUiError(const char* stage) {
+    std::string result = "auto_auction_ui_error:";
+    result += stage;
+    return result;
+}
+
+inline std::string BuildAutoAuctionUnexpectedScreenError(const char* screen) {
+    std::string result = "auto_auction_unexpected_screen:";
+    result += (screen && screen[0]) ? screen : "null";
+    return result;
+}
+
 inline int ResolveAutoAuctionReportedExpectedPrice(
     int lastExpectedPrice,
     int notifiedExpectedPrice
