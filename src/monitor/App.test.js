@@ -28,47 +28,8 @@ class FakeEventSource {
 
 FakeEventSource.instances = [];
 
-const defaultMarketLatest = [{
-  observedAt: '2026-05-28T12:24:37.000Z',
-  itemCid: 1022001,
-  minPrice: 1155,
-  maxPrice: 1502,
-  totalCount: 355,
-  tierCount: 8,
-  source: 'tcp-passive',
-}];
-
-const defaultMarketHistory = {
-  1022001: [{
-    observedAt: '2026-05-28T12:24:37.000Z',
-    itemCid: 1022001,
-    minPrice: 1155,
-    maxPrice: 1502,
-    totalCount: 355,
-    tierCount: 8,
-    tiers: [
-      { price: 1155, count: 105 },
-      { price: 1502, count: 5 },
-    ],
-    source: 'tcp-passive',
-  }],
-};
-
-function createDeferred() {
-  let resolve;
-  let reject;
-  const promise = new Promise((promiseResolve, promiseReject) => {
-    resolve = promiseResolve;
-    reject = promiseReject;
-  });
-  return { promise, resolve, reject };
-}
-
 function mockFetch() {
   vi.stubGlobal('fetch', vi.fn(async (url, options = {}) => {
-    const marketLatest = globalThis.__marketLatest ?? defaultMarketLatest;
-    const marketHistory = globalThis.__marketHistory ?? defaultMarketHistory;
-    const marketHistoryResponses = globalThis.__marketHistoryResponses ?? {};
     const driverStatus = globalThis.__driverStatus ?? { state: 'missing', installed: false, usable: false, message: 'Npcap is not installed' };
 
     if (String(url).endsWith('/api/bidking-monitor/status')) {
@@ -96,29 +57,6 @@ function mockFetch() {
           image: '/assets/bidking/icons/icon_1022001.png',
           size: { width: 2, height: 2, key: '2x2' },
         }],
-      };
-    }
-
-    if (String(url).endsWith('/api/market-prices/latest')) {
-      return {
-        ok: true,
-        json: async () => ({
-          items: marketLatest,
-        }),
-      };
-    }
-
-    if (String(url).includes('/api/market-prices/history')) {
-      const itemCid = new URL(String(url), 'http://localhost').searchParams.get('itemCid');
-      const delayedResponse = marketHistoryResponses[itemCid];
-      return {
-        ok: true,
-        json: async () => delayedResponse
-          ? delayedResponse
-          : {
-              itemCid: Number(itemCid),
-              history: marketHistory[itemCid] ?? [],
-            },
       };
     }
 
@@ -170,9 +108,6 @@ describe('Monitor App', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     window.localStorage.clear();
-    delete globalThis.__marketLatest;
-    delete globalThis.__marketHistory;
-    delete globalThis.__marketHistoryResponses;
     delete globalThis.__driverStatus;
     FakeEventSource.reset();
     vi.stubGlobal('EventSource', FakeEventSource);
