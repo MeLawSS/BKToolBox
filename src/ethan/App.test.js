@@ -326,6 +326,7 @@ describe('Ethan App', () => {
       '/',
       '/Tools',
       '/Monitor',
+      '/Price',
       '/Inject',
     ]);
     expect(wrapper.find('#clear-button').text()).toBe('Clear');
@@ -1969,6 +1970,7 @@ describe('Ethan App', () => {
     const wrapper = await mountApp();
 
     await wrapper.find('#total-cells-all').setValue('75');
+    await wrapper.find('#cells-purple').setValue('1');
     await wrapper.find('#price-orange').setValue('22800');
     await wrapper.find('#estimate-form').trigger('submit');
     await nextTick();
@@ -1993,6 +1995,7 @@ describe('Ethan App', () => {
     vi.stubGlobal('EventSource', FakeEventSource);
     const wrapper = await mountApp();
 
+    await wrapper.find('#cells-purple').setValue('1');
     await wrapper.find('#price-orange').setValue('37928.2');
     await wrapper.find('#estimate-form').trigger('submit');
     await nextTick();
@@ -2020,6 +2023,7 @@ describe('Ethan App', () => {
     await wrapper.find('#total-cells-all').setValue('119');
     await wrapper.find('#cells-wg').setValue('21');
     await wrapper.find('#cells-blue').setValue('44');
+    await wrapper.find('#cells-purple').setValue('1');
     await wrapper.find('#avg-purple').setValue('2.8');
     await wrapper.find('#price-orange').setValue('30472');
     await wrapper.find('#estimate-form').trigger('submit');
@@ -2048,6 +2052,7 @@ describe('Ethan App', () => {
     await wrapper.find('#total-cells-all').setValue('119');
     await wrapper.find('#cells-wg').setValue('21');
     await wrapper.find('#cells-blue').setValue('44');
+    await wrapper.find('#cells-purple').setValue('1');
     await wrapper.find('#avg-purple').setValue('2.8');
     await wrapper.find('#price-orange').setValue('30472');
     await wrapper.find('#estimate-form').trigger('submit');

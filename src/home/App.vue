@@ -37,6 +37,10 @@ const { t } = useI18n();
           <span class="launcher-text">{{ t('home.monitorText') }}</span>
         </a>
 
+        <a class="launcher-link" href="/Price">
+          <span class="launcher-title">{{ t('common.price') }}</span>
+          <span class="launcher-text">{{ t('home.priceText') }}</span>
+        </a>
 
         <a class="launcher-link" href="/Inject">
           <span class="launcher-title">{{ t('common.inject') }}</span>

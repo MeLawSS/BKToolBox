@@ -181,6 +181,7 @@ describe('Tools App', () => {
       '/',
       '/Tools',
       '/Monitor',
+      '/Price',
       '/Inject',
     ]);
     expect(wrapper.findAll('.tab-button')).toHaveLength(12);

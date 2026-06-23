@@ -86,7 +86,7 @@ describe('TopBar', () => {
 
     expect(w.find('.brand').text()).toBe('BKToolBox');
     const links = w.findAll('.nav a').map(a => a.attributes('href'));
-    expect(links).toEqual(['/', '/Tools', '/Monitor', '/Inject']);
+    expect(links).toEqual(['/', '/Tools', '/Monitor', '/Price', '/Inject']);
     expect(w.find('.nav').text()).not.toContain('Ahmed');
     expect(w.find('.nav').text()).not.toContain('Ethan');
   });

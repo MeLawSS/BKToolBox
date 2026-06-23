@@ -9,10 +9,10 @@
     "build:ahmed": "vite build --config vite.ahmed.config.js",
     "build:ethan": "vite build --config vite.ethan.config.js",
     "build:monitor": "vite build --config vite.monitor.config.js",
-
+    "build:price": "vite build --config vite.price.config.js",
     "build:inject": "vite build --config vite.inject.config.js",
     "clean:pages": "node scripts/clean-page-builds.mjs",
-    "build:pages": "npm run clean:pages && npm run build:home && npm run build:elsa && npm run build:ahmed && npm run build:ethan && npm run build:monitor && npm run build:inject",
+    "build:pages": "npm run clean:pages && npm run build:home && npm run build:elsa && npm run build:ahmed && npm run build:ethan && npm run build:monitor && npm run build:price && npm run build:inject",
     "start": "npm run build:pages && node server.js",
     "desktop": "npm run build:pages && electron .",
     "setup:tools": "node scripts/setup-tools.mjs",
@@ -44,14 +44,15 @@
     "@vitejs/plugin-vue": "^6.0.7",
     "@vitest/coverage-v8": "^4.1.6",
     "@vue/test-utils": "^2.4.10",
-
+    "chart.js": "^4.5.1",
     "electron": "^37.0.0",
     "electron-builder": "^26.8.1",
     "happy-dom": "^20.9.0",
     "supertest": "^7.2.2",
     "vite": "^8.0.13",
     "vitest": "^4.1.6",
-    "vue": "^3.5.34"
+    "vue": "^3.5.34",
+    "vue-chartjs": "^5.3.3"
   },
   "build": {
     "appId": "com.bktoolbox.desktop",

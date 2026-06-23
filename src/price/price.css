@@ -264,13 +264,9 @@ button:disabled {
 }
 
 .opportunity-panel {
-  --price-primary-panel-height: 640px;
   grid-column: 1 / 2;
   min-width: 0;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  height: var(--price-primary-panel-height);
 }
 
 .detail-panel {
@@ -296,13 +292,8 @@ button:disabled {
 }
 
 .opportunity-panel header {
-  flex: 0 0 auto;
   border-bottom: 1px solid var(--line-soft);
   background: var(--panel-tint);
-}
-
-.opportunity-panel > .error-text {
-  flex: 0 0 auto;
 }
 
 .ghost-button {
@@ -398,13 +389,6 @@ h2 {
 
 .table-wrap {
   max-height: 560px;
-  overflow: auto;
-}
-
-.opportunity-panel .table-wrap {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: none;
   overflow: auto;
 }
 
@@ -751,18 +735,6 @@ tbody tr.selected {
   .search-panel,
   .detail-panel {
     grid-column: 1 / -1;
-  }
-
-  .opportunity-panel {
-    display: block;
-    height: auto;
-  }
-
-  .opportunity-panel .table-wrap {
-    flex: unset;
-    min-height: unset;
-    max-height: 560px;
-    overflow: auto;
   }
 
   .search-panel {

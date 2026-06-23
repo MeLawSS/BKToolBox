@@ -27,7 +27,7 @@ const navItems = [
   { href: '/',        page: 'home',    labelKey: 'common.home' },
   { href: '/Tools',   page: 'tools',   labelKey: 'common.tools' },
   { href: '/Monitor', page: 'monitor', labelKey: 'common.monitor' },
-
+  { href: '/Price',   page: 'price',   labelKey: 'common.price' },
   { href: '/Inject',  page: 'inject',  labelKey: 'common.inject' },
 ];
 
