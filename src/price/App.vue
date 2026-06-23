@@ -334,16 +334,22 @@ async function fetchJson(url) {
 
 async function fetchInitialData() {
   try {
-    const [collectiblesPayload, latestPayload, collectionsPayload] = await Promise.all([
+    const [collectiblesPayload, latestPayload] = await Promise.all([
       fetchJson('/data/collectibles.json'),
       fetchJson('/api/price-history/latest'),
-      fetchJson('/api/price-history/collections'),
     ]);
     collectibles.value = Array.isArray(collectiblesPayload) ? collectiblesPayload : [];
     latestPrices.value = Array.isArray(latestPayload.items) ? latestPayload.items : [];
-    collectionCids.value = Array.isArray(collectionsPayload.itemCids) ? collectionsPayload.itemCids : [];
   } catch (error) {
     errorText.value = getErrorMessage(error);
+    return;
+  }
+
+  try {
+    const collectionsPayload = await fetchJson('/api/price-history/collections');
+    collectionCids.value = Array.isArray(collectionsPayload.itemCids) ? collectionsPayload.itemCids : [];
+  } catch {
+    // Collections endpoint is optional — opportunities and search still work without it.
   }
 }
 

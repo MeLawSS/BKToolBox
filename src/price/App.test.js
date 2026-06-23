@@ -2282,4 +2282,83 @@ describe('Price App', () => {
     // Error should NOT appear — discarded because selection changed
     expect(wrapper.find('[data-testid="price-quick-listing-error"]').exists()).toBe(false);
   });
+
+  it('renders all three left-side panel tabs with their table-wrap container', async () => {
+    const wrapper = await mountApp();
+
+    // opportunities tab (default)
+    const oppPanel = wrapper.find('[data-testid="price-opportunities"]');
+    expect(oppPanel.exists()).toBe(true);
+    expect(oppPanel.find('.table-wrap').exists()).toBe(true);
+
+    // switch to collections
+    await wrapper.find('[data-testid="price-tab-collections"]').trigger('click');
+    await nextTick();
+    const colPanel = wrapper.find('[data-testid="price-collections"]');
+    expect(colPanel.exists()).toBe(true);
+    expect(colPanel.find('.table-wrap').exists()).toBe(true);
+
+    // switch to warehouse
+    await wrapper.find('[data-testid="price-tab-warehouse"]').trigger('click');
+    await nextTick();
+    const whPanel = wrapper.find('[data-testid="price-warehouse"]');
+    expect(whPanel.exists()).toBe(true);
+    expect(whPanel.find('.table-wrap').exists()).toBe(true);
+  });
+
+  it('renders the warehouse table and detail panel on the same page', async () => {
+    window.bidkingDesktop = {
+      isDesktop: true,
+      runAutoOperationCommand: vi.fn(async () => ({
+        ok: false,
+        error: 'not available',
+      })),
+    };
+    const wrapper = await mountApp();
+
+    await wrapper.find('[data-testid="price-tab-warehouse"]').trigger('click');
+    await nextTick();
+
+    const whPanel = wrapper.find('[data-testid="price-warehouse"]');
+    expect(whPanel.exists()).toBe(true);
+    expect(whPanel.find('table').exists()).toBe(true);
+
+    const detailPanel = wrapper.find('[data-testid="price-detail"]');
+    expect(detailPanel.exists()).toBe(true);
+  });
+
+  it('renders opportunities and search when the collections endpoint fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url).endsWith('/data/collectibles.json')) {
+        return { ok: true, json: async () => collectibles };
+      }
+      if (String(url).endsWith('/api/price-history/latest')) {
+        return { ok: true, json: async () => ({ items: latestRows }) };
+      }
+      if (String(url).endsWith('/api/price-history/collections')) {
+        throw new Error('collections unavailable');
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }));
+
+    const wrapper = await mountApp();
+
+    // Page still renders without error banner
+    expect(wrapper.find('.error-text').exists()).toBe(false);
+
+    // Opportunities tab renders with data
+    const oppPanel = wrapper.find('[data-testid="price-opportunities"]');
+    expect(oppPanel.exists()).toBe(true);
+    expect(oppPanel.text()).toContain(getTestCollectible(1022002).name);
+
+    // Search panel renders
+    expect(wrapper.find('[data-testid="price-search-results"]').exists()).toBe(true);
+
+    // Collections tab renders empty (endpoint failed)
+    await wrapper.find('[data-testid="price-tab-collections"]').trigger('click');
+    await nextTick();
+    const colPanel = wrapper.find('[data-testid="price-collections"]');
+    expect(colPanel.exists()).toBe(true);
+    expect(colPanel.text()).toContain('暂无 Collections 藏品');
+  });
 });
