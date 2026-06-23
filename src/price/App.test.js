@@ -2282,4 +2282,48 @@ describe('Price App', () => {
     // Error should NOT appear — discarded because selection changed
     expect(wrapper.find('[data-testid="price-quick-listing-error"]').exists()).toBe(false);
   });
+
+  it('renders all three left-side panel tabs with their table-wrap container', async () => {
+    const wrapper = await mountApp();
+
+    // opportunities tab (default)
+    const oppPanel = wrapper.find('[data-testid="price-opportunities"]');
+    expect(oppPanel.exists()).toBe(true);
+    expect(oppPanel.find('.table-wrap').exists()).toBe(true);
+
+    // switch to collections
+    await wrapper.find('[data-testid="price-tab-collections"]').trigger('click');
+    await nextTick();
+    const colPanel = wrapper.find('[data-testid="price-collections"]');
+    expect(colPanel.exists()).toBe(true);
+    expect(colPanel.find('.table-wrap').exists()).toBe(true);
+
+    // switch to warehouse
+    await wrapper.find('[data-testid="price-tab-warehouse"]').trigger('click');
+    await nextTick();
+    const whPanel = wrapper.find('[data-testid="price-warehouse"]');
+    expect(whPanel.exists()).toBe(true);
+    expect(whPanel.find('.table-wrap').exists()).toBe(true);
+  });
+
+  it('renders the warehouse table and detail panel on the same page', async () => {
+    window.bidkingDesktop = {
+      isDesktop: true,
+      runAutoOperationCommand: vi.fn(async () => ({
+        ok: false,
+        error: 'not available',
+      })),
+    };
+    const wrapper = await mountApp();
+
+    await wrapper.find('[data-testid="price-tab-warehouse"]').trigger('click');
+    await nextTick();
+
+    const whPanel = wrapper.find('[data-testid="price-warehouse"]');
+    expect(whPanel.exists()).toBe(true);
+    expect(whPanel.find('table').exists()).toBe(true);
+
+    const detailPanel = wrapper.find('[data-testid="price-detail"]');
+    expect(detailPanel.exists()).toBe(true);
+  });
 });
