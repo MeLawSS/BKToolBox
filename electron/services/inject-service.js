@@ -4,6 +4,7 @@ const net = require('net');
 const { execFile } = require('child_process');
 const { getRuntimePath } = require('../../runtime-paths');
 const {
+    recordCollectionCids: defaultRecordCollectionCids,
     recordTradeInfoSnapshot: defaultRecordTradeInfoSnapshot,
 } = require('../../lib/trade-info-history-recorder');
 
@@ -515,6 +516,26 @@ async function refreshItemTradeInfo(itemCid, deps = {}) {
     return { ok: true, value: written };
 }
 
+async function captureCollectionCidsToFile(deps = {}) {
+    await (deps.startAutoOperationAgent || startAutoOperationAgent)(deps);
+    const response = await (deps.runAutoOperationCommand || runAutoOperationCommand)(
+        'GetCollectionItemCids',
+        {},
+        deps
+    );
+    const cids = Array.isArray(response?.value?.cids) ? response.value.cids : [];
+    const written = (deps.recordCollectionCids || defaultRecordCollectionCids)(cids, deps);
+    const itemCids = Array.isArray(written?.itemCids) ? written.itemCids : [];
+    return {
+        ok: true,
+        value: {
+            itemCids,
+            count: itemCids.length,
+            outputPath: written?.outputPath || '',
+        },
+    };
+}
+
 function getCollectionPriceScanController(deps = {}) {
     if (!deps.controller) {
         throw new Error('Collection price scan controller is unavailable');
@@ -579,6 +600,7 @@ module.exports = {
     pingAutoOperationAgent,
     queryCabinetReward,
     queryTradeInfo,
+    captureCollectionCidsToFile,
     refreshItemTradeInfo,
     runAutoOperationCommand,
     runInjector,
