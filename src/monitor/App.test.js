@@ -391,7 +391,6 @@ describe('Monitor App', () => {
         type: 'market_price',
         key: 'market:1022001:99',
         itemCid: 1022001,
-        itemName: '急救毯',
         minPrice: 1155,
         maxPrice: 1502,
         totalCount: 355,
