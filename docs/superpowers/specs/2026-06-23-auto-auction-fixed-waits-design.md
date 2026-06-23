@@ -93,6 +93,11 @@
 1. `SleepInterruptibly(...)` 只允许承担轮询间隔或极短稳定窗口，不再承担点击后的主等待职责
 2. 点击动作与后续目标状态绑定，点击成功但目标状态未变化时，不视为该步骤完成
 
+额外约束：
+
+- “观察轮询更快”不等于“同一轮出价重试更快”
+- bid loop 必须把“状态观察频率”和“实际点击出价频率”分离，避免因为缩短观察轮询而在同一轮内高频重复点击
+
 ### Wait Semantics
 
 本轮把等待语义收敛为 5 类：
@@ -176,7 +181,8 @@
 - 点击技能配置后，等待角色节点 ready
 - 点击角色后，等待“开始战斗”按钮 ready 或角色选择 UI 收敛
 - 点击开始战斗后，不再固定等待 `2000ms`
-- 成功条件改为“离开当前准备态”，后续再由 Step 5 负责等待正式进入拍卖
+- 点击开始战斗后的短轮询只用于避免立刻读取到旧状态，不引入新的独立硬失败边界
+- 等待正式进入 `auction_in_progress` 或提前进入 `auction_ended` 的长预算，仍完全由 Step 5 承担
 
 ### Step 5: Wait for `auction_in_progress`
 
@@ -205,12 +211,17 @@
 改造后：
 
 - 去掉每轮固定 `1000ms`，改为短轮询读取当前 `screen`、`round`、`secs`
+- 引入显式的 **per-round retry policy**，把“是否继续观察当前轮”和“是否允许再次点击 `Gaming/chujia`”分开
+- 至少需要跟踪当前轮最近一次出价尝试的轮次和时间；在同一轮内，即使 `lastBidRound` 尚未推进，也不得按 `50ms` 到 `100ms` 频率反复点击
+- 默认同轮重试冷却不得短于当前实现隐含提供的 `1000ms` 节流；只有轮次变化，或明确进入了下一阶段的 dialog state，才允许更快推进
+- 对第 2 到第 5 轮的对手限价逻辑，必须给玩家名和上一轮出价 UI 一个有界的 settle 窗口；不能因为观察轮询变快而立刻用未稳定数据反复读、反复点
+- 如果同轮第一次尝试前，对手名或上一轮出价在 settle 窗口内仍未稳定，本轮应按现有 fallback 语义记录原因并继续走一次受节流保护的尝试，而不是高频重试读取
 - 点击 `Gaming/chujia` 后，等待出价输入框真正出现
 - 关闭 `priceUpperLimit` 后，等待 toggle 状态实际变为 `off`
 - 写入金额后，等待输入框文本已同步，或确认按钮进入可继续状态
-- 最终确认继续沿用 `WaitForBidConfirmationSettled(...)`
+- 最终确认继续以 `WaitForBidConfirmationSettled(...)` 为主收敛点，但 AutoAuction 在这一阶段不能保留一个不检测 `authcode` 的盲等窗口
 
-`WaitForBidConfirmationSettled(...)` 已经是正确范式，本轮不重写其等待模型，只允许在必要时对返回 reason 文案做收敛。
+`WaitForBidConfirmationSettled(...)` 仍是正确的确认收敛范式，但本轮需要额外满足一条约束：确认阶段也必须能够及时返回 `authcode_required`。实现上可以是扩展该 helper 自身检测 `authcode`，也可以在 `CmdAutoAuction` 中增加只服务此流程的 authcode-aware 包装层；本 spec 不要求把它抽成共享框架。
 
 ### Step 7: Winner Detection and Quick Recycle
 
@@ -253,13 +264,15 @@
 - Step 4
   - 打开技能配置到角色节点 ready：`3s`
   - 角色选择收敛到开始按钮 ready：`3s`
-  - 点击开始战斗后离开准备态：`5s`
+  - 点击开始战斗后的短过渡观察：仅允许作为非独立失败边界的短窗口
 - Step 5 等 `auction_in_progress`：`120s`
+  - 这 `120s` 预算继续覆盖开始战斗后的长等待，以及提前进入 `auction_ended` 的情况
 - Step 6
   - 出价输入框出现：`1.5s`
   - `priceUpperLimit` 状态切换完成：`0.6s`
   - 输入框文本稳定：`0.6s`
   - 确认收敛：沿用 `WaitForBidConfirmationSettled(...)` 的 `3s`
+  - 同轮点击重试冷却：不得短于 `1000ms`
 - Step 7：保留当前约 `30s` 的窗口
 - Step 8：保留当前 cleanup 总预算量级，不在首轮激进收缩
 
@@ -284,7 +297,13 @@
 
 ### Failure Semantics
 
-继续保留 `ok=false` 表示真正失败，但失败字符串从自由文本收敛成稳定阶段码，便于 renderer、CLI 和日志定位。
+继续保留 `ok=false` 表示真正失败，但失败字符串从自由文本收敛成稳定阶段码。
+
+本轮设计对这些阶段码的收益边界要写清楚：
+
+- 直接收益：native log、CLI 输出、以及 Electron bridge 当前抛出的 `Error.message` 会更稳定、更可检索
+- 非目标：本轮不承诺 renderer 或 Elsa 对这些 `ok=false` 失败做新的结构化分支处理
+- 如果未来需要基于阶段码做 UI 级差异化处理，应作为后续单独消费者改造和测试任务
 
 建议格式：
 
@@ -320,6 +339,7 @@
 
 - 每轮轮询都检查 `stopIfRequested()`
 - 每轮轮询都保留 `authcode` 检测能力
+- 这条要求同样覆盖最终确认阶段；如果 `WaitForBidConfirmationSettled(...)` 保持通用实现，则 AutoAuction 侧必须用额外包装补齐
 - 只返回本轮需要的最小状态，不引入新的全局状态机容器
 
 ## Testing and Verification
@@ -336,6 +356,10 @@
 - 新阶段化错误码格式
 - `AutoAuction` 业务结果格式保持兼容
 - 新增等待 helper 中可抽成纯语义函数的部分
+- 同轮点击节流 / 重试策略对应的纯语义函数
+- 确认阶段 `authcode` 早返回对应的纯语义分支
+
+当前 `src/elsa/useElsaAutoOperation.test.js` 不被要求在本轮新增 `ok=false` 结构化分支覆盖，因为本 spec 不承诺消费者行为变化；如果后续要让 Elsa 或其他 renderer 基于阶段码做差异化处理，必须把那部分测试作为后续任务补齐。
 
 不要求把整段 `CmdAutoAuction` 直接做成单元测试。
 
@@ -352,6 +376,8 @@
 7. cleanup 能稳定回到 `main_lobby`
 8. `CancelAutoAuction` 在长等待阶段触发时，仍能快速中断
 9. `authcode` 在导航、开战等待、出价循环和 cleanup 中仍能及时返回 `authcode_required`
+10. 同一轮在确认未完成时，不会因为 `50ms` 到 `100ms` 观察轮询而高频重复点击 `Gaming/chujia`
+11. 一个 native `ok=false` 阶段码能通过当前 bridge 以稳定的错误消息形式暴露出来
 
 ## Acceptance Criteria
 
@@ -359,9 +385,11 @@
 
 - `CmdAutoAuction` 业务步骤中，不再依赖固定 `1000ms`、`1500ms`、`2000ms` 作为主等待手段
 - 目标状态提前出现时，流程必须提前推进
-- `WaitForBidConfirmationSettled(...)` 继续作为确认阶段主收敛点
+- 观察轮询和同轮出价点击频率已明确分离；缩短观察轮询后，同轮点击节流不短于当前 `1000ms` 基线
+- 开始战斗后的长等待仍归 Step 5 的现有预算负责，不新增比当前更严格的独立失败边界
+- `WaitForBidConfirmationSettled(...)` 继续作为确认阶段主收敛点，但该阶段不能成为 `authcode` 检测盲区
 - 现有业务终态结果保持兼容
-- 技术失败能定位到具体阶段，而不是只返回模糊自由文本
+- 技术失败能定位到具体阶段，而不是只返回模糊自由文本；本轮保证的是更稳定的错误字符串和日志，不包含新的 renderer 结构化分支行为
 - 本轮只修改 `CmdAutoAuction` 及其直接相关内部 helper，不扩散到其他聚合流程
 
 ## Out of Scope
