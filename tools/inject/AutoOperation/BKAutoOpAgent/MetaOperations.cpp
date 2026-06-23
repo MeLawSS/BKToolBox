@@ -645,8 +645,22 @@ static bool IsButtonNodeReady(Il2CppObject* anchor, const char* path) {
 }
 
 // ==========================================================================
-// AutoAuction polling helpers — replace fixed SleepInterruptibly with
-// state-driven polling. Every cycle checks stop and authcode.
+// AutoAuction polling types and helpers — replace fixed SleepInterruptibly
+// with state-driven polling. Every cycle checks stop and authcode.
+// ==========================================================================
+
+enum PollResult {
+    POLL_OK = 0,
+    POLL_TIMEOUT = 1,
+    POLL_AUTHCODE = 2,
+    POLL_INTERRUPTED = 3
+};
+
+struct PollWaitResult {
+    PollResult result;
+    int waitedMs;
+};
+
 // ==========================================================================
 
 // Poll until DetectScreenState().screen matches targetScreen.
@@ -1838,7 +1852,8 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         Il2CppObject* t = nullptr;
         if (FindVisiblePanelTransform("UIMain", nullptr, &t, errBuf, sizeof(errBuf)) != UI_PANEL_FOUND || !t) {
             if (stopIfRequested()) return;
-            SendResponse(c, id, false, errBuf[0] ? errBuf : "auto_auction_ui_error:wait_lobby_map"); return;
+            Logf("AutoAuction GoToBattlePrev panel lookup failed: %s", errBuf[0] ? errBuf : "UIMain not found");
+            SendResponse(c, id, false, "auto_auction_ui_error:wait_lobby_map"); return;
         }
         std::string clickErr;
         if (!ClickNode(t, "MainPanel/mask/Button", 0, &clickErr)) {
@@ -1866,7 +1881,8 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         Il2CppObject* t = nullptr;
         if (FindVisiblePanelTransform("BattlePrevPanel_Main", nullptr, &t, errBuf, sizeof(errBuf)) != UI_PANEL_FOUND || !t) {
             if (stopIfRequested()) return;
-            SendResponse(c, id, false, errBuf[0] ? errBuf : "auto_auction_ui_error:wait_lobby_room"); return;
+            Logf("AutoAuction EnterRoom panel lookup failed: %s", errBuf[0] ? errBuf : "BattlePrevPanel_Main not found");
+            SendResponse(c, id, false, "auto_auction_ui_error:wait_lobby_room"); return;
         }
         std::string clickErr;
         if (!ClickNode(t, roomPath, 0, &clickErr)) {

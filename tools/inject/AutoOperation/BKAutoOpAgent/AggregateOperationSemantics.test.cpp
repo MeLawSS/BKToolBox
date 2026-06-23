@@ -138,12 +138,6 @@ int main() {
     assert(ShouldSkipAutoCollectCabinetRewardForBusyFlow(true));
     assert(!ShouldSkipAutoCollectCabinetRewardForBusyFlow(false));
 
-    // PollResult values are distinct
-    assert(POLL_OK != POLL_TIMEOUT);
-    assert(POLL_OK != POLL_AUTHCODE);
-    assert(POLL_OK != POLL_INTERRUPTED);
-    assert(POLL_TIMEOUT != POLL_AUTHCODE);
-
     // Bid retry cooldown
     assert(GetAutoAuctionBidRetryCooldownMs() == 1000);
 
@@ -180,7 +174,10 @@ int main() {
     assert(BuildAutoAuctionTimeoutError("wait_lobby_map") == "auto_auction_timeout:wait_lobby_map");
     assert(BuildAutoAuctionTimeoutError("wait_lobby_room") == "auto_auction_timeout:wait_lobby_room");
     assert(BuildAutoAuctionTimeoutError("wait_skill_config") == "auto_auction_timeout:wait_skill_config");
+    assert(BuildAutoAuctionUiError("wait_lobby_map") == "auto_auction_ui_error:wait_lobby_map");
+    assert(BuildAutoAuctionUiError("wait_lobby_room") == "auto_auction_ui_error:wait_lobby_room");
     assert(BuildAutoAuctionUiError("wait_skill_config") == "auto_auction_ui_error:wait_skill_config");
+    assert(BuildAutoAuctionUiError("wait_cleanup_transition") == "auto_auction_ui_error:wait_cleanup_transition");
     assert(BuildAutoAuctionUiError("winner_recycle") == "auto_auction_ui_error:winner_recycle");
     assert(BuildAutoAuctionUnexpectedScreenError("warehouse") == "auto_auction_unexpected_screen:warehouse");
     assert(BuildAutoAuctionUnexpectedScreenError("") == "auto_auction_unexpected_screen:null");

@@ -222,19 +222,7 @@ inline bool ShouldDisableAutoAuctionPriceUpperLimit(
     return toggleFound && toggleActive && toggleInteractive && toggleOn;
 }
 
-// --- AutoAuction polling infrastructure ---
-
-enum PollResult {
-    POLL_OK = 0,
-    POLL_TIMEOUT = 1,
-    POLL_AUTHCODE = 2,
-    POLL_INTERRUPTED = 3
-};
-
-struct PollWaitResult {
-    PollResult result;
-    int waitedMs;
-};
+// --- AutoAuction shared constants ---
 
 // Bid-loop throttle: minimum interval between same-round click attempts.
 // The current implementation provides an implicit ~1000ms floor via the
