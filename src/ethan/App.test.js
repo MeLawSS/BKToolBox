@@ -5,7 +5,15 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import App from './App.vue';
-import { calculateEstimationResult, runPriceMatchPhase } from './estimation-worker-core.js';
+import {
+  appendStreamRunSource,
+  calculateEstimationResult,
+  createStreamRun,
+  finishStreamRun,
+  runPriceMatchPhase,
+} from './estimation-worker-core.js';
+import { __resetMonitorSwitchRuntimeForTest } from '../shared/useMonitorSwitch.js';
+import { __resetAutoOperationAgentSwitchRuntimeForTest } from '../shared/useAutoOperationAgentSwitch.js';
 
 const require = createRequire(import.meta.url);
 const { buildBidKingMonitorFacts } = require('../../lib/bidking-monitor-facts.js');
@@ -50,17 +58,79 @@ class FakeWorker {
     this.options = options;
     this.messages = [];
     this.terminate = vi.fn();
+    this.streamRuns = new Map();
     FakeWorker.instances.push(this);
   }
 
   postMessage(message) {
     this.messages.push(structuredClone(message));
-    if (message?.type !== 'start') return;
+    if (!message?.type) return;
+
+    // Stream protocol: start-stream-run / append-source / finish-stream-run
+    if (message.type === 'start-stream-run') {
+      this.streamRuns.set(message.runId, createStreamRun(message));
+      return;
+    }
+    if (message.type === 'append-source') {
+      const streamRun = this.streamRuns.get(message.runId);
+      if (!streamRun) return;
+      try {
+        const rows = appendStreamRunSource(streamRun, message.text);
+        rows.forEach((row, index) => {
+          this.onmessage?.({
+            data: {
+              type: 'stream-row', runId: message.runId, streamMode: streamRun.streamMode,
+              groupKey: streamRun.config.groupKey,
+              count: streamRun.rows.length - rows.length + index + 1, row,
+            },
+          });
+        });
+      } catch (error) {
+        this.streamRuns.delete(message.runId);
+        this.onmessage?.({ data: { type: 'error', runId: message.runId, error: error?.message || String(error) } });
+        this.onmessage?.({ data: { type: 'done', runId: message.runId } });
+      }
+      return;
+    }
+    if (message.type === 'finish-stream-run') {
+      const streamRun = this.streamRuns.get(message.runId);
+      if (!streamRun) return;
+      try {
+        const result = finishStreamRun(streamRun, message.reason);
+        if (result.finalRow) {
+          this.onmessage?.({
+            data: {
+              type: 'stream-row', runId: message.runId, streamMode: streamRun.streamMode,
+              groupKey: streamRun.config.groupKey, count: streamRun.rows.length, row: result.finalRow,
+            },
+          });
+        }
+        this.onmessage?.({ data: { type: 'stream-complete', runId: message.runId, ...result } });
+        this.onmessage?.({ data: { type: 'done', runId: message.runId } });
+      } catch (error) {
+        this.streamRuns.delete(message.runId);
+        this.onmessage?.({ data: { type: 'error', runId: message.runId, error: error?.message || String(error) } });
+        this.onmessage?.({ data: { type: 'done', runId: message.runId } });
+      } finally {
+        this.streamRuns.delete(message.runId);
+      }
+      return;
+    }
+
+    // Cancel
+    if (message.type === 'cancel') {
+      this.streamRuns.delete(message.runId);
+      return;
+    }
+
+    // Direct estimation: start
+    if (message.type !== 'start') return;
     const { runId, ...rest } = message;
     try {
       const result = calculateEstimationResult({ runId, ...rest });
       if (result.type === 'combined' || result.type === 'single') {
         const { type: mode, rows, ...startPayload } = result;
+        this.onmessage?.({ data: { type: 'start', runId, mode, ...startPayload, count: rows.length } });
         rows.forEach((row, index) => {
           this.onmessage?.({
             data: { type: 'row', runId, mode, index: index + 1, groupKeys: result.groupKeys, groupKey: result.groupKey, ...row },
@@ -224,6 +294,8 @@ describe('Ethan App', () => {
     mountedWrappers = [];
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    __resetMonitorSwitchRuntimeForTest();
+    __resetAutoOperationAgentSwitchRuntimeForTest();
   });
 
   it('loads price data and estimates from entered cells', async () => {
