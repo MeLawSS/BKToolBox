@@ -255,7 +255,35 @@ function getQuality(event) {
   return skill.quality || skill.qualities?.join('/') || skill.hitItemQuilityNames?.join('/') || boxQualities.join('/') || '-';
 }
 
+function isMarketPriceEvent(event) {
+  return getRawEvent(event)?.type === 'market_price';
+}
+
+function getMarketPriceEntries(event) {
+  const prices = getRawEvent(event)?.prices;
+  return Array.isArray(prices)
+    ? prices.filter((entry) => Number.isFinite(Number(entry?.price)) || Number.isFinite(Number(entry?.count)))
+    : [];
+}
+
+function formatPriceRange(minPrice, maxPrice) {
+  const min = Number(minPrice);
+  const max = Number(maxPrice);
+  const hasMin = Number.isFinite(min);
+  const hasMax = Number.isFinite(max);
+  if (hasMin && hasMax) return min === max ? formatNumber(min) : `${formatNumber(min)} - ${formatNumber(max)}`;
+  if (hasMin) return formatNumber(min);
+  if (hasMax) return formatNumber(max);
+  return '-';
+}
+
 function getHitSummary(event) {
+  if (isMarketPriceEvent(event)) {
+    const totalCount = Number(getRawEvent(event)?.totalCount);
+    if (Number.isFinite(totalCount)) return formatNumber(totalCount);
+    const tierCount = getMarketPriceEntries(event).length;
+    return tierCount ? formatNumber(tierCount) : '-';
+  }
   const skill = getRawEvent(event)?.skill || {};
   const hitBoxes = getHitBoxes(event);
   if (hitBoxes.length) return `${hitBoxes.length}/${formatNumber(skill.hitBoxCount || hitBoxes.length)}`;
@@ -266,6 +294,9 @@ function getHitSummary(event) {
 }
 
 function getPriceSummary(event) {
+  if (isMarketPriceEvent(event)) {
+    return formatPriceRange(getRawEvent(event)?.minPrice, getRawEvent(event)?.maxPrice);
+  }
   const skill = getRawEvent(event)?.skill || {};
   if (skill.hitPrice ?? skill.hitItemTotalPrice) return formatNumber(skill.hitPrice ?? skill.hitItemTotalPrice);
   if (skill.allHitItemAvgPrice !== undefined) return `${t('monitor.metrics.avgItemPrice')} ${formatNumber(skill.allHitItemAvgPrice)}`;
@@ -275,6 +306,16 @@ function getPriceSummary(event) {
 }
 
 function getDetailRows(event) {
+  if (isMarketPriceEvent(event)) {
+    return getMarketPriceEntries(event).map((entry, index) => ({
+      id: `${getEventUiKey(event)}-${index}`,
+      label: t('monitor.marketEvent.tier', { index: index + 1 }),
+      item: formatNumber(entry.price),
+      quality: t('monitor.marketEvent.count', { count: formatNumber(entry.count) }),
+      size: '',
+      price: '',
+    }));
+  }
   const hitBoxes = getHitBoxes(event);
   return hitBoxes.map((box, index) => ({
     id: `${getEventUiKey(event)}-${index}`,
@@ -287,6 +328,24 @@ function getDetailRows(event) {
 }
 
 function getMetricRows(event) {
+  if (isMarketPriceEvent(event)) {
+    const rawEvent = getRawEvent(event);
+    const rows = [
+      Number.isFinite(Number(rawEvent?.minPrice))
+        ? { key: 'market-min-price', label: t('monitor.marketEvent.minPrice'), value: formatNumber(rawEvent.minPrice) }
+        : null,
+      Number.isFinite(Number(rawEvent?.maxPrice))
+        ? { key: 'market-max-price', label: t('monitor.marketEvent.maxPrice'), value: formatNumber(rawEvent.maxPrice) }
+        : null,
+      Number.isFinite(Number(rawEvent?.totalCount))
+        ? { key: 'market-total-count', label: t('monitor.marketEvent.totalCount'), value: formatNumber(rawEvent.totalCount) }
+        : null,
+      getMarketPriceEntries(event).length
+        ? { key: 'market-tier-count', label: t('monitor.marketEvent.tierCount'), value: formatNumber(getMarketPriceEntries(event).length) }
+        : null,
+    ];
+    return rows.filter(Boolean);
+  }
   const skill = getRawEvent(event)?.skill || {};
   return [
     skill.allHitItemAvgBoxIndex !== undefined
@@ -474,7 +533,7 @@ onBeforeUnmount(() => {
           <span></span>
         </div>
         <div v-for="row in getDetailRows(selectedEvent)" :key="row.id" class="detail-row">
-          <span>box {{ row.box }}</span>
+          <span>{{ row.label || `box ${row.box}` }}</span>
           <strong>{{ row.item }}</strong>
           <span>{{ row.quality }}</span>
           <span>{{ row.size }}</span>

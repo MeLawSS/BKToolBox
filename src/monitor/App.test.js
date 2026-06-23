@@ -166,7 +166,7 @@ describe('Monitor App', () => {
     const wrapper = await mountApp();
 
     expect(wrapper.text()).toContain('信息监控');
-    expect(wrapper.text()).toContain('监控 BidKing 信息流，展示捕获到的事件、交易所价格和解析状态。');
+    expect(wrapper.text()).toContain('监控 BidKing 信息流，展示捕获到的事件和解析状态。');
     expect(wrapper.text()).toContain('事件');
     expect(wrapper.text()).not.toContain('实时对局监控');
     expect(wrapper.text()).not.toContain('通过 Windows pktmon 分批抓取 BidKing TCP 明文流，解析对局中的技能揭露信息。');
@@ -392,6 +392,13 @@ describe('Monitor App', () => {
         key: 'market:1022001:99',
         itemCid: 1022001,
         itemName: '急救毯',
+        minPrice: 1155,
+        maxPrice: 1502,
+        totalCount: 355,
+        prices: [
+          { price: 1155, count: 105 },
+          { price: 1502, count: 5 },
+        ],
       },
     });
     await flushPromises();
@@ -400,6 +407,15 @@ describe('Monitor App', () => {
     expect(fetch.mock.calls.some(([url]) => String(url).startsWith('/api/market-prices/'))).toBe(false);
     expect(wrapper.find('#monitor-events').text()).toContain('急救毯');
     expect(wrapper.find('#monitor-events').text()).not.toContain('1022001');
+    expect(wrapper.find('#monitor-events').text()).toContain('355');
+    expect(wrapper.find('#monitor-events').text()).toContain('1,155 - 1,502');
+    expect(wrapper.find('#monitor-detail').text()).toContain('最近最低价');
+    expect(wrapper.find('#monitor-detail').text()).toContain('最高价');
+    expect(wrapper.find('#monitor-detail').text()).toContain('挂单总数');
+    expect(wrapper.find('#monitor-detail').text()).toContain('价格档位数');
+    expect(wrapper.find('#monitor-detail').text()).toContain('档位 1');
+    expect(wrapper.find('#monitor-detail').text()).toContain('1,155');
+    expect(wrapper.find('#monitor-detail').text()).toContain('105');
     expect(wrapper.find('#market-price-table').exists()).toBe(false);
     expect(wrapper.find('#market-price-detail').exists()).toBe(false);
   });
