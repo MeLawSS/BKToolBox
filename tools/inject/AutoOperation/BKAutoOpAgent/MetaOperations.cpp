@@ -644,6 +644,191 @@ static bool IsButtonNodeReady(Il2CppObject* anchor, const char* path) {
     return !m.empty() && m[0].active && m[0].components.button;
 }
 
+// ==========================================================================
+// AutoAuction polling helpers — replace fixed SleepInterruptibly with
+// state-driven polling. Every cycle checks stop and authcode.
+// ==========================================================================
+
+// Poll until DetectScreenState().screen matches targetScreen.
+// Returns POLL_AUTHCODE if an authcode screen is detected mid-poll.
+static PollWaitResult WaitForScreen(
+    const char* targetScreen,
+    int timeoutMs,
+    int pollIntervalMs)
+{
+    DWORD startedAt = GetTickCount();
+    for (;;) {
+        if (IsAutoAuctionStopRequested()) {
+            PollWaitResult r = { POLL_INTERRUPTED, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+        ScreenState state = DetectScreenState();
+        if (IsAutoAuctionVerificationScreen(state.screen)) {
+            PollWaitResult r = { POLL_AUTHCODE, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+        if (strcmp(state.screen, targetScreen) == 0) {
+            PollWaitResult r = { POLL_OK, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+        DWORD elapsed = GetTickCount() - startedAt;
+        if ((int)elapsed >= timeoutMs) {
+            PollWaitResult r = { POLL_TIMEOUT, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+        if (!SleepInterruptibly(pollIntervalMs)) {
+            PollWaitResult r = { POLL_INTERRUPTED, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+    }
+}
+
+// Poll until the current screen is NOT equal to leavingScreen.
+// Used after clicking a close/transition button to confirm the transition started.
+static PollWaitResult WaitForScreenTransition(
+    const char* leavingScreen,
+    int timeoutMs,
+    int pollIntervalMs)
+{
+    DWORD startedAt = GetTickCount();
+    for (;;) {
+        if (IsAutoAuctionStopRequested()) {
+            PollWaitResult r = { POLL_INTERRUPTED, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+        ScreenState state = DetectScreenState();
+        if (IsAutoAuctionVerificationScreen(state.screen)) {
+            PollWaitResult r = { POLL_AUTHCODE, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+        if (strcmp(state.screen, leavingScreen) != 0) {
+            PollWaitResult r = { POLL_OK, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+        DWORD elapsed = GetTickCount() - startedAt;
+        if ((int)elapsed >= timeoutMs) {
+            PollWaitResult r = { POLL_TIMEOUT, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+        if (!SleepInterruptibly(pollIntervalMs)) {
+            PollWaitResult r = { POLL_INTERRUPTED, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+    }
+}
+
+// Poll until a node under the given panel reaches active+interactive state.
+// panelName and nodePath follow the same conventions as clickOnPanel.
+static PollWaitResult WaitForNodeReady(
+    const char* panelName,
+    const char* nodePath,
+    int timeoutMs,
+    int pollIntervalMs)
+{
+    DWORD startedAt = GetTickCount();
+    for (;;) {
+        if (IsAutoAuctionStopRequested()) {
+            PollWaitResult r = { POLL_INTERRUPTED, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+        // authcode check via screen detection
+        ScreenState state = DetectScreenState();
+        if (IsAutoAuctionVerificationScreen(state.screen)) {
+            PollWaitResult r = { POLL_AUTHCODE, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+
+        char err[128] = {};
+        Il2CppObject* t = nullptr;
+        if (FindVisiblePanelTransform(panelName, nullptr, &t, err, sizeof(err)) == UI_PANEL_FOUND && t) {
+            std::vector<UiNodeSnapshot> matches;
+            ResolveUiNodeMatches(t, nodePath, UI_PATH_EXACT, 1, &matches);
+            if (!matches.empty() && matches[0].active && matches[0].interactive) {
+                PollWaitResult r = { POLL_OK, (int)(GetTickCount() - startedAt) };
+                return r;
+            }
+        }
+        DWORD elapsed = GetTickCount() - startedAt;
+        if ((int)elapsed >= timeoutMs) {
+            PollWaitResult r = { POLL_TIMEOUT, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+        if (!SleepInterruptibly(pollIntervalMs)) {
+            PollWaitResult r = { POLL_INTERRUPTED, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+    }
+}
+
+// Poll until a toggle reaches the expected on/off state.
+// transform: the root transform to resolve nodePath against.
+static PollWaitResult WaitForToggleState(
+    Il2CppObject* transform,
+    const char* nodePath,
+    bool expectedOn,
+    int timeoutMs,
+    int pollIntervalMs)
+{
+    DWORD startedAt = GetTickCount();
+    for (;;) {
+        if (IsAutoAuctionStopRequested()) {
+            PollWaitResult r = { POLL_INTERRUPTED, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+        // authcode check
+        ScreenState state = DetectScreenState();
+        if (IsAutoAuctionVerificationScreen(state.screen)) {
+            PollWaitResult r = { POLL_AUTHCODE, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+
+        std::vector<UiNodeSnapshot> matches;
+        ResolveUiNodeMatches(transform, nodePath, UI_PATH_EXACT, 1, &matches);
+        if (!matches.empty()) {
+            bool toggleOn = false;
+            if (ReadToggleValue(matches[0].components, &toggleOn) && toggleOn == expectedOn) {
+                PollWaitResult r = { POLL_OK, (int)(GetTickCount() - startedAt) };
+                return r;
+            }
+        }
+        DWORD elapsed = GetTickCount() - startedAt;
+        if ((int)elapsed >= timeoutMs) {
+            PollWaitResult r = { POLL_TIMEOUT, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+        if (!SleepInterruptibly(pollIntervalMs)) {
+            PollWaitResult r = { POLL_INTERRUPTED, (int)(GetTickCount() - startedAt) };
+            return r;
+        }
+    }
+}
+
+// Click a node and then poll until the target screen is reached.
+// Returns the PollWaitResult from the post-click wait.
+// If click itself fails, sets *clickOk=false and returns immediately.
+static PollWaitResult ClickAndWait(
+    Il2CppObject* transform,
+    const char* nodePath,
+    const char* targetScreen,
+    int timeoutMs,
+    int pollIntervalMs,
+    bool* clickOk,
+    std::string* clickErr)
+{
+    bool ok = ClickNode(transform, nodePath, 0, clickErr);
+    if (clickOk) *clickOk = ok;
+    if (!ok) {
+        PollWaitResult r = { POLL_TIMEOUT, 0 };
+        return r;
+    }
+    if (targetScreen && targetScreen[0]) {
+        return WaitForScreen(targetScreen, timeoutMs, pollIntervalMs);
+    }
+    // No target screen to wait for — return OK immediately after click
+    PollWaitResult r = { POLL_OK, 0 };
+    return r;
+}
+
 struct BidConfirmFlowResult {
     bool completed = false;
     bool hardError = false;

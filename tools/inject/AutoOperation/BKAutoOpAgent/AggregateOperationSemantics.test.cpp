@@ -138,5 +138,21 @@ int main() {
     assert(ShouldSkipAutoCollectCabinetRewardForBusyFlow(true));
     assert(!ShouldSkipAutoCollectCabinetRewardForBusyFlow(false));
 
+    // PollResult values are distinct
+    assert(POLL_OK != POLL_TIMEOUT);
+    assert(POLL_OK != POLL_AUTHCODE);
+    assert(POLL_OK != POLL_INTERRUPTED);
+    assert(POLL_TIMEOUT != POLL_AUTHCODE);
+
+    // Bid retry cooldown
+    assert(GetAutoAuctionBidRetryCooldownMs() == 1000);
+
+    // Step 5 staged polling constants
+    assert(GetWaitForAuctionInProgressFastWindowMs() == 3000);
+    assert(GetWaitForAuctionInProgressMediumWindowMs() == 15000);
+    assert(GetWaitForAuctionInProgressPollFastMs() == 100);
+    assert(GetWaitForAuctionInProgressPollMediumMs() == 500);
+    assert(GetWaitForAuctionInProgressPollSlowMs() == 1500);
+
     return 0;
 }

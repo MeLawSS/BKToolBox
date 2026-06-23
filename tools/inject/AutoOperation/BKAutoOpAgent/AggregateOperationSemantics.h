@@ -222,6 +222,38 @@ inline bool ShouldDisableAutoAuctionPriceUpperLimit(
     return toggleFound && toggleActive && toggleInteractive && toggleOn;
 }
 
+// --- AutoAuction polling infrastructure ---
+
+enum PollResult {
+    POLL_OK = 0,
+    POLL_TIMEOUT = 1,
+    POLL_AUTHCODE = 2,
+    POLL_INTERRUPTED = 3
+};
+
+struct PollWaitResult {
+    PollResult result;
+    int waitedMs;
+};
+
+// Bid-loop throttle: minimum interval between same-round click attempts.
+// The current implementation provides an implicit ~1000ms floor via the
+// per-iteration SleepInterruptibly(1000). The spec requires this floor
+// be preserved even when observation polling runs faster.
+inline int GetAutoAuctionBidRetryCooldownMs() {
+    return 1000;
+}
+
+// Step 5 staged-polling intervals (spec §Timeouts and Polling Policy):
+//   Fast initial window (first 3000ms):  100ms poll interval
+//   Medium window (3000ms – 15000ms):    500ms poll interval
+//   Sustained wait (>15000ms):          1500ms poll interval
+inline int GetWaitForAuctionInProgressFastWindowMs()   { return 3000; }
+inline int GetWaitForAuctionInProgressMediumWindowMs() { return 15000; }
+inline int GetWaitForAuctionInProgressPollFastMs()     { return 100; }
+inline int GetWaitForAuctionInProgressPollMediumMs()   { return 500; }
+inline int GetWaitForAuctionInProgressPollSlowMs()     { return 1500; }
+
 inline int ResolveAutoAuctionReportedExpectedPrice(
     int lastExpectedPrice,
     int notifiedExpectedPrice
