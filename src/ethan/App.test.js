@@ -443,20 +443,20 @@ describe('Ethan App', () => {
   it('starts and stops the backend monitor from the topbar switch', async () => {
     const wrapper = await mountApp();
 
-    await wrapper.find('#ethan-monitor-switch').trigger('click');
+    await wrapper.find('[data-testid="topbar-monitor-switch"]').trigger('click');
     await flushPromises();
 
     expect(fetch).toHaveBeenCalledWith('/api/bidking-monitor/start', expect.objectContaining({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     }));
-    expect(wrapper.find('#ethan-monitor-switch').attributes('aria-pressed')).toBe('true');
+    expect(wrapper.find('[data-testid="topbar-monitor-switch"]').attributes('aria-pressed')).toBe('true');
 
-    await wrapper.find('#ethan-monitor-switch').trigger('click');
+    await wrapper.find('[data-testid="topbar-monitor-switch"]').trigger('click');
     await flushPromises();
 
     expect(fetch).toHaveBeenCalledWith('/api/bidking-monitor/stop', { method: 'POST' });
-    expect(wrapper.find('#ethan-monitor-switch').attributes('aria-pressed')).toBe('false');
+    expect(wrapper.find('[data-testid="topbar-monitor-switch"]').attributes('aria-pressed')).toBe('false');
   });
 
   it('fills 1002081 outlines and shows revealed types from monitor events', async () => {
