@@ -1719,8 +1719,8 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         return ok;
     };
 
-    // Step 1: navigate to main_lobby
-    for (int attempt = 0; ; attempt++) {
+    // Step 1: navigate to main_lobby (polling-based)
+    for (int attempt = 0; attempt < 10; attempt++) {
         if (stopIfRequested()) return;
         ScreenState cur = DetectScreenState();
         if (IsAutoAuctionVerificationScreen(cur.screen)) {
@@ -1729,54 +1729,73 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             return;
         }
         if (strcmp(cur.screen, "main_lobby") == 0) break;
-        if (attempt >= 10) { SendResponse(c, id, false, "could not reach main_lobby"); return; }
         Il2CppObject* t = nullptr; const char* p = nullptr;
-        if (ResolveCloseTarget(cur, &t, &p)) { std::string e; ClickNode(t, p, 0, &e); }
-        if (!SleepInterruptibly(1500)) { stopIfRequested(); return; }
-    }
-
-    // Step 2: GoToBattlePrev + wait for auction_lobby_map
-    if (!clickOnPanel("UIMain", "MainPanel/mask/Button", 1500)) {
-        if (stopIfRequested()) return;
-        SendResponse(c, id, false, errBuf[0] ? errBuf : "GoToBattlePrev failed"); return;
-    }
-    {
-        bool found = false;
-        for (int i = 0; i < 15; i++) {
-            if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
-            ScreenState state = DetectScreenState();
-            if (IsAutoAuctionVerificationScreen(state.screen)) {
-                Logf("AutoAuction interrupted: AuthCode_Main detected while waiting for auction_lobby_map");
+        if (ResolveCloseTarget(cur, &t, &p)) {
+            std::string e;
+            ClickNode(t, p, 0, &e);
+            // Poll until the current screen changes — up to 1500ms at 100ms intervals
+            PollWaitResult wr = WaitForScreenTransition(cur.screen, 1500, 100);
+            if (wr.result == POLL_AUTHCODE) {
+                Logf("AutoAuction interrupted: AuthCode_Main detected while navigating to main_lobby");
                 sendAuthCodeRequired();
                 return;
             }
-            if (strcmp(state.screen, "auction_lobby_map") == 0) { found = true; break; }
+            if (wr.result == POLL_INTERRUPTED) { stopIfRequested(); return; }
+            // POLL_OK or POLL_TIMEOUT: loop back and re-detect screen
+        } else {
+            // No close target found — short poll then re-detect
+            if (!SleepInterruptibly(200)) { stopIfRequested(); return; }
         }
-        if (!found) { SendResponse(c, id, false, "timeout waiting for auction_lobby_map"); return; }
+        if (attempt == 9) {
+            SendResponse(c, id, false, "auto_auction_timeout:wait_main_lobby");
+            return;
+        }
     }
 
-    // Step 3: EnterRoom + wait for auction_lobby_room
+    // Step 2: GoToBattlePrev + wait for auction_lobby_map (polling-based)
+    {
+        Il2CppObject* t = nullptr;
+        if (FindVisiblePanelTransform("UIMain", nullptr, &t, errBuf, sizeof(errBuf)) != UI_PANEL_FOUND || !t) {
+            if (stopIfRequested()) return;
+            SendResponse(c, id, false, errBuf[0] ? errBuf : "auto_auction_ui_error:wait_lobby_map"); return;
+        }
+        std::string clickErr;
+        ClickNode(t, "MainPanel/mask/Button", 0, &clickErr);
+        PollWaitResult wr = WaitForScreen("auction_lobby_map", 15000, 100);
+        if (wr.result == POLL_AUTHCODE) {
+            Logf("AutoAuction interrupted: AuthCode_Main detected while waiting for auction_lobby_map");
+            sendAuthCodeRequired();
+            return;
+        }
+        if (wr.result == POLL_INTERRUPTED) { stopIfRequested(); return; }
+        if (wr.result == POLL_TIMEOUT) {
+            SendResponse(c, id, false, "auto_auction_timeout:wait_lobby_map");
+            return;
+        }
+    }
+
+    // Step 3: EnterRoom + wait for auction_lobby_room (polling-based)
     {
         char roomPath[128];
         snprintf(roomPath, sizeof(roomPath), "Panel_1/bg/MapContainer/MapItem_%d/Image (1)", roomId);
-        if (!clickOnPanel("BattlePrevPanel_Main", roomPath, 2000)) {
+        Il2CppObject* t = nullptr;
+        if (FindVisiblePanelTransform("BattlePrevPanel_Main", nullptr, &t, errBuf, sizeof(errBuf)) != UI_PANEL_FOUND || !t) {
             if (stopIfRequested()) return;
-            SendResponse(c, id, false, errBuf[0] ? errBuf : "EnterRoom failed"); return;
+            SendResponse(c, id, false, errBuf[0] ? errBuf : "auto_auction_ui_error:wait_lobby_room"); return;
         }
-    }
-    {
-        bool found = false;
-        for (int i = 0; i < 15; i++) {
-            if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
-            ScreenState state = DetectScreenState();
-            if (IsAutoAuctionVerificationScreen(state.screen)) {
-                Logf("AutoAuction interrupted: AuthCode_Main detected while waiting for auction_lobby_room");
-                sendAuthCodeRequired();
-                return;
-            }
-            if (strcmp(state.screen, "auction_lobby_room") == 0) { found = true; break; }
+        std::string clickErr;
+        ClickNode(t, roomPath, 0, &clickErr);
+        PollWaitResult wr = WaitForScreen("auction_lobby_room", 15000, 100);
+        if (wr.result == POLL_AUTHCODE) {
+            Logf("AutoAuction interrupted: AuthCode_Main detected while waiting for auction_lobby_room");
+            sendAuthCodeRequired();
+            return;
         }
-        if (!found) { SendResponse(c, id, false, "timeout waiting for auction_lobby_room"); return; }
+        if (wr.result == POLL_INTERRUPTED) { stopIfRequested(); return; }
+        if (wr.result == POLL_TIMEOUT) {
+            SendResponse(c, id, false, "auto_auction_timeout:wait_lobby_room");
+            return;
+        }
     }
 
     {
