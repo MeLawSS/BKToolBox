@@ -815,6 +815,96 @@ describe('Price App', () => {
     expect(fetch).toHaveBeenCalledWith('/api/price-history/item/1022002?limit=1000');
   });
 
+  it('captures collection cids to file from the Collections tab and refreshes the panel', async () => {
+    mockFetch({
+      collectionsResponses: [
+        [1022002],
+        [1022002, 1022003],
+      ],
+      latestResponses: [
+        latestRows,
+        latestRows.map((row) => row.itemCid === 1022003
+          ? { ...row, observedAt: '2026-05-28T13:10:00.000Z', minPrice: 2400 }
+          : row),
+      ],
+    });
+    const captureCollectionCidsToFile = vi.fn().mockResolvedValue({
+      ok: true,
+      value: {
+        itemCids: [1022002, 1022003],
+        count: 2,
+        outputPath: 'C:/Users/test/Documents/BKPriceHistory/Cids.json',
+      },
+    });
+    window.bidkingDesktop = {
+      isDesktop: true,
+      runAutoOperationCommand: vi.fn(),
+      captureCollectionCidsToFile,
+    };
+    const wrapper = await mountApp();
+
+    await wrapper.find('[data-testid="price-tab-collections"]').trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-testid="price-collections-capture"]').exists()).toBe(true);
+
+    await wrapper.find('[data-testid="price-collections-capture"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(captureCollectionCidsToFile).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls.filter(([url]) => String(url).endsWith('/api/price-history/latest'))).toHaveLength(2);
+    expect(fetch.mock.calls.filter(([url]) => String(url).endsWith('/api/price-history/collections'))).toHaveLength(2);
+    expect(wrapper.find('[data-testid="price-collections"]').text()).toContain(getTestCollectible(1022003).name);
+  });
+
+  it('disables collections capture and refresh while writing collection cids', async () => {
+    const deferred = createDeferred();
+    const captureCollectionCidsToFile = vi.fn(() => deferred.promise);
+    window.bidkingDesktop = {
+      isDesktop: true,
+      runAutoOperationCommand: vi.fn(),
+      captureCollectionCidsToFile,
+    };
+    const wrapper = await mountApp();
+
+    await wrapper.find('[data-testid="price-tab-collections"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="price-collections-capture"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="price-collections-capture"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.find('[data-testid="price-collections-refresh"]').attributes('disabled')).toBeDefined();
+
+    deferred.resolve({
+      ok: true,
+      value: {
+        itemCids: [1022002],
+        count: 1,
+        outputPath: 'C:/Users/test/Documents/BKPriceHistory/Cids.json',
+      },
+    });
+    await flushPromises();
+  });
+
+  it('shows an error and skips refresh when collections capture fails', async () => {
+    window.bidkingDesktop = {
+      isDesktop: true,
+      runAutoOperationCommand: vi.fn(),
+      captureCollectionCidsToFile: vi.fn().mockRejectedValue(new Error('capture failed')),
+    };
+    const wrapper = await mountApp();
+
+    await wrapper.find('[data-testid="price-tab-collections"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="price-collections-capture"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.text()).toContain('capture failed');
+    expect(fetch.mock.calls.filter(([url]) => String(url).endsWith('/api/price-history/collections'))).toHaveLength(1);
+    expect(fetch.mock.calls.filter(([url]) => String(url).endsWith('/api/price-history/latest'))).toHaveLength(1);
+  });
+
   it('refreshes the selected item latest price and updates the trend history', async () => {
     mockFetch({
       latestResponses: [

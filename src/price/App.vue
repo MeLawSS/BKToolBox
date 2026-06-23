@@ -21,6 +21,7 @@ const selectedItemTab = ref(null);
 const selectedHistory = ref([]);
 const searchText = ref('');
 const errorText = ref('');
+const isCapturingCollections = ref(false);
 const isRefreshingCollections = ref(false);
 const isRefreshingWarehouse = ref(false);
 const isRefreshingItem = ref(false);
@@ -163,6 +164,12 @@ const canRefreshWarehouse = computed(() =>
   Boolean(
     window.bidkingDesktop?.isDesktop
     && typeof window.bidkingDesktop?.runAutoOperationCommand === 'function',
+  ));
+
+const canCaptureCollections = computed(() =>
+  Boolean(
+    window.bidkingDesktop?.isDesktop
+    && typeof window.bidkingDesktop?.captureCollectionCidsToFile === 'function',
   ));
 
 const listingDefaultPricePercent = computed(() =>
@@ -368,6 +375,28 @@ async function refreshCollections() {
     errorText.value = getErrorMessage(error);
   } finally {
     isRefreshingCollections.value = false;
+  }
+}
+
+async function captureCollectionsToFile() {
+  if (isCapturingCollections.value || isRefreshingCollections.value) return;
+  if (!canCaptureCollections.value) {
+    errorText.value = t('price.captureCollectionsUnavailable');
+    return;
+  }
+
+  isCapturingCollections.value = true;
+  errorText.value = '';
+  try {
+    const result = await window.bidkingDesktop.captureCollectionCidsToFile();
+    if (result?.ok === false) {
+      throw new Error(result.error || t('price.captureCollectionsUnavailable'));
+    }
+    await refreshCollections();
+  } catch (error) {
+    errorText.value = getErrorMessage(error);
+  } finally {
+    isCapturingCollections.value = false;
   }
 }
 
@@ -748,15 +777,26 @@ onMounted(() => {
             <h2>{{ t('price.collections') }}</h2>
             <p>{{ t('price.collectionsSub') }}</p>
           </div>
-          <button
-            class="ghost-button"
-            type="button"
-            data-testid="price-collections-refresh"
-            :disabled="isRefreshingCollections"
-            @click="refreshCollections"
-          >
-            {{ isRefreshingCollections ? t('price.refreshingCollections') : t('price.refreshCollections') }}
-          </button>
+          <div class="panel-actions">
+            <button
+              class="ghost-button"
+              type="button"
+              data-testid="price-collections-capture"
+              :disabled="isCapturingCollections || isRefreshingCollections"
+              @click="captureCollectionsToFile"
+            >
+              {{ isCapturingCollections ? t('price.capturingCollections') : t('price.captureCollections') }}
+            </button>
+            <button
+              class="ghost-button"
+              type="button"
+              data-testid="price-collections-refresh"
+              :disabled="isCapturingCollections || isRefreshingCollections"
+              @click="refreshCollections"
+            >
+              {{ isRefreshingCollections ? t('price.refreshingCollections') : t('price.refreshCollections') }}
+            </button>
+          </div>
         </header>
         <div class="table-wrap">
           <table>
