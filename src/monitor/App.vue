@@ -9,7 +9,7 @@ const DEFAULT_PORT = 10000;
 const DEFAULT_BATCH_SECONDS = 2;
 const MAX_EVENTS = 500;
 
-const { t, isEnglish } = useI18n();
+const { t } = useI18n();
 const monitor = useMonitorSwitch();
 
 const form = reactive({
@@ -27,23 +27,15 @@ const filterText = ref('');
 const fullOnly = ref(false);
 const qualityOnly = ref(false);
 const aggregateOnly = ref(false);
-const marketPrices = ref([]);
 const collectiblesByCid = ref({});
-const selectedMarketItemCid = ref(null);
-const marketHistory = ref([]);
 const actionError = ref('');
 const driverActionMessage = ref('');
 const driverActionPending = ref('');
 let removeMonitorSubscription = null;
 let removeMonitorStartOptionsResolver = null;
-let marketHistoryRequestId = 0;
 const statusText = monitor.statusText;
 const driverStatusText = computed(() => t(`monitor.driver.states.${driverStatus.value.state || 'unknown'}`));
 const selectedEvent = computed(() => events.value.find((event) => getEventUiKey(event) === selectedKey.value) || events.value[0] || null);
-const selectedMarketPrice = computed(() =>
-  marketPrices.value.find((item) => item.itemCid === selectedMarketItemCid.value) || marketPrices.value[0] || null
-);
-const latestMarketTiers = computed(() => marketHistory.value.at(-1)?.tiers || []);
 const filteredEvents = computed(() => {
   const query = filterText.value.trim().toLowerCase();
   return events.value.filter((event) => {
@@ -74,12 +66,6 @@ function formatNumber(value) {
   return Number.isFinite(Number(value)) ? Number(value).toLocaleString('en-US') : '-';
 }
 
-function formatDateTime(value) {
-  if (!value) return '-';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString(isEnglish.value ? 'en-US' : 'zh-CN');
-}
-
 function getErrorMessage(error) {
   return error?.message || String(error);
 }
@@ -92,25 +78,6 @@ async function fetchDriverStatus() {
   } catch (error) {
     actionError.value = getErrorMessage(error);
     driverStatus.value = { state: 'error', installed: false, usable: false, message: getErrorMessage(error) };
-  }
-}
-
-async function fetchMarketPrices() {
-  try {
-    const response = await fetch('/api/market-prices/latest');
-    if (!response.ok) throw new Error(await response.text());
-    const payload = await response.json();
-    marketPrices.value = Array.isArray(payload.items) ? payload.items : [];
-    if (!marketPrices.value.some((item) => item.itemCid === selectedMarketItemCid.value)) {
-      selectedMarketItemCid.value = marketPrices.value[0]?.itemCid ?? null;
-    }
-    if (selectedMarketItemCid.value) {
-      await fetchMarketHistory(selectedMarketItemCid.value);
-    } else {
-      marketHistory.value = [];
-    }
-  } catch (error) {
-    actionError.value = getErrorMessage(error);
   }
 }
 
@@ -140,34 +107,6 @@ async function fetchCollectibles() {
 function getCollectibleNameByCid(itemCid) {
   const cid = Number(itemCid);
   return Number.isFinite(cid) ? collectiblesByCid.value[cid]?.name : undefined;
-}
-
-function getMarketItemName(item) {
-  return item?.itemName || getCollectibleNameByCid(item?.itemCid) || item?.itemCid || '-';
-}
-
-async function fetchMarketHistory(itemCid) {
-  if (!itemCid) return;
-  const requestedItemCid = Number(itemCid);
-  const requestId = ++marketHistoryRequestId;
-  try {
-    const response = await fetch(`/api/market-prices/history?itemCid=${encodeURIComponent(itemCid)}&limit=50`);
-    if (!response.ok) throw new Error(await response.text());
-    const payload = await response.json();
-    if (requestId === marketHistoryRequestId && selectedMarketItemCid.value === requestedItemCid) {
-      marketHistory.value = Array.isArray(payload.history) ? payload.history : [];
-    }
-  } catch (error) {
-    if (requestId === marketHistoryRequestId) {
-      actionError.value = getErrorMessage(error);
-    }
-  }
-}
-
-async function selectMarketPrice(item) {
-  selectedMarketItemCid.value = item.itemCid;
-  marketHistory.value = [];
-  await fetchMarketHistory(item.itemCid);
 }
 
 async function runDriverAction(action) {
@@ -227,19 +166,13 @@ async function stopMonitor() {
 }
 
 function pushEvent(event) {
-  const rawEvent = getRawEvent(event);
-  const isMarketPriceEvent = rawEvent?.type === 'market_price';
   const eventUiKey = getEventUiKey(event);
   if (!eventUiKey || events.value.some((existing) => getEventUiKey(existing) === eventUiKey)) {
-    if (isMarketPriceEvent) fetchMarketPrices();
     return;
   }
   events.value = [event, ...events.value].slice(0, MAX_EVENTS);
   if (!selectedKey.value) {
     selectedKey.value = eventUiKey;
-  }
-  if (isMarketPriceEvent) {
-    fetchMarketPrices();
   }
 }
 
@@ -392,7 +325,6 @@ onMounted(() => {
   });
   fetchDriverStatus();
   fetchCollectibles();
-  fetchMarketPrices();
 });
 
 onBeforeUnmount(() => {
@@ -560,74 +492,5 @@ onBeforeUnmount(() => {
       </section>
     </section>
 
-    <section class="market-panel">
-      <header>
-        <h2>{{ t('monitor.market.title') }}</h2>
-        <button class="ghost-button" type="button" @click="fetchMarketPrices">{{ t('monitor.market.refresh') }}</button>
-      </header>
-      <div class="table-wrap">
-        <table id="market-price-table">
-          <caption>{{ t('monitor.market.title') }}</caption>
-          <thead>
-            <tr>
-              <th>{{ t('monitor.market.item') }}</th>
-              <th>{{ t('monitor.market.minPrice') }}</th>
-              <th>{{ t('monitor.market.maxPrice') }}</th>
-              <th>{{ t('monitor.market.totalCount') }}</th>
-              <th>{{ t('monitor.market.tierCount') }}</th>
-              <th>{{ t('monitor.market.updatedAt') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="!marketPrices.length">
-              <td colspan="6" class="empty-cell">{{ t('monitor.market.empty') }}</td>
-            </tr>
-            <tr
-              v-for="item in marketPrices"
-              :key="item.itemCid"
-              :class="{ selected: selectedMarketPrice?.itemCid === item.itemCid }"
-              @click="selectMarketPrice(item)"
-            >
-              <td>{{ getMarketItemName(item) }}</td>
-              <td>{{ formatNumber(item.minPrice) }}</td>
-              <td>{{ formatNumber(item.maxPrice) }}</td>
-              <td>{{ formatNumber(item.totalCount) }}</td>
-              <td>{{ formatNumber(item.tierCount) }}</td>
-              <td>{{ formatDateTime(item.observedAt) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <section v-if="selectedMarketPrice" id="market-price-detail" class="market-detail">
-        <header>
-          <h3>{{ getMarketItemName(selectedMarketPrice) }}</h3>
-          <span>{{ t('monitor.market.salePrice') }}</span>
-        </header>
-        <div class="market-detail-grid">
-          <div>
-            <h4>{{ t('monitor.market.tiers') }}</h4>
-            <div v-if="!latestMarketTiers.length" class="market-row empty-market-row">
-              <span>{{ t('monitor.market.noTiers') }}</span>
-            </div>
-            <div v-for="tier in latestMarketTiers" :key="`${tier.price}:${tier.count}`" class="market-row">
-              <span>{{ formatNumber(tier.price) }}</span>
-              <strong>{{ formatNumber(tier.count) }}</strong>
-            </div>
-          </div>
-          <div>
-            <h4>{{ t('monitor.market.history') }}</h4>
-            <div v-if="!marketHistory.length" class="market-row empty-market-row">
-              <span>{{ t('monitor.market.noHistory') }}</span>
-            </div>
-            <div v-for="snapshot in marketHistory" :key="snapshot.observedAt" class="market-row">
-              <span>{{ formatDateTime(snapshot.observedAt) }}</span>
-              <strong>{{ formatNumber(snapshot.minPrice) }} - {{ formatNumber(snapshot.maxPrice) }}</strong>
-              <span>{{ formatNumber(snapshot.totalCount) }}</span>
-            </div>
-          </div>
-        </div>
-      </section>
-    </section>
   </main>
 </template>
