@@ -1950,13 +1950,16 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         }
     }
 
-    // Step 6: bid loop
+    // Step 6: bid loop (polling-based with throttle separation)
     std::string lastBidRound;
     std::string lastRoundSeen;
+    std::string lastBidAttemptRound;
+    DWORD lastBidAttemptMs = 0;
     int roundsEncountered = 0;
 
     for (;;) {
-        if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
+        // Short observation poll — replaces the old SleepInterruptibly(1000)
+        if (!SleepInterruptibly(100)) { stopIfRequested(); return; }
         ScreenState s = DetectScreenState();
 
         if (stopIfRequested()) return;
@@ -1998,6 +2001,17 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
 
         if (amount == 0) {
             continue;
+        }
+
+        // --- Same-round retry throttle ---
+        {
+            DWORD nowMs = GetTickCount();
+            if (!ShouldAttemptAutoBidRetry(round, lastBidAttemptRound, lastBidAttemptMs, nowMs)) {
+                // Throttled: observation loop continues but we skip the click this iteration
+                continue;
+            }
+            lastBidAttemptRound = round;
+            lastBidAttemptMs = nowMs;
         }
 
         amount = ClampAutoAuctionFirstRoundBid(amount, roundsEncountered, 17000);
@@ -2083,15 +2097,27 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                 }
         }
 
+        // --- Click "Gaming/chujia" then wait for bid input dialog ---
         std::string clickErr;
         bool placeBidClicked = ClickNode(s.battleMainTransform, "Gaming/chujia", 0, &clickErr);
-        if (placeBidClicked && !SleepInterruptibly(1500)) { stopIfRequested(); return; }
         bool hasBattleMainAfterClick = false;
         bool hasActiveBidInput = false;
         bool setBidAmountSucceeded = false;
         bool confirmBidCompleted = false;
 
         if (placeBidClicked) {
+            // Poll for bid input dialog to appear (replaces SleepInterruptibly(1500))
+            PollWaitResult wr = WaitForNodeReady(
+                "Battle_Main",
+                "InputDevice/Panel1/InputField (TMP)",
+                1500, 100);
+            if (wr.result == POLL_AUTHCODE) {
+                Logf("AutoAuction interrupted: AuthCode_Main detected during bid input wait");
+                sendAuthCodeRequired();
+                return;
+            }
+            if (wr.result == POLL_INTERRUPTED) { stopIfRequested(); return; }
+
             ScreenState s2 = DetectScreenState();
             hasBattleMainAfterClick = s2.battleMainTransform != nullptr;
             if (s2.battleMainTransform) {
@@ -2130,7 +2156,19 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                                 canContinueBidDialog = false;
                             } else {
                                 Logf("AutoAuction round=%d disabled priceUpperLimit", roundsEncountered);
-                                if (!SleepInterruptibly(300)) { stopIfRequested(); return; }
+                                // Poll for toggle to reach OFF state (replaces SleepInterruptibly(300))
+                                PollWaitResult twr = WaitForToggleState(
+                                    s2.battleMainTransform,
+                                    "InputDevice/Panel1/priceUpperLimit",
+                                    false,  // expected OFF
+                                    600, 100);
+                                if (twr.result == POLL_AUTHCODE) {
+                                    Logf("AutoAuction interrupted: AuthCode_Main detected during toggle wait");
+                                    sendAuthCodeRequired();
+                                    return;
+                                }
+                                if (twr.result == POLL_INTERRUPTED) { stopIfRequested(); return; }
+                                // POLL_TIMEOUT is non-fatal — proceed anyway
                             }
                         }
                     }
@@ -2146,7 +2184,21 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     std::string compName;
                     setBidAmountSucceeded = PerformSetInputText(inputM[0], amountStr, false, &compName);
                     if (setBidAmountSucceeded) {
-                        if (!SleepInterruptibly(500)) { stopIfRequested(); return; }
+                        // Short settle poll after input (replaces SleepInterruptibly(500))
+                        {
+                            DWORD inputSettleStart = GetTickCount();
+                            for (;;) {
+                                if (!SleepInterruptibly(50)) { stopIfRequested(); return; }
+                                DWORD inputElapsed = GetTickCount() - inputSettleStart;
+                                if ((int)inputElapsed >= 600) break;
+                                ScreenState settleSc = DetectScreenState();
+                                if (IsAutoAuctionVerificationScreen(settleSc.screen)) {
+                                    Logf("AutoAuction interrupted: AuthCode_Main detected during input settle");
+                                    sendAuthCodeRequired();
+                                    return;
+                                }
+                            }
+                        }
                         bool primaryConfirmClicked = ClickNode(
                             s2.battleMainTransform,
                             "InputDevice/Panel1/chujia",
@@ -2154,9 +2206,19 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                             &clickErr
                         );
                         if (primaryConfirmClicked) {
+                            // Authcode-aware wrapper around WaitForBidConfirmationSettled
                             BidConfirmFlowResult confirmResult =
                                 WaitForBidConfirmationSettled(s2.battleMainTransform);
                             if (confirmResult.interrupted) { stopIfRequested(); return; }
+                            // After confirm settles, check authcode immediately
+                            {
+                                ScreenState confirmSc = DetectScreenState();
+                                if (IsAutoAuctionVerificationScreen(confirmSc.screen)) {
+                                    Logf("AutoAuction interrupted: AuthCode_Main detected after bid confirmation");
+                                    sendAuthCodeRequired();
+                                    return;
+                                }
+                            }
                             if (!confirmResult.completed) {
                                 Logf(
                                     "AutoAuction round=%d confirm flow incomplete: %s",

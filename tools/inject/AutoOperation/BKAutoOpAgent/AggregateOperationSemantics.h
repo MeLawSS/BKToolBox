@@ -254,6 +254,21 @@ inline int GetWaitForAuctionInProgressPollFastMs()     { return 100; }
 inline int GetWaitForAuctionInProgressPollMediumMs()   { return 500; }
 inline int GetWaitForAuctionInProgressPollSlowMs()     { return 1500; }
 
+// Returns true when a same-round bid retry is allowed — at least
+// GetAutoAuctionBidRetryCooldownMs() must have elapsed since the last attempt,
+// OR the round must have advanced.
+inline bool ShouldAttemptAutoBidRetry(
+    const std::string& currentRound,
+    const std::string& lastBidAttemptRound,
+    unsigned long lastBidAttemptMs,
+    unsigned long nowMs)
+{
+    if (currentRound.empty()) return false;
+    if (currentRound != lastBidAttemptRound) return true;
+    unsigned long elapsed = nowMs - lastBidAttemptMs;
+    return elapsed >= (unsigned long)GetAutoAuctionBidRetryCooldownMs();
+}
+
 inline int ResolveAutoAuctionReportedExpectedPrice(
     int lastExpectedPrice,
     int notifiedExpectedPrice

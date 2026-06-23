@@ -154,5 +154,13 @@ int main() {
     assert(GetWaitForAuctionInProgressPollMediumMs() == 500);
     assert(GetWaitForAuctionInProgressPollSlowMs() == 1500);
 
+    // Same-round bid retry throttle
+    assert(ShouldAttemptAutoBidRetry("第1轮", "", 0, 0));       // first attempt ever
+    assert(ShouldAttemptAutoBidRetry("第2轮", "第1轮", 0, 500)); // round advanced
+    assert(!ShouldAttemptAutoBidRetry("第1轮", "第1轮", 0, 500)); // same round, <1000ms
+    assert(ShouldAttemptAutoBidRetry("第1轮", "第1轮", 0, 1000)); // same round, exactly 1000ms
+    assert(ShouldAttemptAutoBidRetry("第1轮", "第1轮", 0, 1500)); // same round, >1000ms
+    assert(!ShouldAttemptAutoBidRetry("", "第1轮", 0, 5000));     // empty round
+
     return 0;
 }
