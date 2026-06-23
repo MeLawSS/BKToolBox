@@ -1708,17 +1708,6 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         return true;
     };
 
-    auto clickOnPanel = [&](const char* panelName, const char* nodePath, int delayMs) -> bool {
-        Il2CppObject* t = nullptr;
-        if (FindVisiblePanelTransform(panelName, nullptr, &t, errBuf, sizeof(errBuf)) != UI_PANEL_FOUND || !t)
-            return false;
-        std::string e;
-        bool ok = ClickNode(t, nodePath, 0, &e);
-        if (!ok) snprintf(errBuf, sizeof(errBuf), "%s", e.c_str());
-        if (ok && delayMs > 0 && !SleepInterruptibly(delayMs)) return false;
-        return ok;
-    };
-
     // Step 1: navigate to main_lobby (polling-based)
     for (int attempt = 0; attempt < 10; attempt++) {
         if (stopIfRequested()) return;
@@ -2286,7 +2275,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             }
 
             if (!winnerResolved) {
-                if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
+                if (!SleepInterruptibly(200)) { stopIfRequested(); return; }  // was 1000ms
                 continue;
             }
 
@@ -2294,26 +2283,37 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             ResolveUiNodeMatches(se.battleMainTransform,
                 "PanelBattleHuiShouTran/huishou", UI_PATH_EXACT, 1, &huishouM);
             if (huishouM.empty() || !huishouM[0].active) {
-                if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
+                if (!SleepInterruptibly(200)) { stopIfRequested(); return; }  // was 1000ms
                 continue;
             }
             if (!huishouM[0].components.button) {
-                SendResponse(c, id, false, "快捷回收按钮缺少 Button 组件");
+                SendResponse(c, id, false, "auto_auction_ui_error:winner_recycle");
                 return;
             }
             if (PerformButtonClick(huishouM[0].components.button)) {
                 Logf("AutoAuction cleanup clicked quick recycle");
-                if (!SleepInterruptibly(1500)) { stopIfRequested(); return; }
+                // Poll for the huishou button to disappear (replaces SleepInterruptibly(1500))
+                for (int settleAttempt = 0; settleAttempt < 15; settleAttempt++) {
+                    if (!SleepInterruptibly(100)) { stopIfRequested(); return; }
+                    ScreenState recycleSc = DetectScreenState();
+                    if (IsAutoAuctionVerificationScreen(recycleSc.screen)) {
+                        Logf("AutoAuction interrupted: AuthCode_Main detected after quick recycle");
+                        sendAuthCodeRequired();
+                        return;
+                    }
+                    if (!IsAutoAuctionCleanupEndedScreen(recycleSc.screen)) break;
+                    std::vector<UiNodeSnapshot> huishouRecheck;
+                    ResolveUiNodeMatches(se.battleMainTransform,
+                        "PanelBattleHuiShouTran/huishou", UI_PATH_EXACT, 1, &huishouRecheck);
+                    if (huishouRecheck.empty() || !huishouRecheck[0].active) break;
+                }
                 break;
             }
-            if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
+            if (!SleepInterruptibly(200)) { stopIfRequested(); return; }  // was 1000ms
         }
     }
 
-    // Step 8: exit to main_lobby.
-    // Important: only close BattlePrevPanel_Main after continueBtn has actually
-    // navigated away from the auction_ended screen. Otherwise we can close the
-    // underlying lobby first and strand the user on EndPanel.
+    // Step 8: exit to main_lobby (polling-based).
     {
         bool cleanupComplete = false;
         const int cleanupMaxAttempts = GetAutoAuctionCleanupMaxAttempts();
@@ -2333,7 +2333,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
 
             if (IsAutoAuctionCleanupEndedScreen(se.screen)) {
                 if (!se.battleMainTransform) {
-                    if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
+                    if (!SleepInterruptibly(200)) { stopIfRequested(); return; }  // was 1000ms
                     continue;
                 }
                 std::string e;
@@ -2348,10 +2348,10 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     );
                     if (attempt == cleanupMaxAttempts - 1) {
                         if (stopIfRequested()) return;
-                        SendResponse(c, id, false, "no ended-screen action button ready");
+                        SendResponse(c, id, false, "auto_auction_timeout:wait_cleanup_transition");
                         return;
                     }
-                    if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
+                    if (!SleepInterruptibly(200)) { stopIfRequested(); return; }  // was 1000ms
                     continue;
                 }
                 if (!ClickNode(se.battleMainTransform, endedActionPath, 0, &e)) {
@@ -2363,10 +2363,10 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     );
                     if (attempt == cleanupMaxAttempts - 1) {
                         if (stopIfRequested()) return;
-                        SendResponse(c, id, false, e.c_str());
+                        SendResponse(c, id, false, "auto_auction_ui_error:wait_cleanup_transition");
                         return;
                     }
-                    if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
+                    if (!SleepInterruptibly(200)) { stopIfRequested(); return; }  // was 1000ms
                     continue;
                 }
                 Logf(
@@ -2374,7 +2374,16 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     attemptNumber,
                     endedActionPath
                 );
-                if (!SleepInterruptibly(1500)) { stopIfRequested(); return; }
+                // Poll for screen transition away from auction_ended (replaces SleepInterruptibly(1500))
+                {
+                    PollWaitResult wr = WaitForScreenTransition("auction_ended", 3000, 150);
+                    if (wr.result == POLL_AUTHCODE) {
+                        Logf("AutoAuction interrupted: AuthCode_Main detected during cleanup transition");
+                        sendAuthCodeRequired();
+                        return;
+                    }
+                    if (wr.result == POLL_INTERRUPTED) { stopIfRequested(); return; }
+                }
                 ScreenState afterContinue = DetectScreenState();
                 Logf(
                     "AutoAuction cleanup continue attempt=%d post-screen=%s",
@@ -2386,16 +2395,26 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
 
             if (IsAutoAuctionCleanupBattlePrevScreen(se.screen)) {
                 if (!se.battlePrevTransform) {
-                    if (!SleepInterruptibly(1000)) { stopIfRequested(); return; }
+                    if (!SleepInterruptibly(200)) { stopIfRequested(); return; }  // was 1000ms
                     continue;
                 }
                 std::string e;
                 if (!ClickNode(se.battlePrevTransform, "Top/Close", 0, &e)) {
                     if (stopIfRequested()) return;
-                    SendResponse(c, id, false, e.c_str());
+                    SendResponse(c, id, false, "auto_auction_ui_error:wait_cleanup_transition");
                     return;
                 }
-                if (!SleepInterruptibly(1500)) { stopIfRequested(); return; }
+                // Poll for screen transition (replaces SleepInterruptibly(1500))
+                {
+                    const char* leavingSc = se.screen;
+                    PollWaitResult wr = WaitForScreenTransition(leavingSc, 3000, 150);
+                    if (wr.result == POLL_AUTHCODE) {
+                        Logf("AutoAuction interrupted: AuthCode_Main detected during cleanup close");
+                        sendAuthCodeRequired();
+                        return;
+                    }
+                    if (wr.result == POLL_INTERRUPTED) { stopIfRequested(); return; }
+                }
                 continue;
             }
 
@@ -2403,7 +2422,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                 if (stopIfRequested()) return;
                 char msg[160];
                 snprintf(msg, sizeof(msg),
-                    "auto auction cleanup entered unexpected screen: %s",
+                    "auto_auction_unexpected_screen:%s",
                     se.screen ? se.screen : "null");
                 SendResponse(c, id, false, msg);
                 return;
@@ -2412,12 +2431,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
 
         if (!cleanupComplete) {
             if (stopIfRequested()) return;
-            ScreenState finalState = DetectScreenState();
-            char msg[160];
-            snprintf(msg, sizeof(msg),
-                "auto auction cleanup incomplete: stuck on %s",
-                finalState.screen ? finalState.screen : "null");
-            SendResponse(c, id, false, msg);
+            SendResponse(c, id, false, "auto_auction_timeout:wait_cleanup_transition");
             return;
         }
     }
