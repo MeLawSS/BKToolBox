@@ -10,7 +10,7 @@
 
 - 项目是一个 `Electron + Express + Vue 3/Vite` 混合应用
 - 当前构建保留 7 个页面入口 bundle：`Home`、`Tools`、`Ahmed`、`Ethan`、`Monitor`、`Inject`
-- 当前用户可见的 canonical 工作面共有 5 个：`Home`、`Tools`、`Monitor`、`Inject`
+- 当前用户可见的 canonical 工作面共有 4 个：`Home`、`Tools`、`Monitor`、`Inject`
 - `Tools` 是 `Elsa / Ethan / Ahmed` 的 canonical 入口
 - 兼容旧入口：
   - `/elsa`、`/Elsa` -> `/Tools`
@@ -44,7 +44,6 @@
   - 输入、结果、monitor 适配和状态恢复由 `src/hero-estimator/` 共享层按 `ethanProfile` 驱动
 - `Monitor`
   - 管理 live monitor、SSE 事件、capture driver 状态、recent market price
-- `Price`
   - 展示价格历史、Collections、仓库价格视图、仓库占用格数/数量/价格排序和单 item 刷新
 - `Inject`
   - 已改为 workspace shell：左侧按 `基础 / 交易` 分组切换 panel，右侧只显示一个激活 panel
@@ -164,14 +163,11 @@
 
 - `Tools` 内 `Elsa / Ethan / Ahmed` panels，以及 `Monitor`、`Inject` 页面会请求 `/data/collectibles.json`
 - 其中 `/data/collectibles.json` 由服务端映射到 runtime root 下的 `collectibles.json`
-- `Price` 页通过：
   - `/api/price-history/latest`
   - `/api/price-history/collections`
   - `/api/price-history/item/:itemCid`
   - 桌面模式下 `refreshItemTradeInfo()`、`GetItemTradeInfo`、`ExchangeItem` 和 `GetStockContainers`
-- Price 页当前会把默认上架价百分比持久化到 `localStorage['bidking-price-listing-default-percent:v1']`; 缺省值为 `98`
 - Price 仓库 panel 当前会复用 `GetStockContainers` 的快照语义：只显示主仓库 `stockId: 0` 中实际存在的交易所藏品，但 `仓库数量` 仍按所有仓库 / 物品箱里的同 `itemCid` 总数统计；同时会把藏品尺寸 `size.width * size.height` 映射成单件「占用格数」列，并支持对 `占用格数`、`仓库数量`、`本身价格`、`最新最低价` 做升序/降序排序；默认保持主仓首次出现顺序，点击表头后进入数值排序。
-- Price 仓库 panel 选中藏品后,详情区会显示一个页面级「默认上架价百分比」配置(仅桌面端 + AutoOperation Agent 可用时显示),该值对所有藏品共享; 选中已持有藏品时详情区同时显示「上架」按钮。点击后弹出 ListingModal,打开时调 GetItemTradeInfo 拉实时挂单,并把单价默认填为 `floor(当前最低价 * 百分比 / 100)`(下限 1,无可用最低价则留空); 数量默认持有全部、上限为持有数,确认后调 ExchangeItem 上架,成功后刷新仓库持有数并提示; 切换藏品会清除上架成功提示。可单测纯逻辑在 `src/price/listing-form.js`,组件为 `src/price/ListingModal.vue`。
 - `Inject` 页依赖 preload 暴露的桌面 API，不是纯浏览器页面
 - preload 当前还暴露注入调度控制、截图状态和收藏价格采集订阅等桌面能力
 - AutoOperation 命名管道协议说明在 `docs/AUTO_OPERATION_COMMANDS.md`
@@ -262,7 +258,7 @@
 - 2026-06-18：`npm run build:inject` 通过；Vite 成功把 Inject 页面产物写入 `public/inject/`（包含 `index.html` 和 `assets/` 下的构建输出），说明包含 `Controller UI 操作`、泛型 command console 和相关 i18n 的 Inject 页面可成功构建。
 - 2026-06-18：`git diff --check` 无输出，说明本轮 current-state 文档同步未引入空白或补丁格式问题。
 - 2026-06-18：Windows native 构建链路修复。`package.json` 新增 `@rolldown/binding-win32-x64-msvc` 到 `optionalDependencies`，与已有的 `@rolldown/binding-linux-x64-gnu` 并列；`ELECTRON_MIRROR` 从 `.npmrc` 静态配置改为运行时环境变量（`pack-win-dir.mjs` 启动时设入 `process.env`，`dist:win` 通过 `node -e` 包装 `electron-builder` 调用），消除 npm 11 对未知 `.npmrc` 键的 warning；`scripts/pack-win-dir.test.mjs` 中 3 个测试改为跨平台写法。
-- 2026-06-18：`npm run build:pages` 在 Windows native (Node.js v24.16.0, Windows 11 Pro 10.0.26200) 通过，7 个页面入口（`home / elsa / ahmed / ethan / monitor / price / inject`）全部构建成功。
+- 2026-06-18：`npm run build:pages` 在 Windows native (Node.js v24.16.0, Windows 11 Pro 10.0.26200) 通过，7 个页面入口（`home / elsa / ahmed / ethan / monitor /  inject`）全部构建成功。
 - 2026-06-18：`npm run pack -- --app-dir-name BKToolBox-dev` 在 Windows native 通过，完整链路 `build:pages → prepare:dumpcap (79 files) → electron-builder → patch-win-icons` 全部成功；electron-builder 报告 `@rolldown/binding-linux-x64-gnu` 为 missing optional dependency（Windows 上预期行为）。
 - 2026-06-18：`npx vitest run scripts/pack-win-dir.test.mjs package-config.test.mjs scripts/windows-build-metadata.test.mjs scripts/clean-page-builds.test.mjs scripts/prepare-dumpcap-runtime.test.mjs scripts/icon-asset.test.mjs` 通过，`35` 个构建相关测试全绿，跨平台兼容。
 - 2026-06-18：`git diff --check` 无输出，改动范围仅限 `.npmrc`、`package.json`、`package-lock.json`、`scripts/pack-win-dir.test.mjs` 四个文件。
@@ -315,9 +311,8 @@
 - 2026-06-04：`npx vitest run src/inject/App.test.js src/inject/stock-move.test.js src/inject/StockMovePanel.test.js electron/services/inject-service.test.mjs` 通过，覆盖 Inject 批量移仓面板集成、放置扫描 helper、批量移动摘要统计，以及 `GetStockContainers` / `MoveStockItem` 的 service timeout。
 - 2026-06-03：`npx vitest run electron/services/inject-service.test.mjs` 通过，覆盖了 AutoOperation Agent 的“复用现有 pipe 而不是重复注入”、`UnloadAgent` 等待 agent 真正停止响应，以及超时失败分支。
 - 2026-06-03：`npx vitest run src/shared/useMonitorSwitch.test.js src/shared/useAutoOperationAgentSwitch.test.js src/shared/TopBar.test.js src/hero-estimator/HeroEstimatorPanel.test.js src/monitor/App.test.js src/inject/App.test.js` 通过，覆盖了共享 monitor runtime、共享 agent runtime、顶栏开关、Hero Estimator、`/Monitor`、`/Inject` 的同步行为。
-- 2026-06-03：`npm run build:pages` 通过，`home / elsa / ahmed / ethan / monitor / price / inject` 七个入口均完成重建，说明本轮 TopBar runtime 改动没有破坏页面构建。
+- 2026-06-03：`npm run build:pages` 通过，`home / elsa / ahmed / ethan / monitor /  inject` 六个入口均完成重建，说明本轮 TopBar runtime 改动没有破坏页面构建。
 - 2026-06-03：`npm run pack` 在当前机器仍失败，失败点仍是 `dist/win-unpacked/resources/runtime/tools/inject/AutoOperation/BKAutoOpAgent/BKAutoOpAgent.dll`。额外用 `cmd.exe /c del ...BKAutoOpAgent.dll` 验证时，Windows 返回“拒绝访问”；同时 `BidKing.exe` 仍在运行，说明这次失败是旧打包目录里的 agent DLL 仍被游戏进程持有，不是 electron-builder 配置本身的新错误。
-- 2026-06-03：`npx vitest run src/price/App.test.js src/price/ListingModal.test.js` 通过，当前 `Price` 页仓库 panel 已覆盖占用格数显示，以及 `占用格数 / 仓库数量 / 本身价格 / 最新最低价` 四列的升降序排序行为。
 - 2026-06-03：`git diff --check` 无输出，说明本轮文档补录未引入空白或补丁格式问题。
 - 2026-06-03：人工核对 `src/elsa/App.vue`、`src/elsa/ElsaHeroPanel.vue`、`src/ethan/App.vue`、`src/ahmed/AhmedPanel.vue`、`src/hero-estimator/hero-profiles.js`、`src/hero-estimator/useHeroEstimatorPanel.js`，确认当时 current-state 为 `Tools = 3 hero tabs + 9 solver tabs`，且 `src/hero-estimator/` 与 shared `AhmedPanel` 已分别作为 `Ethan/Elsa` 与 `Ahmed` 的共用层落地。
 - 2026-06-02：使用 Node route dump 脚本枚举 `server.js` 路由，确认当前页面路由和 API 路由与文档一致，实际包含 `/Monitor`、、`/Inject` 及相关 `/api/*` 接口，以及各页面的小写兼容重定向。
@@ -331,5 +326,5 @@
 ## 已知限制
 
 - `build:pages` 会写入页面构建产物；如果工作区已有无关脏改动，本轮需要先判断是否适合重建
-- 部分 Inject / Price 功能依赖桌面环境，纯浏览器访问时只能看到降级状态
+- 部分 Inject 功能依赖桌面环境，纯浏览器访问时只能看到降级状态
 - 当前 `MoveStockItem` 成功后的 `GetAllStocks()` 只能刷新库存缓存，仍不能稳定触发已打开的游戏内仓库 / 物品箱页面即时重绘；手动点击游戏内自动排序仍会强制刷新该 UI。直接在 agent pipe 线程调用 `PlayerGameData.RefreshStockData()` 会导致游戏崩溃，因此这条链路当前被禁用。

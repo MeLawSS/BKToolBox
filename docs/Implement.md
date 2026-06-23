@@ -36,7 +36,6 @@
 - Ahmed 源码在 `src/ahmed/`，产物输出到 `public/ahmed/`，该入口是 shared `AhmedPanel` 的 standalone shell
 - Ethan 源码在 `src/ethan/`，产物输出到 `public/ethan/`，该入口是 shared hero-estimator 的 standalone shell
 - Monitor 源码在 `src/monitor/`，产物输出到 `public/monitor/`
-- Price 源码在 `src/price/`，产物输出到 `public/price/`
 - Inject 源码在 `src/inject/`，产物输出到 `public/inject/`
 - 全页面构建命令是 `npm run build:pages`
 
@@ -56,7 +55,7 @@
 - Solver 公共逻辑在 `lib/solver.js`、`lib/solver-inputs.js`
 - 实时监控在 `lib/bidking-live-monitor.js` 及相关 store/facts 模块
 - 抓包驱动检测和安装/卸载在 `lib/capture-driver.js`
-- 价格历史和交易所分析在 `lib/bidking-market-price-store.js`、`lib/bidking-price-history-store.js`、`lib/bidking-market-ladder-store.js`、`lib/high-price-listing-advisor.js`
+- 价格历史和交易所分析在 `lib/bidking-market-price-store.js`、`lib/bidking-price-history-store.js`、`lib/bidking-market-ladder-store.js`、
 - 桌面自动化能力集中在 `electron/services/inject-service.js`
 - Ahmed controller 逻辑位于 `public/ahmed/ahmed.js`，并通过可挂载/可卸载 contract 由 `src/ahmed/AhmedPanel.vue` 在 standalone 与 embedded 模式复用；可测试 helper 在 `public/ahmed/ahmed-core.js`
 - Ethan 纯估算逻辑在 `src/ethan/estimator.js`；共享 monitor 适配在 `src/hero-estimator/monitor-profile-adapter.js`，网格推理在 `src/ethan/monitor-grid.js`

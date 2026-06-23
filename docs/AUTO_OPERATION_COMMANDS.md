@@ -946,8 +946,6 @@ Validation failures include:
 
 ## High-Price Listing Advisor
 
-The advisor does not introduce a new AutoOperation pipe command. The renderer calls the desktop helper `confirmHighPriceExchangeListing`, which:
-
 1. Fetches fresh `/api/exchange-listing-advice/:itemCid`.
 2. Requires `state === "list_now"`.
 3. Requires the refreshed suggested price to match the visible price.

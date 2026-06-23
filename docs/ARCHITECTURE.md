@@ -6,7 +6,7 @@ BKToolBox 目前不是单一计算页，而是一个 `Electron + Express + Vue 3
 
 - Electron 提供桌面运行、截图、AutoOperation 注入和嵌入式本地服务
 - Express 提供页面路由、SSE 求解入口、实时监控 API、价格历史 API 和抓包驱动 API
-- Vue 构建保留 `Home`、`Tools`、`Ahmed`、`Ethan`、`Monitor`、`Inject` 七个入口 bundle；用户可见的 canonical 工作面是 `Home`、`Tools`、`Monitor`、`Inject`
+- Vue 构建保留 `Home`、`Tools`、`Ahmed`、`Ethan`、`Monitor`、`Inject` 六个入口 bundle；用户可见的 canonical 工作面是 `Home`、`Tools`、`Monitor`、`Inject`
 - 求解脚本、实时抓包、价格历史和自动化服务在 Node 侧独立维护
 
 应用显示名和 Windows 打包产品名为 `BKToolBox`。为了兼容既有页面状态、主题和桌面桥接，`bidking-theme`、`bidking-page-state:*`、`window.bidkingDesktop` 等内部 key/API 继续沿用旧命名。
@@ -340,9 +340,7 @@ BKToolBox/
 - `lib/capture-driver.js` 的 dumpcap/Npcap 可用性
 - `/data/collectibles.json` 做 itemCid -> 名称映射
 
-### Price
 
-源码：`src/price/`
 
 职责：
 
@@ -395,7 +393,6 @@ BKToolBox/
 - `src/inject/panels/InjectMetaOperationPanel.vue`
 - `src/inject/useWarehouseBatchOp.js`
 - `src/inject/panels/InjectWarehousePanel.vue`
-- `src/inject/panels/InjectListingPanel.vue`
 - `src/inject/panels/InjectDelayedPricePanel.vue`
 - `src/inject/panels/InjectCollectionScanPanel.vue`
 - `src/inject/StockMovePanel.vue` 承载批量移仓 UI；只在桌面桥同时提供 `runAutoOperationCommand()` 时渲染。
@@ -480,7 +477,6 @@ BKToolBox/
   - `startAutoOperationAgent()`
   - `runAutoOperationCommand()`
   - `refreshItemTradeInfo()`
-  - `confirmHighPriceExchangeListing()`
 - 收藏价格采集
   - `startCollectionPriceScan()`
   - `stopCollectionPriceScan()`
@@ -497,7 +493,6 @@ BKToolBox/
 - `vite.ahmed.config.js` -> `src/ahmed` -> `public/ahmed`
 - `vite.ethan.config.js` -> `src/ethan` -> `public/ethan`
 - `vite.monitor.config.js` -> `src/monitor` -> `public/monitor`
-- `vite.price.config.js` -> `src/price` -> `public/price`
 - `vite.inject.config.js` -> `src/inject` -> `public/inject`
 
 ### 测试
@@ -514,7 +509,7 @@ BKToolBox/
 - Electron desktop utils 与 inject services
 - Ahmed core/controller
 - Ethan estimator / monitor adapter / monitor grid
-- Home / Tools / Ahmed / Ethan / Monitor / Price / Inject Vue 页面
+- Home / Tools / Ahmed / Ethan / Monitor / Inject Vue 页面
 
 ## 文档边界
 

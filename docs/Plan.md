@@ -125,7 +125,7 @@
 验证命令：
 
 - `npm test`
-- `npx vitest run lib/bidking-live-monitor.test.mjs lib/capture-driver.test.mjs electron/services/inject-service.test.mjs src/monitor/App.test.js src/price/App.test.js src/inject/App.test.js server.test.mjs`
+- `npx vitest run lib/bidking-live-monitor.test.mjs lib/capture-driver.test.mjs electron/services/inject-service.test.mjs src/monitor/App.test.js src/inject/App.test.js server.test.mjs`
 
 停止并修复：
 
