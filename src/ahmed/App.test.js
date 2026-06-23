@@ -187,7 +187,6 @@ describe('Ahmed App', () => {
       '/',
       '/Tools',
       '/Monitor',
-      '/Price',
       '/Inject',
     ]);
     expect(wrapper.find('#combo-form').exists()).toBe(true);

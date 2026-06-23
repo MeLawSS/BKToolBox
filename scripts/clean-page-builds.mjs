@@ -15,7 +15,8 @@ export const PAGE_BUILD_OUTPUTS = [
   'public/ethan/assets',
   'public/monitor/index.html',
   'public/monitor/assets',
-
+  'public/price/index.html',
+  'public/price/assets',
   'public/inject/index.html',
   'public/inject/assets',
 ];

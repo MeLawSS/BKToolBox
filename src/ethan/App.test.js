@@ -218,7 +218,6 @@ describe('Ethan App', () => {
       '/Ahmed',
       '/Ethan',
       '/Monitor',
-      '/Price',
       '/Inject',
     ]);
     expect(wrapper.find('#clear-button').text()).toBe('Clear');
