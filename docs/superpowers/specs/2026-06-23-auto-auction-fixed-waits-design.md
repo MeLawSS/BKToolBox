@@ -124,6 +124,23 @@
 
 这些 helper 只在 `MetaOperations.cpp` 内部定义和使用，不作为新的对外命令或共享框架抽象。
 
+### `ClickAndWait` Contract
+
+`ClickAndWait` 不是一个模糊“点一下再等等”的便利函数，本轮要求它具备明确契约：
+
+- 形态：`ClickAndWait(nodePath, donePredicate, timeoutMs, pollProfile)`
+- `donePredicate` 必须显式指定完成条件，允许的完成条件类型只有：
+  - 目标屏幕出现
+  - 离开旧屏幕 / 屏幕切换完成
+  - 目标节点 ready
+  - 目标节点状态变化
+- 点击动作默认只执行一次，不在 helper 内隐式重试点击
+- 点击失败和等待超时必须区分：
+  - 点击失败：归类为 `auto_auction_ui_error:<stage>_click_failed`
+  - 点击成功但等待超时：归类为 `auto_auction_timeout:<stage>`
+- `timeoutMs` 必须由调用阶段显式给出，不允许 helper 自己偷偷派生新的长预算
+- `pollProfile` 继承自完成条件对应的等待 helper；`ClickAndWait` 本身不再单独发明一套轮询策略
+
 ## Stage-by-Stage Behavior
 
 ### Step 1: Recover to `main_lobby`
@@ -167,6 +184,10 @@
 
 - 点击 `Panel_1/bg/MapContainer/MapItem_<roomId>/Image (1)`
 - 立即轮询直到 `auction_lobby_room`
+- `auction_lobby_room` 一旦确认，不假设 `countTxt` 已经同步可读
+- 房间日次数上限检查必须为 `Panel_1/MapPanel/countTxt` 提供一个很短的可读性窗口，例如 `500ms`、`50ms` 到 `100ms` 轮询
+- 如果该窗口内读到了合法 `countTxt`，按现有逻辑判断是否 `room_entry_limit_reached`
+- 如果窗口结束后仍不可读，不把它当作新失败边界；记录日志后继续主流程
 - 保留现有房间日次数上限检测逻辑
 
 ### Step 4: Skill Config, Hero Select, Start Action
@@ -182,6 +203,9 @@
 - 点击角色后，等待“开始战斗”按钮 ready 或角色选择 UI 收敛
 - 点击开始战斗后，不再固定等待 `2000ms`
 - 点击开始战斗后的短轮询只用于避免立刻读取到旧状态，不引入新的独立硬失败边界
+- 这个短观察窗口建议为 `3s`，但它是 **non-failing handoff**
+- 如果在该窗口内已经观察到离开准备态，则立即推进
+- 如果窗口结束仍未观察到状态变化，不报错，直接把控制权移交给 Step 5 的 `120s` 长等待
 - 等待正式进入 `auction_in_progress` 或提前进入 `auction_ended` 的长预算，仍完全由 Step 5 承担
 
 ### Step 5: Wait for `auction_in_progress`
@@ -196,8 +220,11 @@
 - 保留约 `120s` 的总预算
 - 不与短 UI 切换共用同一档 `100ms` 轮询
 - 使用 **分段 / 退避轮询**：
-  - 开始战斗后的极短观察窗口允许更快轮询，用于尽早捕获“立刻进入拍卖”或“立刻进入结束画面”的快路径
-  - 如果未快速进入目标状态，则必须退避到更粗的轮询档位，避免在长达 `120s` 的等待中持续高频调用 `DetectScreenState()`
+  - `0s` 到 `10s`：`200ms`
+  - `10s` 到 `30s`：`500ms`
+  - `30s` 到 `120s`：`1500ms`
+- 退避仅由 **当前 Step 5 已等待的 elapsed time** 决定，单调递增，不因中途再次观察到普通非目标状态而重置
+- 当前实现没有可可靠利用的“接近完成”中间态，因此本轮不引入基于近目标状态的动态提速或重置逻辑
 - 长等待阶段的稳态轮询频率不得比当前实现显著更激进；本轮设计目标是减少固定等待，不是把它替换成持续高频探测
 - 目标状态一出现立即推进
 - 若提前进入 `auction_ended`，继续保持当前业务语义并立刻返回
@@ -226,7 +253,11 @@
 - 写入金额后，等待输入框文本已同步，或确认按钮进入可继续状态
 - 最终确认继续以 `WaitForBidConfirmationSettled(...)` 为主收敛点，但 AutoAuction 在这一阶段不能保留一个不检测 `authcode` 的盲等窗口
 
-`WaitForBidConfirmationSettled(...)` 仍是正确的确认收敛范式，但本轮需要额外满足一条约束：确认阶段也必须能够及时返回 `authcode_required`。实现上可以是扩展该 helper 自身检测 `authcode`，也可以在 `CmdAutoAuction` 中增加只服务此流程的 authcode-aware 包装层；本 spec 不要求把它抽成共享框架。
+`WaitForBidConfirmationSettled(...)` 仍是正确的确认收敛范式，但本轮在 authcode 方案上做出明确选择：
+
+- 不直接改变 `CmdConfirmBid` 对该 helper 的现有行为契约
+- 在 `CmdAutoAuction` 内引入一个只服务此流程的 authcode-aware confirmation wrapper
+- 如有必要，可以把当前确认收敛循环拆成更小的内部步骤供 wrapper 复用，但这次重构必须保持 `CmdConfirmBid` 对外行为不变
 
 ### Step 7: Winner Detection and Quick Recycle
 
@@ -269,7 +300,7 @@
 - Step 4
   - 打开技能配置到角色节点 ready：`3s`
   - 角色选择收敛到开始按钮 ready：`3s`
-  - 点击开始战斗后的短过渡观察：仅允许作为非独立失败边界的短窗口
+  - 点击开始战斗后的短过渡观察：建议 `3s`，仅允许作为非独立失败边界的短窗口
 - Step 5 等 `auction_in_progress`：`120s`
   - 这 `120s` 预算继续覆盖开始战斗后的长等待，以及提前进入 `auction_ended` 的情况
   - 轮询策略必须分段或退避，而不是全程 `100ms`
@@ -286,9 +317,9 @@
 
 - 短屏幕切换：`100ms`
 - Step 5 这类长屏幕等待：
-  - 初始快路径观察窗口：`100ms` 到 `200ms`
-  - 若超过该窗口仍未进入目标状态，退避到 `500ms`
-  - 在持续长等待阶段，允许进一步退避到 `1000ms` 到 `1500ms`
+  - `0s` 到 `10s`：`200ms`
+  - `10s` 到 `30s`：`500ms`
+  - `30s` 到 `120s`：`1500ms`
 - 节点 ready / 状态变化：`50ms` 到 `100ms`
 - cleanup / 胜者文本：`100ms` 到 `200ms`
 
@@ -332,6 +363,17 @@
 - 详细调试上下文继续写 native log，不塞进对外 error 字符串
 - 现有 `BuildAutoAuctionAuthCodeRequiredResult(...)`、`BuildAutoAuctionRoomEntryLimitReachedResult(...)` 继续保留
 
+### Internal Failure Reporting Convention
+
+为了避免新的 helper 继续把 `errBuf` 当作对外协议，本轮需要一个文件内约定：
+
+- helper 内部返回 **阶段枚举 / 失败类型**，而不是直接拼最终错误字符串
+- 可额外携带一个仅用于日志的 detail string，允许复用现有 `errBuf` 或 `std::string`
+- `CmdAutoAuction` 在 `SendResponse(...)` 边界统一把内部失败类型映射为稳定的 `auto_auction_*` 对外 error 字符串
+- 原始 Unity / click / lookup 细节继续只写 native log
+
+这次不要求引入跨文件通用错误框架，但要求 `CmdAutoAuction` 内部至少遵守这套单点映射约定
+
 ## Internal Structure
 
 `CmdAutoAuction` 继续承担业务编排，但不再直接散落地写固定等待。
@@ -352,6 +394,17 @@
 - 这条要求同样覆盖最终确认阶段；如果 `WaitForBidConfirmationSettled(...)` 保持通用实现，则 AutoAuction 侧必须用额外包装补齐
 - 只返回本轮需要的最小状态，不引入新的全局状态机容器
 
+### Helper Polling Profiles
+
+| Helper | Suggested interval | Notes |
+| --- | --- | --- |
+| `WaitForAutoAuctionScreen(...)` | `100ms` for short transitions; Step 5 uses segmented `200ms -> 500ms -> 1500ms` | Depends on expected wait length |
+| `WaitForAutoAuctionScreenTransition(...)` | `100ms` | For fast screen exits/entries |
+| `WaitForAutoAuctionNodeReady(...)` | `50ms` to `100ms` | Node activation is usually sub-second |
+| `WaitForAutoAuctionToggleState(...)` | `50ms` to `100ms` | Toggle state changes are immediate when they happen |
+| `WaitForAutoAuctionInputText(...)` | `50ms` to `100ms` | Input text sync should settle quickly |
+| `ClickAutoAuctionNodeAndWait(...)` | Inherits from predicate helper | Click once, wait according to target condition |
+
 ## Testing and Verification
 
 ### Pure Logic / Unit-Level
@@ -360,6 +413,12 @@
 
 - `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.test.cpp`
 - `tools/inject/AutoOperation/BKAutoOpAgent/AggregateOperationSemantics.test.cpp`
+
+这些文件当前本质上是 `assert(...)` 驱动的 `main()` 测试入口，不是带 fixture 的完整测试框架。本轮测试设计必须基于这个现实：
+
+- 优先提取纯语义 helper、阶段判定函数、退避策略函数、失败映射函数
+- 在现有 `main()` 风格测试中直接追加断言
+- 不假设本轮可以为 `CmdAutoAuction` 搭出完整 UI 仿真 harness
 
 新增测试重点：
 
@@ -389,6 +448,7 @@
 10. 同一轮在确认未完成时，不会因为 `50ms` 到 `100ms` 观察轮询而高频重复点击 `Gaming/chujia`
 11. 一个 native `ok=false` 阶段码能通过当前 bridge 以稳定的错误消息形式暴露出来
 12. Step 5 长等待不会把 `DetectScreenState()` 提升为全程 `100ms` 级高频扫描
+13. native log 或等价调试输出能看出同一轮 `Gaming/chujia` 点击尝试的 round id 与时间，使人工验收能验证相邻同轮点击至少间隔 `1000ms`
 
 ## Acceptance Criteria
 
