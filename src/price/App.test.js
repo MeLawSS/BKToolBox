@@ -1,9 +1,13 @@
 /* @vitest-environment happy-dom */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import realCollectibles from '../../public/data/collectibles.json';
 import App from './App.vue';
+
+const priceCss = readFileSync(resolve(process.cwd(), 'src/price/price.css'), 'utf8');
 
 vi.mock('vue-chartjs', () => ({
   Line: {
@@ -2502,6 +2506,15 @@ describe('Price App', () => {
 
     const detailPanel = wrapper.find('[data-testid="price-detail"]');
     expect(detailPanel.exists()).toBe(true);
+  });
+
+  it('pins the left desktop panel height in CSS and restores auto height on mobile', () => {
+    expect(priceCss).toMatch(/\.opportunity-panel\s*\{[\s\S]*--price-primary-panel-height:\s*640px;/);
+    expect(priceCss).toMatch(/\.opportunity-panel\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-direction:\s*column;[\s\S]*height:\s*var\(--price-primary-panel-height\);/);
+    expect(priceCss).toMatch(/\.opportunity-panel\s*>\s*\.error-text\s*\{[\s\S]*flex:\s*0 0 auto;/);
+    expect(priceCss).toMatch(/\.opportunity-panel\s+\.table-wrap\s*\{[\s\S]*flex:\s*1 1 auto;[\s\S]*min-height:\s*0;[\s\S]*max-height:\s*none;/);
+    expect(priceCss).toMatch(/@media\s*\(max-width:\s*980px\)\s*\{[\s\S]*\.opportunity-panel\s*\{[\s\S]*display:\s*block;[\s\S]*height:\s*auto;/);
+    expect(priceCss).toMatch(/@media\s*\(max-width:\s*980px\)\s*\{[\s\S]*\.opportunity-panel\s+\.table-wrap\s*\{[\s\S]*flex:\s*unset;[\s\S]*min-height:\s*unset;[\s\S]*max-height:\s*560px;/);
   });
 
   it('renders opportunities and search when the collections endpoint fails', async () => {
