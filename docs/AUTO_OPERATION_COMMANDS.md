@@ -944,24 +944,6 @@ Validation failures include:
 - `totalPrice overflow`
 - `ExchangeItem task timeout`
 
-## High-Price Listing Advisor
-
-1. Fetches fresh `/api/exchange-listing-advice/:itemCid`.
-2. Requires `state === "list_now"`.
-3. Requires the refreshed suggested price to match the visible price.
-4. Calls AutoOperation `ExchangeItem` with:
-
-```json
-{
-  "itemCid": 1083009,
-  "count": 1,
-  "unitPrice": 7799
-}
-```
-
-5. Appends `Documents\\BidKing\\exchange-listings.jsonl`.
-
-Do not call `ExchangeItem` directly for advisor-driven listing unless intentionally bypassing the net revenue floor and stale-market revalidation.
 
 ### InvokeMethod
 

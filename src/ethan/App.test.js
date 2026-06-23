@@ -215,8 +215,6 @@ describe('Ethan App', () => {
     expect(wrapper.findAll('.nav a').map(link => link.attributes('href'))).toEqual([
       '/',
       '/Tools',
-      '/Ahmed',
-      '/Ethan',
       '/Monitor',
       '/Inject',
     ]);
@@ -232,7 +230,7 @@ describe('Ethan App', () => {
     expect(wrapper.find('h1').text()).toBe('期望价值估算');
     expect(wrapper.find('#cells-wg').exists()).toBe(true);
     expect(wrapper.find('#ethan-monitor-board').exists()).toBe(true);
-    expect(wrapper.findAll('.nav a').map((link) => link.attributes('href'))).toContain('/Ethan');
+    expect(wrapper.find('.nav .active').exists()).toBe(true);
   });
 
   it('refreshes generated result text when switching language', async () => {

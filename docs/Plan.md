@@ -2,7 +2,7 @@
 
 ## 当前阶段
 
-阶段 2：BKToolBox 已从早期的组合计算页扩展为一个包含 7 个前端入口 bundle、Express API、Electron 桌面层、实时抓包监控、价格历史分析和注入式自动化的混合应用。当前重点不是继续堆页面数量，而是保持 `Home / Tools / Monitor / Price / Inject` 五个 canonical 工作面稳定，并让 `Elsa / Ethan / Ahmed` 统一从 `Tools` 进入：
+阶段 2：BKToolBox 已从早期的组合计算页扩展为一个包含 7 个前端入口 bundle、Express API、Electron 桌面层、实时抓包监控、价格历史分析和注入式自动化的混合应用。当前重点不是继续堆页面数量，而是保持 `Home / Tools / Monitor / Inject` 五个 canonical 工作面稳定，并让 `Elsa / Ethan / Ahmed` 统一从 `Tools` 进入：
 
 - 保持 current-state 文档与真实代码同步
 - 稳定多页面构建链路和服务端路由
@@ -109,7 +109,7 @@
 - Ahmed DOM contract 被破坏
 - Ethan 估算或监控派生值行为回归
 
-### M5: Monitor / Price / Inject 业务链路稳定
+### M5: Monitor / Inject 业务链路稳定
 
 目标：
 
@@ -130,7 +130,7 @@
 停止并修复：
 
 - 抓包后端行为与文档不一致
-- Price / Inject 页面依赖的桌面接口或 API 描述错误
+- Inject 页面依赖的桌面接口或 API 描述错误
 
 ### M6: 持续验证与提交纪律
 

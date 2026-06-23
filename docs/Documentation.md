@@ -9,7 +9,7 @@
 ## 当前状态
 
 - 项目是一个 `Electron + Express + Vue 3/Vite` 混合应用
-- 当前构建保留 7 个页面入口 bundle：`Home`、`Tools`、`Ahmed`、`Ethan`、`Monitor`、`Inject`
+- 当前构建保留 6 个页面入口 bundle：`Home`、`Tools`、`Ahmed`、`Ethan`、`Monitor`、`Inject`
 - 当前用户可见的 canonical 工作面共有 4 个：`Home`、`Tools`、`Monitor`、`Inject`
 - `Tools` 是 `Elsa / Ethan / Ahmed` 的 canonical 入口
 - 兼容旧入口：
@@ -47,7 +47,7 @@
   - 展示价格历史、Collections、仓库价格视图、仓库占用格数/数量/价格排序和单 item 刷新
 - `Inject`
   - 已改为 workspace shell：左侧按 `基础 / 交易` 分组切换 panel，右侧只显示一个激活 panel
-  - 基础 panel 为 `展示柜收益 / Agent 状态 / 控制器 / 元操作`，交易 panel 为 `仓库统计 / 批量移仓 / 上架建议 / 延迟价格查询 / 收藏价格采集`
+  - 基础 panel 为 `展示柜收益 / Agent 状态 / 控制器 / 元操作`，交易 panel 为 `仓库统计 / 批量移仓 / 延迟价格查询 / 收藏价格采集`
   - `src/inject/panels/*.vue` 现在承载除 `StockMovePanel` 外的各个 panel；`StockMovePanel` 继续作为一级 workspace panel 保留
   - `src/inject/panels/InjectControllerPanel.vue` 现在同时承载 `UI 操作` 和泛型 command console：它先只读显示桌面环境、共享 agent runtime 的桥接可用性/连接状态；`UI 操作` 会通过 `GetCurrentUI -> GetVisiblePanels -> DumpPanelTree` 刷新当前 UI，并以“搜索 + 紧凑节点列表 + 双击按钮行直接点击 + 按需展开详情区”的 operator-first 形态提供结构化操作；command console 在 `desktop + bridge + connected` 时仍可直接发送任意 `runAutoOperationCommand(command, args)`；两者都复用页级 AutoOperation command lock，且 Controller 首次挂载时仍不会额外触发新的 `Ping`
   - 页内切换 panel 时保留各 panel 的局部输入和结果；收到 `bidking:leave-inject` 后会把 Inject 工作台恢复到冷启动状态
@@ -73,7 +73,7 @@
 - `GET /Ethan`
 - `GET /tools`
 - `GET /monitor`
-- `GET /price`
+
 - `GET /inject`
 
 ### 数据和业务 API
@@ -167,14 +167,14 @@
   - `/api/price-history/collections`
   - `/api/price-history/item/:itemCid`
   - 桌面模式下 `refreshItemTradeInfo()`、`GetItemTradeInfo`、`ExchangeItem` 和 `GetStockContainers`
-- Price 仓库 panel 当前会复用 `GetStockContainers` 的快照语义：只显示主仓库 `stockId: 0` 中实际存在的交易所藏品，但 `仓库数量` 仍按所有仓库 / 物品箱里的同 `itemCid` 总数统计；同时会把藏品尺寸 `size.width * size.height` 映射成单件「占用格数」列，并支持对 `占用格数`、`仓库数量`、`本身价格`、`最新最低价` 做升序/降序排序；默认保持主仓首次出现顺序，点击表头后进入数值排序。
+
 - `Inject` 页依赖 preload 暴露的桌面 API，不是纯浏览器页面
 - preload 当前还暴露注入调度控制、截图状态和收藏价格采集订阅等桌面能力
 - AutoOperation 命名管道协议说明在 `docs/AUTO_OPERATION_COMMANDS.md`
 - 面向 `Inject -> Controller` 页的可直接复制命令示例在 `docs/CONTROLLER_PAGE_COMMAND_EXAMPLES.md`
 - 当前桌面端 `startAutoOperationAgent()` 会先尝试 ping 已存在的 `BKAutoOp` 命名管道；只有 pipe 不可达时才重新注入 `BKAutoOpAgent.dll`，避免同一游戏进程里重复 `LoadLibrary` 同一路径的 agent DLL。
 - 当前桌面端执行 `UnloadAgent` 时，会等待 `BKAutoOp` pipe 消失并额外留出短暂释放缓冲后再返回，降低退出应用后立刻重打包时命中旧 DLL 文件锁的概率。
-- `Inject` 页当前由 `src/inject/App.vue` 只负责 workspace 壳层、共享 `collectibles` 加载和跨 panel 的 AutoOperation command lock；展示柜收益 / Agent 状态 / 控制器 / 元操作 / 仓库统计 / 上架建议 / 延迟价格 / 收藏采集都已拆到 `src/inject/panels/*.vue`，只有 `StockMovePanel.vue` 继续保留为一级 panel。`Controller` panel 内部现在拆成 readiness cards + `UI 操作` 子面板 + `仓库自动排序` 子面板 + 泛型 command console；其中 `UI 操作` 与 command console 继续复用这把共享 command lock，而 `仓库自动排序` 当前是由 `InjectWarehouseBatchOpPanel.vue` + `useWarehouseBatchOp.js` 承载的独立 workflow surface。
+- `Inject` 页当前由 `src/inject/App.vue` 只负责 workspace 壳层、共享 `collectibles` 加载和跨 panel 的 AutoOperation command lock；展示柜收益 / Agent 状态 / 控制器 / 元操作 / 仓库统计 / 延迟价格 / 收藏采集都已拆到 `src/inject/panels/*.vue`，只有 `StockMovePanel.vue` 继续保留为一级 panel。`Controller` panel 内部现在拆成 readiness cards + `UI 操作` 子面板 + `仓库自动排序` 子面板 + 泛型 command console；其中 `UI 操作` 与 command console 继续复用这把共享 command lock，而 `仓库自动排序` 当前是由 `InjectWarehouseBatchOpPanel.vue` + `useWarehouseBatchOp.js` 承载的独立 workflow surface。
 - `src/inject/panels/InjectMetaOperationPanel.vue` 是一个独立的 Inject 业务入口层：它消费共享 agent runtime 的只读状态，通过现有 `runAutoOperationCommand(command, args)` bridge 直接暴露 14 个当前原生命令入口，其中 12 个 zero-arg 动作是 `GoToBattlePrev`、`OpenSkillConfig`、`SelectRole`、`StartAction`、`GetBidState`、`PlaceBid`、`ConfirmBid`、`DismissRewardsBox`、`DismissCollectAward`、`GetCurrentScreen`、`CloseCurrentOverlay`、`CollectCabinetReward`，另外还提供参数化的 `EnterRoom` 与 `SetBidAmount`；它会把最近一次响应展示为格式化 JSON，但不承载泛型命令输入，也不根据当前游戏画面做前端按钮级 gating。
 - `tools/inject/AutoOperation/BKAutoOpClient/` 当前在仓库内没有已知调用链，但仓库仍保留 `tools/inject/AutoOperation/BKAutoOpClient/BKAutoOpClient.dll`，且 `package.json` 中 `extraResources` 仍会按 `tools/inject/**/*.dll` 过滤把它纳入桌面产物；基于当前 worktree 可验证事实，这轮不能把它按纯 dead code 直接删除。
 - `Inject` 页当前新增 `批量移仓` 面板：先调用 `runAutoOperationCommand('GetStockContainers')` 拉取物品箱快照，再由 `src/inject/stock-move.js` 在 renderer 侧按 row-major 空位扫描目标落点，最后顺序执行 `MoveStockItem`；来源表按 `itemCid` 聚合同类实例，并支持对 `名称 / 品质 / 类型 / CID / 尺寸 / 数量 / 占格` 7 列做单列升序/降序排序，默认顺序仍为 `boxCount` 降序、藏品名称升序、`itemCid` 升序；勾选一行会展开成该 `itemCid` 的全部实例参与移动；若实际要发出多条 `MoveStockItem`，两条真实移动命令之间固定等待 `1s`，并且每次跳过/成功/失败后都会实时刷新 `已处理 / 总数 / 成功 / 跳过 / 失败 / 当前藏品` 进度，成功移动仍以前一条命令返回的新快照作为下一次摆放依据。当前 agent 会在每次 `MoveStockItem` 成功后额外调用一次 `PlayerManager.GetAllStocks()` 刷新库存缓存；若这一步未完成，pipe 响应会把 `stocksRefreshed` 标成 `false`，但不会把已成功的移动误报为失败。面板当前还支持把 Saved List 保存到 `Documents/BidKing/stock-move-lists/`：每个列表一个 JSON 文件，包含 `itemCids` 和展示快照 `items`；新建列表入口已经改成独立 modal，可从全量 `collectibles.json` 搜索任意藏品追加到草稿，也可以把当前源仓勾选的 `itemCid` 快速导入草稿；页面挂载、成功加载物品箱和 modal 保存成功后都会刷新列表；应用列表时只选中当前源仓实际存在的 `itemCid`，并显示保存种类数、保存时间、当前匹配数；如果刷新请求乱序返回，renderer 会丢弃过期响应，避免旧列表结果覆盖新状态。当前游戏构建里，这一步仍不能稳定触发已打开的仓库 / 物品箱页面即时重绘。
@@ -258,7 +258,7 @@
 - 2026-06-18：`npm run build:inject` 通过；Vite 成功把 Inject 页面产物写入 `public/inject/`（包含 `index.html` 和 `assets/` 下的构建输出），说明包含 `Controller UI 操作`、泛型 command console 和相关 i18n 的 Inject 页面可成功构建。
 - 2026-06-18：`git diff --check` 无输出，说明本轮 current-state 文档同步未引入空白或补丁格式问题。
 - 2026-06-18：Windows native 构建链路修复。`package.json` 新增 `@rolldown/binding-win32-x64-msvc` 到 `optionalDependencies`，与已有的 `@rolldown/binding-linux-x64-gnu` 并列；`ELECTRON_MIRROR` 从 `.npmrc` 静态配置改为运行时环境变量（`pack-win-dir.mjs` 启动时设入 `process.env`，`dist:win` 通过 `node -e` 包装 `electron-builder` 调用），消除 npm 11 对未知 `.npmrc` 键的 warning；`scripts/pack-win-dir.test.mjs` 中 3 个测试改为跨平台写法。
-- 2026-06-18：`npm run build:pages` 在 Windows native (Node.js v24.16.0, Windows 11 Pro 10.0.26200) 通过，7 个页面入口（`home / elsa / ahmed / ethan / monitor /  inject`）全部构建成功。
+- 2026-06-18：`npm run build:pages` 在 Windows native (Node.js v24.16.0, Windows 11 Pro 10.0.26200) 通过，6 个页面入口（`home / elsa / ahmed / ethan / monitor / inject`）全部构建成功。
 - 2026-06-18：`npm run pack -- --app-dir-name BKToolBox-dev` 在 Windows native 通过，完整链路 `build:pages → prepare:dumpcap (79 files) → electron-builder → patch-win-icons` 全部成功；electron-builder 报告 `@rolldown/binding-linux-x64-gnu` 为 missing optional dependency（Windows 上预期行为）。
 - 2026-06-18：`npx vitest run scripts/pack-win-dir.test.mjs package-config.test.mjs scripts/windows-build-metadata.test.mjs scripts/clean-page-builds.test.mjs scripts/prepare-dumpcap-runtime.test.mjs scripts/icon-asset.test.mjs` 通过，`35` 个构建相关测试全绿，跨平台兼容。
 - 2026-06-18：`git diff --check` 无输出，改动范围仅限 `.npmrc`、`package.json`、`package-lock.json`、`scripts/pack-win-dir.test.mjs` 四个文件。
@@ -311,7 +311,7 @@
 - 2026-06-04：`npx vitest run src/inject/App.test.js src/inject/stock-move.test.js src/inject/StockMovePanel.test.js electron/services/inject-service.test.mjs` 通过，覆盖 Inject 批量移仓面板集成、放置扫描 helper、批量移动摘要统计，以及 `GetStockContainers` / `MoveStockItem` 的 service timeout。
 - 2026-06-03：`npx vitest run electron/services/inject-service.test.mjs` 通过，覆盖了 AutoOperation Agent 的“复用现有 pipe 而不是重复注入”、`UnloadAgent` 等待 agent 真正停止响应，以及超时失败分支。
 - 2026-06-03：`npx vitest run src/shared/useMonitorSwitch.test.js src/shared/useAutoOperationAgentSwitch.test.js src/shared/TopBar.test.js src/hero-estimator/HeroEstimatorPanel.test.js src/monitor/App.test.js src/inject/App.test.js` 通过，覆盖了共享 monitor runtime、共享 agent runtime、顶栏开关、Hero Estimator、`/Monitor`、`/Inject` 的同步行为。
-- 2026-06-03：`npm run build:pages` 通过，`home / elsa / ahmed / ethan / monitor /  inject` 六个入口均完成重建，说明本轮 TopBar runtime 改动没有破坏页面构建。
+- 2026-06-03：`npm run build:pages` 通过，`home / elsa / ahmed / ethan / monitor / inject` 六个入口均完成重建，说明本轮 TopBar runtime 改动没有破坏页面构建。
 - 2026-06-03：`npm run pack` 在当前机器仍失败，失败点仍是 `dist/win-unpacked/resources/runtime/tools/inject/AutoOperation/BKAutoOpAgent/BKAutoOpAgent.dll`。额外用 `cmd.exe /c del ...BKAutoOpAgent.dll` 验证时，Windows 返回“拒绝访问”；同时 `BidKing.exe` 仍在运行，说明这次失败是旧打包目录里的 agent DLL 仍被游戏进程持有，不是 electron-builder 配置本身的新错误。
 - 2026-06-03：`git diff --check` 无输出，说明本轮文档补录未引入空白或补丁格式问题。
 - 2026-06-03：人工核对 `src/elsa/App.vue`、`src/elsa/ElsaHeroPanel.vue`、`src/ethan/App.vue`、`src/ahmed/AhmedPanel.vue`、`src/hero-estimator/hero-profiles.js`、`src/hero-estimator/useHeroEstimatorPanel.js`，确认当时 current-state 为 `Tools = 3 hero tabs + 9 solver tabs`，且 `src/hero-estimator/` 与 shared `AhmedPanel` 已分别作为 `Ethan/Elsa` 与 `Ahmed` 的共用层落地。
