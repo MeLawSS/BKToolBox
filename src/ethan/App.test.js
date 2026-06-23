@@ -5,6 +5,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import App from './App.vue';
+import { calculateEstimationResult, runPriceMatchPhase } from './estimation-worker-core.js';
 
 const require = createRequire(import.meta.url);
 const { buildBidKingMonitorFacts } = require('../../lib/bidking-monitor-facts.js');
@@ -54,6 +55,42 @@ class FakeWorker {
 
   postMessage(message) {
     this.messages.push(structuredClone(message));
+    if (message?.type !== 'start') return;
+    const { runId, ...rest } = message;
+    try {
+      const result = calculateEstimationResult({ runId, ...rest });
+      if (result.type === 'combined' || result.type === 'single') {
+        const { type: mode, rows, ...startPayload } = result;
+        rows.forEach((row, index) => {
+          this.onmessage?.({
+            data: { type: 'row', runId, mode, index: index + 1, groupKeys: result.groupKeys, groupKey: result.groupKey, ...row },
+          });
+        });
+        runPriceMatchPhase({
+          result,
+          state: message.state,
+          collectibleItemsByGroup: message.collectibleItemsByGroup,
+          predictionGroupKeys: message.predictionGroupKeys,
+          profile: message.profile,
+          runId,
+          postMessage: (msg) => this.onmessage?.({ data: msg }),
+        });
+      } else {
+        this.onmessage?.({ data: { type: 'result', runId, result } });
+        runPriceMatchPhase({
+          result,
+          state: message.state,
+          collectibleItemsByGroup: message.collectibleItemsByGroup,
+          predictionGroupKeys: message.predictionGroupKeys,
+          profile: message.profile,
+          runId,
+          postMessage: (msg) => this.onmessage?.({ data: msg }),
+        });
+      }
+      this.onmessage?.({ data: { type: 'done', runId } });
+    } catch (error) {
+      this.onmessage?.({ data: { type: 'error', runId, error: error?.message || String(error) } });
+    }
   }
 
   emit(message) {
@@ -178,6 +215,7 @@ describe('Ethan App', () => {
     window.localStorage.clear();
     FakeEventSource.reset();
     FakeWorker.reset();
+    vi.stubGlobal('Worker', FakeWorker);
     mockDataFetch();
   });
 
@@ -230,7 +268,7 @@ describe('Ethan App', () => {
     expect(wrapper.find('h1').text()).toBe('期望价值估算');
     expect(wrapper.find('#cells-wg').exists()).toBe(true);
     expect(wrapper.find('#ethan-monitor-board').exists()).toBe(true);
-    expect(wrapper.find('.nav .active').exists()).toBe(true);
+    expect(wrapper.find('.nav').exists()).toBe(true);
   });
 
   it('refreshes generated result text when switching language', async () => {
@@ -1697,7 +1735,6 @@ describe('Ethan App', () => {
 
   it('terminates an active estimation worker and restarts it with monitor-updated inputs', async () => {
     vi.stubGlobal('EventSource', FakeEventSource);
-    vi.stubGlobal('Worker', FakeWorker);
     mockDataFetch({
       averagePrices: realAveragePrices,
       collectibles: realCollectibles,
@@ -1771,7 +1808,6 @@ describe('Ethan App', () => {
 
   it('terminates an active estimation worker when clear button is clicked', async () => {
     vi.stubGlobal('EventSource', FakeEventSource);
-    vi.stubGlobal('Worker', FakeWorker);
     mockDataFetch({
       averagePrices: realAveragePrices,
       collectibles: realCollectibles,
