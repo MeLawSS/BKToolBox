@@ -43,7 +43,7 @@ const canRunCollect = computed(() =>
 );
 
 const isBusyFromOtherCommand = computed(() =>
-  effectiveCommandLoading.value && props.commandLoading !== 'CollectCabinetReward',
+  !localLoading.value && Boolean(props.commandLoading) && props.commandLoading !== 'CollectCabinetReward',
 );
 
 const transportHintText = computed(() => {
