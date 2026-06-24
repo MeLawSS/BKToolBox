@@ -2314,9 +2314,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
 
         const int originalBid = amount;
 
+        int capOpponentSlot = 0;
+        std::string capOpponentName;
+
         if (useExpectedPrice && roundsEncountered >= 2 && roundsEncountered <= 5) {
                 std::string fallbackReason;
-                std::string opponentName;
 
                 // Bounded settle window for opponent-cap UI on new rounds.
                 // On a fresh round the player-name and previous-bid widgets may
@@ -2340,20 +2342,19 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                 if (!hasPlayer1Name && !hasPlayer2Name) {
                     fallbackReason = "player_names_missing";
                 } else {
-                    int opponentSlot = 0;
                     if (!TryResolveOpponentSlot(
                         selfName,
                         hasPlayer1Name ? player1Name : std::string(),
                         hasPlayer2Name ? player2Name : std::string(),
-                        &opponentSlot
+                        &capOpponentSlot
                     )) {
                         fallbackReason = "opponent_slot_ambiguous";
                     } else {
-                        opponentName = opponentSlot == 1 ? player1Name : player2Name;
+                        capOpponentName = capOpponentSlot == 1 ? player1Name : player2Name;
                         int opponentPreviousBid = 0;
                         if (!TryReadOpponentPreviousRoundBid(
                             s.battleMainTransform,
-                            opponentSlot,
+                            capOpponentSlot,
                             roundsEncountered,
                             &opponentPreviousBid,
                             &fallbackReason
@@ -2372,7 +2373,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                                     Logf(
                                         "AutoAuction round=%d opponent=%s prevBid=%d multiplier=%.2f originalBid=%d cappedBid=%d finalBid=%d",
                                         roundsEncountered,
-                                        opponentName.c_str(),
+                                        capOpponentName.c_str(),
                                         opponentPreviousBid,
                                         multiplier,
                                         originalBid,
@@ -2386,13 +2387,13 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                 }
 
                 if (!fallbackReason.empty()) {
-                    if (!opponentName.empty()) {
+                    if (!capOpponentName.empty()) {
                         Logf(
                             "AutoAuction round=%d limiter skipped: %s; originalBid=%d; opponent=%s",
                             roundsEncountered,
                             fallbackReason.c_str(),
                             originalBid,
-                            opponentName.c_str()
+                            capOpponentName.c_str()
                         );
                     } else {
                         Logf(
@@ -2509,6 +2510,30 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                                     sendAuthCodeRequired();
                                     return;
                                 }
+                            }
+                        }
+                        // Expected-price confirm gate: wait until opponent bids or secs <= 2
+                        if (useExpectedPrice) {
+                            ConfirmGateWaitResult gateResult = WaitForExpectedPriceConfirmGate(
+                                s2.battleMainTransform,
+                                capOpponentSlot,
+                                round,
+                                roundsEncountered,
+                                finalAmount,
+                                capOpponentName
+                            );
+                            if (gateResult.hardExitAuthcode) {
+                                Logf("AutoAuction interrupted: AuthCode_Main detected during expected-price confirm gate");
+                                sendAuthCodeRequired();
+                                return;
+                            }
+                            if (gateResult.hardExitInterrupted) {
+                                stopIfRequested();
+                                return;
+                            }
+                            if (gateResult.hardExitAuctionEnded ||
+                                gateResult.result == CONFIRM_GATE_NOT_READY) {
+                                continue;
                             }
                         }
                         bool primaryConfirmClicked = ClickNode(
