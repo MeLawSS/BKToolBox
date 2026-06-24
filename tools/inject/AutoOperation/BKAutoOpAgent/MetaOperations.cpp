@@ -1819,9 +1819,11 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
     int                amountForLog,
     const std::string& opponentNameForLog
 ) {
-    static const int kPollMs = 100;
+    static const int kPollMs = GetExpectedPriceConfirmGatePollIntervalMs();
     ConfirmGateWaitResult ret;
 
+    // battleTransform is used ONLY for the entry-log snapshot;
+    // the polling loop re-detects screen state on every iteration.
     {
         std::string roundText;
         int secsAtEntry = 9999;
