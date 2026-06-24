@@ -2646,6 +2646,8 @@ describe('Price App', () => {
   });
 });
 
+let _autoSellerUnmount = null;
+
 async function mountAutoSellerTab(options = {}) {
   const stockItems = options.stockItems ?? [];
   const commands = options.commands ?? {};
@@ -2672,22 +2674,32 @@ async function mountAutoSellerTab(options = {}) {
   });
 
   window.bidkingDesktop = { isDesktop: true, runAutoOperationCommand };
-  const wrapper = await mountApp();
+  const wrapper = mount(App);
+  await flushPromises();
+  await nextTick();
   await wrapper.find('[data-testid="price-tab-warehouse"]').trigger('click');
   await nextTick();
 
-  return { wrapper, calls, runAutoOperationCommand };
+  const unmount = () => {
+    wrapper.unmount();
+    _autoSellerUnmount = null;
+  };
+  _autoSellerUnmount = unmount;
+  return { wrapper, calls, runAutoOperationCommand, unmount };
 }
 
 describe('auto-seller', () => {
   beforeEach(() => {
-    document.body.innerHTML = '';
     window.localStorage.clear();
     delete window.bidkingDesktop;
     mockFetch();
   });
 
   afterEach(() => {
+    if (_autoSellerUnmount) {
+      _autoSellerUnmount();
+      _autoSellerUnmount = null;
+    }
     vi.unstubAllGlobals();
   });
 
@@ -2716,7 +2728,7 @@ describe('auto-seller', () => {
     // Select the item and start quick listing
     await wrapper.find('[data-testid="warehouse-1022002"]').trigger('click');
     await nextTick();
-    wrapper.find('[data-testid="price-quick-listing"]').trigger('click');
+    await wrapper.find('[data-testid="price-quick-listing"]').trigger('click');
     await nextTick();
 
     // While quick listing is in progress, start auto-seller button should be disabled
@@ -2788,7 +2800,7 @@ describe('auto-seller', () => {
     await wrapper.find('[data-testid="warehouse-1022002"]').trigger('click');
     await nextTick();
 
-    wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
     await flushPromises();
     await nextTick();
 
@@ -2853,7 +2865,7 @@ describe('auto-seller', () => {
 
     vi.useFakeTimers();
     try {
-      wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+      await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
       await vi.advanceTimersByTimeAsync(0); // bridge calls resolve immediately
 
       // After ExchangeItem success, successCount increments and 1.5s sleep begins
@@ -2903,7 +2915,7 @@ describe('auto-seller', () => {
 
     vi.useFakeTimers();
     try {
-      wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+      await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
       await vi.advanceTimersByTimeAsync(0); // first item bridges resolve
 
       // After first ExchangeItem, we're in the 1.5s sleep
@@ -3064,7 +3076,7 @@ describe('auto-seller', () => {
 
     vi.useFakeTimers();
     try {
-      wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+      await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
       await vi.advanceTimersByTimeAsync(0); // initial load + first GetItemTradeInfo + first ExchangeItem
 
       // ExchangeItem returned false → retry_wait phase, 10s sleep begins
@@ -3121,7 +3133,7 @@ describe('auto-seller', () => {
 
     vi.useFakeTimers();
     try {
-      wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+      await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
       await vi.advanceTimersByTimeAsync(0);
 
       // First retry cycle: ExchangeItem(1) called, 10s sleep begins
@@ -3171,7 +3183,7 @@ describe('auto-seller', () => {
 
     vi.useFakeTimers();
     try {
-      wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+      await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
       await vi.advanceTimersByTimeAsync(0); // first ExchangeItem call
       expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('retry_wait');
 
@@ -3207,12 +3219,12 @@ describe('auto-seller', () => {
 
     vi.useFakeTimers();
     try {
-      wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+      await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
       await vi.advanceTimersByTimeAsync(0); // first ExchangeItem
       expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('retry_wait');
 
       // Click stop during the 10s wait
-      wrapper.find('[data-testid="price-auto-seller-stop"]').trigger('click');
+      await wrapper.find('[data-testid="price-auto-seller-stop"]').trigger('click');
       await vi.advanceTimersByTimeAsync(100); // let the 50ms sleep poll fire
       await nextTick();
 
@@ -3279,7 +3291,7 @@ describe('auto-seller', () => {
       },
     });
 
-    wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
     await flushPromises();
     await nextTick();
 
@@ -3287,7 +3299,7 @@ describe('auto-seller', () => {
     expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('running');
 
     // Stop during DLL call → phase should be 'stopping'
-    wrapper.find('[data-testid="price-auto-seller-stop"]').trigger('click');
+    await wrapper.find('[data-testid="price-auto-seller-stop"]').trigger('click');
     await nextTick();
 
     expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('stopping');
