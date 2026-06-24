@@ -246,5 +246,36 @@ int main() {
     assert(!IsExchangeSellTabReady("", true));
     assert(!IsExchangeSellTabReady(nullptr, true));
 
+    // ---- Expected-price confirm gate ----------------------------------------
+
+    // Current-round bid path: round 1 uses RoundUnit, round N uses RoundUnit(Clone)[N-2]
+    assert(GetOpponentCurrentRoundBidPath(1, 1) ==
+        "Gaming/PlayerContainer/Player_1/containers/RoundUnit/priceTxt");
+    assert(GetOpponentCurrentRoundBidPath(2, 1) ==
+        "Gaming/PlayerContainer/Player_2/containers/RoundUnit/priceTxt");
+    assert(GetOpponentCurrentRoundBidPath(1, 2) ==
+        "Gaming/PlayerContainer/Player_1/containers/RoundUnit(Clone)[0]/priceTxt");
+    assert(GetOpponentCurrentRoundBidPath(2, 3) ==
+        "Gaming/PlayerContainer/Player_2/containers/RoundUnit(Clone)[1]/priceTxt");
+    assert(GetOpponentCurrentRoundBidPath(1, 5) ==
+        "Gaming/PlayerContainer/Player_1/containers/RoundUnit(Clone)[3]/priceTxt");
+
+    // Three-state result: all distinct
+    assert(CONFIRM_GATE_READY_OPPONENT_BID  != CONFIRM_GATE_READY_TIME_FALLBACK);
+    assert(CONFIRM_GATE_READY_OPPONENT_BID  != CONFIRM_GATE_NOT_READY);
+    assert(CONFIRM_GATE_READY_TIME_FALLBACK != CONFIRM_GATE_NOT_READY);
+
+    // Soft-exit reasons: all distinct
+    assert(CONFIRM_GATE_SOFT_EXIT_NONE          != CONFIRM_GATE_SOFT_EXIT_ROUND_CHANGED);
+    assert(CONFIRM_GATE_SOFT_EXIT_NONE          != CONFIRM_GATE_SOFT_EXIT_DIALOG_LOST);
+    assert(CONFIRM_GATE_SOFT_EXIT_ROUND_CHANGED != CONFIRM_GATE_SOFT_EXIT_DIALOG_LOST);
+
+    // CONFIRM_GATE_NOT_READY is not a ready state (soft exit ≠ success)
+    assert(CONFIRM_GATE_NOT_READY != CONFIRM_GATE_READY_OPPONENT_BID);
+    assert(CONFIRM_GATE_NOT_READY != CONFIRM_GATE_READY_TIME_FALLBACK);
+
+    // Poll interval
+    assert(GetExpectedPriceConfirmGatePollIntervalMs() == 100);
+
     return 0;
 }
