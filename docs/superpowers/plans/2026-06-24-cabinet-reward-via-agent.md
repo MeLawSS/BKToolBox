@@ -558,55 +558,33 @@ git commit -m "test: rewrite cabinet tests for agent-driven flow, remove old API
 
 ### Task 9: Full verification
 
-- [ ] **Step 1: Run Vitest**
+- [ ] **Step 1: Run full test suite**
 
 ```bash
-npx vitest run --config src/inject/vitest.config.js 2>&1
+npm test 2>&1
 ```
 
-Expected: all tests pass, no failures.
+Expected: all feature-related tests pass. The project has 13 pre-existing failures in unrelated areas (Ethan app, server, scripts, controllerUiNodeLabels) — ignore those.
 
-- [ ] **Step 2: Run Node-side tests**
+- [ ] **Step 2: Run build for inject page**
 
 ```bash
-npx vitest run --config electron/services/vitest.config.mjs 2>&1
+npm run build:inject 2>&1
 ```
 
-Expected: all tests pass. The `describe('inject-service AutoOperation Agent')` block with `CollectCabinetReward` timeout test (line 438) still passes.
+Expected: Vite build succeeds.
 
-- [ ] **Step 3: Run lint**
-
-```bash
-npx eslint src/inject/panels/InjectCabinetRewardPanel.vue src/inject/App.vue src/inject/App.test.js src/shared/messages.js electron/services/inject-service.js electron/services/inject-service.test.mjs electron/main.js electron/preload.js 2>&1
-```
-
-Expected: no errors.
-
-- [ ] **Step 4: Run typecheck**
-
-```bash
-npx vue-tsc --noEmit 2>&1
-```
-
-Expected: no type errors.
-
-- [ ] **Step 5: Run build**
-
-```bash
-npm run build 2>&1
-```
-
-Expected: build succeeds.
-
-- [ ] **Step 6: Verify no remaining references to deleted symbols**
+- [ ] **Step 3: Verify no remaining references to deleted symbols**
 
 ```bash
 grep -rn 'queryCabinetReward\|claimCabinetReward\|runCabinetRewardCommand\|getCabinetRewardPath' src/ electron/ --include='*.js' --include='*.vue' --include='*.mjs' 2>&1
 ```
 
-Expected: no output (zero remaining references in source code). Test files may still reference the names in test descriptions — skip those.
+Expected: no output (zero remaining references in source code). Legitimate hits in `messages.js` (i18n keys `claimCabinetReward` / `claimCabinetRewardSuccess`) and spec/plan docs are expected.
 
-- [ ] **Step 7: Commit if any lint/type fixes were made, or confirm clean**
+Note: The project has no `eslint` or `vue-tsc` configured — lint and typecheck steps are skipped.
+
+- [ ] **Step 4: Commit if any fixes were made, or confirm clean**
 
 ```bash
 git status
