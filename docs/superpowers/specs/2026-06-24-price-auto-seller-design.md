@@ -100,10 +100,13 @@
 - 错误统计与状态文本
 - 调用现有依赖：
   - `warehouseItems`
-  - `selectedDisplayItem` / `collectiblesByCid`
+  - `collectiblesByCid`
+  - `buildDisplayItem(itemCid)` 或等价的“按 CID 取展示快照”函数
   - `listingDefaultPricePercent`
-  - `refreshWarehouseItems`
+  - 一个 promise 化、带结果的仓库刷新 helper，例如 `refreshWarehouseSnapshot()`；它不能沿用当前 `refreshWarehouseItems()` 这种“失败只写入 `warehouseError` 且不显式返回成功/失败”的 contract
   - `window.bidkingDesktop.runAutoOperationCommand`
+
+控制器不得依赖 `selectedDisplayItem` 这种绑定用户当前选中项的状态来读取自动售卖目标的名称、基础价或最低价展示信息。所有当前件信息都必须通过 `currentItemCid` 重新按 CID 解析，避免用户手动改选中项或刷新导致读取错对象。
 
 ### 5.2 Agent 模块边界
 
@@ -116,6 +119,11 @@ agent 新增命令：`RefreshExchangeSellSlots`
 - 进入交易所
 - 执行买入页 / 出售页切换
 - 最终确认出售页 toggle 已处于激活状态
+
+Electron bridge 还需要配套调整：
+
+- `electron/services/inject-service.js` 的 auto-operation timeout 映射必须为 `RefreshExchangeSellSlots` 提供不少于 15 秒的 transport timeout
+- 不能让该命令落回当前 5 秒默认超时，否则 15 秒命令预算无法兑现
 
 agent 不负责：
 
@@ -144,6 +152,7 @@ agent 不负责：
 - `successCount`
 - `skippedCount`
 - `hasLoadedWarehouseOnce`
+- `terminalSkipCids`
 - `lastError`
 - `stopRequested`
 - `startedAt`
@@ -154,18 +163,22 @@ agent 不负责：
 - `stopping` 是用户可见状态，只在停止请求发生于不可中断调用期间时进入。
 - 若停止请求发生于可取消等待阶段，则不进入 `stopping`，而是直接转入 `stopped`。
 - 若停止请求发生于不可中断调用阶段，则流程为：设置 `stopRequested = true` -> 状态切到 `stopping` -> 当前调用返回后转为 `stopped`。
+- `terminalSkipCids` 是当前自动售卖 run 内的“终态跳过集合”。凡是进入不可恢复错误链的 CID，都会加入该集合；同一次 run 的后续迭代必须排除这些 CID，避免在刷新后反复命中同一永久跳过项。
 
 ## 7. 数据流与执行流程
 
 ### 7.1 启动流程
 
 1. 用户点击“开始自动售卖”
-2. 控制器重置统计与错误状态
-3. 若当前已有单件快速上架进行中，则阻止启动并提示当前存在进行中的仓库操作
-4. 若当前已有仓库刷新进行中，则等待该次刷新完成，而不是并发再发起一次刷新
-5. 若 `hasLoadedWarehouseOnce` 为 `false`，则执行一次 `refreshWarehouseItems`；该 flag 或等价状态用于区分“仓库尚未加载”与“仓库已加载但当前为空”
-6. 若首次准备完成后仓库可见列表为空，则直接结束为 `completed`
-7. 进入外层循环
+2. 控制器重置统计与错误状态，并清空 `terminalSkipCids`
+3. 若当前已有单件快速上架进行中，或手动上架弹窗已打开，则阻止启动并提示当前存在进行中的仓库操作
+4. 调用 promise 化的 `refreshWarehouseSnapshot()`：
+   - 若已有仓库刷新进行中，必须复用该 in-flight promise，而不是并发再发起一次刷新
+   - 该 helper 必须返回结构化结果，例如 `{ ok, rows, error }`
+5. 若 `hasLoadedWarehouseOnce` 为 `false`，则必须至少完成一次成功的仓库快照加载；该 flag 或等价状态用于区分“仓库尚未加载”与“仓库已加载但当前为空”
+6. 若仓库刷新结果为失败，则任务进入 `failed`，不得把失败当成空仓
+7. 若首次成功准备完成后，可处理候选列表为空，则结束为 `completed`
+8. 进入外层循环
 
 ### 7.2 外层循环
 
@@ -173,34 +186,42 @@ agent 不负责：
 
 原因：
 
-- `refreshWarehouseItems` 后仓库列表可能变化
+- 成功刷新仓库快照后，仓库列表可能变化
 - 当前页面已有 `warehouseSelectedIndex`、排序和过滤同步逻辑
 - 基于实时列表更符合“直到仓库 tab 下藏品为空为止”的需求
 
-当可见仓库列表为空时：
+候选列表定义：
+
+- 候选列表 = 当前仓库 tab 可见藏品列表 - `terminalSkipCids`
+- 同一次 run 中，任何已进入不可恢复错误链的 CID 都不得再次成为候选项
+
+当候选列表为空时：
 
 - 状态切换为 `completed`
-- 记录结束原因“仓库已空”
+- 记录结束原因“仓库已空或本次 run 的可见项均已被终态跳过”
 
 ### 7.3 单件处理流程
 
 1. 读取当前件 `itemCid` 与拥有数量；拥有数量作为本次 `ExchangeItem` 的 `count` 参数，保持与 `quickListSelectedItem` 当前“按该藏品现有拥有数量一次性上架”的语义一致
-2. 调用 `GetItemTradeInfo`
-3. 计算默认上架价
-4. 若上架价低于基础价：
+2. 通过 `currentItemCid` 按 CID 解析当前件的展示快照与基础价，不得依赖 `selectedDisplayItem`
+3. 调用 `GetItemTradeInfo`
+4. 计算默认上架价
+5. 若上架价低于基础价：
    - `skippedCount + 1`
+   - 将当前 `itemCid` 加入 `terminalSkipCids`
    - 记录错误或原因文本
    - 继续下一件
-5. 调用 `ExchangeItem`
-6. 根据结果进入成功链、可恢复错误链或跳过链
+6. 调用 `ExchangeItem`
+7. 根据结果进入成功链、可恢复错误链或跳过链
 
 ### 7.4 成功链
 
 1. `ExchangeItem` 成功。该成功既包括首次尝试成功，也包括经过 `RefreshExchangeSellSlots` 后的重试成功
 2. `successCount + 1`
-3. 调用 `refreshWarehouseItems`
-4. 等待 1.5 秒
-5. 进入下一件
+3. 调用 `refreshWarehouseSnapshot()`
+4. 若刷新失败，则任务进入 `failed`
+5. 等待 1.5 秒
+6. 进入下一件
 
 ### 7.5 可恢复错误链
 
@@ -211,7 +232,7 @@ agent 不负责：
 3. 若期间收到停止请求，立即退出
 4. 状态置为 `refreshing_exchange`
 5. 调用 `RefreshExchangeSellSlots`
-6. 若刷新成功，重新尝试当前件；该重试若成功，必须回归 §7.4 的完整成功链，即执行 `successCount + 1` -> `refreshWarehouseItems` -> 等待 1.5 秒 -> 再进入下一件
+6. 若刷新成功，重新尝试当前件；该重试若成功，必须回归 §7.4 的完整成功链，即执行 `successCount + 1` -> `refreshWarehouseSnapshot()` -> 等待 1.5 秒 -> 再进入下一件
 7. 若刷新失败，将其视为当前件不可恢复错误并跳过
 
 这里的“重试当前件”必须是单件内层循环，而不是回到外层仓库循环重新取件。
@@ -231,8 +252,15 @@ agent 不负责：
 
 1. 记录 `lastError`
 2. `skippedCount + 1`
-3. 调用 `refreshWarehouseItems`
-4. 继续下一件
+3. 将当前 `itemCid` 加入 `terminalSkipCids`
+4. 调用 `refreshWarehouseSnapshot()`
+5. 若刷新失败，则任务进入 `failed`
+6. 否则继续下一件
+
+终态跳过语义：
+
+- “跳过当前件”在本设计里不是“本轮跳过、下轮可能再试”，而是“对当前 run 永久跳过该 CID”
+- 用户若希望重新尝试这些被跳过的 CID，需要手动重新启动一次新的自动售卖 run；新 run 会清空 `terminalSkipCids`
 
 ## 8. 停止语义
 
@@ -251,7 +279,7 @@ agent 不负责：
 - `GetItemTradeInfo`
 - `ExchangeItem`
 - `RefreshExchangeSellSlots`
-- `refreshWarehouseItems` 内部 bridge 调用
+- `refreshWarehouseSnapshot()` 内部 bridge 调用
 
 因此实现约束为：
 
@@ -358,7 +386,13 @@ agent 不负责：
 - 禁用“开始自动售卖”
 - 显示“停止自动售卖”
 - 禁用单件“快速上架”
+- 禁用手动上架弹窗入口
 - 禁用“刷新仓库”
+
+自动售卖启动时：
+
+- 若手动上架弹窗已打开，则不自动接管该弹窗，也不允许并发启动自动售卖
+- 用户必须先关闭手动上架弹窗，再启动自动售卖
 
 自动售卖启动前：
 
@@ -369,6 +403,8 @@ agent 不负责：
 
 - 不自动停止任务
 - 只要 `Price` 页面实例仍在，流程继续
+- 本次设计不在其他 tab 或全局顶栏额外渲染停止按钮与进度条
+- 用户若在其他 tab 期间需要查看状态或点击停止，应切回仓库 tab
 
 ## 11. 测试设计
 
@@ -377,15 +413,18 @@ agent 不负责：
 在 `src/price/App.test.js` 增补以下覆盖：
 
 - 能启动自动售卖并在仓库空时自动结束
+- 当最后剩余的可见项全部因为不可恢复原因被加入 `terminalSkipCids` 时，任务会结束为 `completed`，而不是反复命中同一 CID
 - 成功路径会在两次上架之间等待 1.5 秒
 - 低于基础价时跳过当前件且不调用 `ExchangeItem`
 - `ExchangeItem returned false` 会等待 10 秒、调用 `RefreshExchangeSellSlots`，然后重试当前件
 - `ExchangeItem returned false` 在一次刷新后若再次返回同样错误，会再次进入等待 + 刷新 + 重试链，直到成功或手动停止，而不是跳出当前件循环
 - 非 `ExchangeItem returned false` 错误会跳过当前件
+- 手动上架弹窗打开时不能启动自动售卖
 - 等待期间点击停止会立即终止流程
 - 单件“快速上架”进行中时不能启动自动售卖
 - 运行中按钮禁用状态正确
 - 运行中状态文本和计数反馈正确
+- 仓库刷新失败不会被误判为空仓完成，而会进入失败态或明确错误态
 
 测试数据要求：
 
@@ -403,6 +442,11 @@ agent 不负责：
 - 超时返回明确错误，而不是无限等待
 - 15 秒整体超时约束的行为验证
 
+为 Electron bridge 补充测试，覆盖：
+
+- `RefreshExchangeSellSlots` 不会落回 5 秒默认 auto-operation timeout
+- transport timeout 配置满足该命令 15 秒预算
+
 ## 12. 风险与约束
 
 - `src/price/App.vue` 已较大，自动售卖控制器必须拆出，避免继续膨胀主文件。
@@ -417,8 +461,8 @@ agent 不负责：
 - 成功上架后会刷新仓库并等待 1.5 秒再继续。
 - 遇到 `ExchangeItem returned false` 时会等待 10 秒、刷新交易所出售页并重试当前件。
 - 遇到 `ExchangeItem returned false` 时重试链可持续执行，直到成功或手动停止为止。
-- 遇到其他错误时会跳过该件并继续。
-- 仓库为空时自动结束。
+- 遇到其他错误时会将该 CID 作为本次 run 的终态跳过项，并继续处理其他候选项。
+- 仓库为空，或本次 run 的剩余可见候选项均已被终态跳过时，自动结束。
 - 手动停止在等待阶段立即生效，在不可中断命令阶段以最短尾延迟停止。
 - 前端与 agent 对关键行为均有自动化测试覆盖。
 
@@ -429,6 +473,7 @@ agent 不负责：
 - 前端新增自动售卖控制器
 - `Price` 页接入按钮与状态展示
 - agent 新增 `RefreshExchangeSellSlots`
-- 前端与 agent 测试补齐
+- Electron timeout 映射补齐
+- 前端与 agent / Electron 测试补齐
 
 不包含额外重构、参数配置面板或持久化任务系统。
