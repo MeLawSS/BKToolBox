@@ -366,6 +366,7 @@ describe('inject-service AutoOperation Agent', () => {
       unitPrice: 6200,
       timeoutMs: 60000,
     }, { sendAutoOperationCommand });
+    await service.runAutoOperationCommand('RefreshExchangeSellSlots', {}, { sendAutoOperationCommand });
 
     expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
       1,
@@ -434,6 +435,12 @@ describe('inject-service AutoOperation Agent', () => {
         timeoutMs: 60000,
       },
       expect.objectContaining({ timeoutMs: 185000 }),
+    );
+    expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
+      10,
+      'RefreshExchangeSellSlots',
+      {},
+      expect.objectContaining({ timeoutMs: 20000 }),
     );
   });
 

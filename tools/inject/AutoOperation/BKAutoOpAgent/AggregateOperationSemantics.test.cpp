@@ -183,5 +183,52 @@ int main() {
     assert(BuildAutoAuctionUnexpectedScreenError("") == "auto_auction_unexpected_screen:null");
     assert(BuildAutoAuctionUnexpectedScreenError(nullptr) == "auto_auction_unexpected_screen:null");
 
+    // ---- RefreshExchangeSellSlots semantics --------------------------------
+
+    // Exchange screen identification
+    assert(IsExchangeScreen("exchange"));
+    assert(!IsExchangeScreen("main_lobby"));
+    assert(!IsExchangeScreen("warehouse"));
+    assert(!IsExchangeScreen("mailbox"));
+    assert(!IsExchangeScreen(""));
+    assert(!IsExchangeScreen(nullptr));
+
+    // Main lobby identification
+    assert(IsMainLobbyScreen("main_lobby"));
+    assert(!IsMainLobbyScreen("exchange"));
+    assert(!IsMainLobbyScreen("warehouse"));
+    assert(!IsMainLobbyScreen(""));
+    assert(!IsMainLobbyScreen(nullptr));
+
+    // Converge target screens (the screens we stop closing overlays at)
+    assert(IsExchangeConvergeTargetScreen("main_lobby"));
+    assert(IsExchangeConvergeTargetScreen("exchange"));
+    assert(!IsExchangeConvergeTargetScreen("warehouse"));
+    assert(!IsExchangeConvergeTargetScreen("mailbox"));
+    assert(!IsExchangeConvergeTargetScreen("auction_lobby_map"));
+    assert(!IsExchangeConvergeTargetScreen("unknown"));
+    assert(!IsExchangeConvergeTargetScreen(""));
+    assert(!IsExchangeConvergeTargetScreen(nullptr));
+
+    // Continue converge — true when we need to keep closing overlays
+    assert(ShouldContinueExchangeConverge("warehouse"));
+    assert(ShouldContinueExchangeConverge("mailbox"));
+    assert(ShouldContinueExchangeConverge("auction_lobby_map"));
+    assert(ShouldContinueExchangeConverge("auction_lobby_room"));
+    assert(!ShouldContinueExchangeConverge("unknown"));  // unknown is not a navigable screen
+    assert(!ShouldContinueExchangeConverge("main_lobby"));
+    assert(!ShouldContinueExchangeConverge("exchange"));
+    assert(!ShouldContinueExchangeConverge(""));       // detection failure
+    assert(!ShouldContinueExchangeConverge(nullptr));  // null guard
+
+    // Exchange sell tab readiness — must be on exchange with trading panel
+    assert(IsExchangeSellTabReady("exchange", true));
+    assert(!IsExchangeSellTabReady("exchange", false));
+    assert(!IsExchangeSellTabReady("main_lobby", true));
+    assert(!IsExchangeSellTabReady("warehouse", true));
+    assert(!IsExchangeSellTabReady("warehouse", false));
+    assert(!IsExchangeSellTabReady("", true));
+    assert(!IsExchangeSellTabReady(nullptr, true));
+
     return 0;
 }

@@ -291,3 +291,25 @@ inline int ResolveAutoAuctionReportedExpectedPrice(
 ) {
     return lastExpectedPrice > 0 ? lastExpectedPrice : notifiedExpectedPrice;
 }
+
+// ---- RefreshExchangeSellSlots semantics ---------------------------------
+
+inline bool IsExchangeScreen(const char* screen) {
+    return screen && strcmp(screen, "exchange") == 0;
+}
+
+inline bool IsMainLobbyScreen(const char* screen) {
+    return screen && strcmp(screen, "main_lobby") == 0;
+}
+
+inline bool IsExchangeConvergeTargetScreen(const char* screen) {
+    return IsMainLobbyScreen(screen) || IsExchangeScreen(screen);
+}
+
+inline bool ShouldContinueExchangeConverge(const char* screen) {
+    return screen && screen[0] != '\0' && strcmp(screen, "unknown") != 0 && !IsExchangeConvergeTargetScreen(screen);
+}
+
+inline bool IsExchangeSellTabReady(const char* screen, bool hasTradingPanel) {
+    return IsExchangeScreen(screen) && hasTradingPanel;
+}

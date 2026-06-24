@@ -4762,6 +4762,7 @@ static const CmdEntry kCommands[] = {
     { "AutoAuction",           CmdAutoAuction           },
     { "CancelAutoAuction",     CmdCancelAutoAuction     },
     { "UnloadAgent",           CmdUnloadAgent           },
+    { "RefreshExchangeSellSlots", CmdRefreshExchangeSellSlots },
     { nullptr,            nullptr             },
 };
 
@@ -4849,6 +4850,7 @@ static DWORD WINAPI AgentMain(LPVOID) {
     InitIl2cpp();
     Logf("InitIl2cpp ready=%s domain=%p", g_il2cppReady ? "true" : "false", g_domain);
     AttachCurrentThread();
+    Logf("Agent commands available: RefreshExchangeSellSlots ... (and others)");
 
     g_heartbeatThread = CreateThread(NULL, 0, HeartbeatThread, NULL, 0, NULL);
     g_autoCollectCabinetRewardThread = CreateThread(

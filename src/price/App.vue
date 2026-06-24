@@ -5,6 +5,7 @@ import { useI18n } from '../shared/i18n.js';
 import PriceTrendChart from './PriceTrendChart.vue';
 import ListingModal from './ListingModal.vue';
 import { DEFAULT_LISTING_PRICE_PERCENT, parseListingDefaultPricePercent, computeDefaultUnitPrice } from './listing-form.js';
+import { useWarehouseAutoSeller } from './useWarehouseAutoSeller.js';
 
 const { t, isEnglish } = useI18n();
 const LISTING_DEFAULT_PRICE_PERCENT_KEY = 'bidking-price-listing-default-percent:v1';
@@ -174,6 +175,41 @@ const canCaptureCollections = computed(() =>
 
 const listingDefaultPricePercent = computed(() =>
   parseListingDefaultPricePercent(listingDefaultPricePercentInput.value));
+
+const autoSeller = useWarehouseAutoSeller({
+  warehouseItems,
+  listingDefaultPricePercent,
+  refreshWarehouseSnapshot,
+  runAutoOperationCommand: (cmd, args) => window.bidkingDesktop.runAutoOperationCommand(cmd, args),
+  canStart: () => {
+    if (!canRefreshWarehouse.value) return 'rejected:no-bridge';
+    if (isQuickListing.value) return 'rejected:quick-listing-active';
+    if (isListingModalOpen.value) return 'rejected:listing-modal-open';
+    return null; // OK
+  },
+  errors: {
+    warehouseRefreshFailed: t('price.autoSeller.errors.warehouseRefreshFailed'),
+    getItemTradeInfoFailed: t('price.autoSeller.errors.getItemTradeInfoFailed'),
+    invalidMinPrice: t('price.autoSeller.errors.invalidMinPrice'),
+    priceCalculationFailed: t('price.autoSeller.errors.priceCalculationFailed'),
+    refreshExchangeSlotsFailed: t('price.autoSeller.errors.refreshExchangeSlotsFailed'),
+    exchangeItemFailed: t('price.autoSeller.errors.exchangeItemFailed'),
+    loadWarehouseFailed: t('price.autoSeller.errors.loadWarehouseFailed'),
+    warehouseRefreshAfterSuccessFailed: t('price.autoSeller.errors.warehouseRefreshAfterSuccessFailed'),
+    belowBasePrice: (listPrice, basePrice) => t('price.autoSeller.errors.belowBasePrice', { listPrice, basePrice }),
+  },
+});
+
+const autoSellerPhaseLabel = computed(() =>
+  t(`price.autoSeller.phases.${autoSeller.phase.value}`) || autoSeller.phase.value,
+);
+
+const canStartAutoSeller = computed(() =>
+  canRefreshWarehouse.value
+  && !isQuickListing.value
+  && !isListingModalOpen.value
+  && !autoSeller.isActive.value,
+);
 
 const selectedOwnedCount = computed(() => {
   const row = warehouseItems.value.find((item) => item.itemCid === selectedItemCid.value);
@@ -400,41 +436,54 @@ async function captureCollectionsToFile() {
   }
 }
 
+let _refreshSnapshotInFlight = null;
+
+async function refreshWarehouseSnapshot() {
+  if (_refreshSnapshotInFlight) return _refreshSnapshotInFlight;
+  _refreshSnapshotInFlight = _doRefreshWarehouseSnapshot().finally(() => {
+    _refreshSnapshotInFlight = null;
+  });
+  return _refreshSnapshotInFlight;
+}
+
+async function _doRefreshWarehouseSnapshot() {
+  isRefreshingWarehouse.value = true;
+  try {
+    if (liveCollectionCids.value === undefined) {
+      try {
+        const cidResponse = await window.bidkingDesktop.runAutoOperationCommand('GetCollectionItemCids', {});
+        if (cidResponse?.ok !== false && Array.isArray(cidResponse?.value?.cids)) {
+          liveCollectionCids.value = new Set(
+            cidResponse.value.cids.map(Number).filter(Number.isSafeInteger),
+          );
+        }
+      } catch (error) {
+        console.error('GetCollectionItemCids failed:', error);
+      }
+    }
+
+    const response = await window.bidkingDesktop.runAutoOperationCommand('GetStockContainers', {});
+    if (response?.ok === false) throw new Error(response.error || t('price.refreshWarehouseUnavailable'));
+    const rows = buildWarehouseRowsFromStockContainers(response?.value ?? response);
+    warehouseRows.value = rows;
+    await syncWarehouseSelection();
+    return { ok: true, rows };
+  } catch (error) {
+    return { ok: false, error: getErrorMessage(error) };
+  } finally {
+    isRefreshingWarehouse.value = false;
+  }
+}
+
 async function refreshWarehouseItems() {
-  if (isRefreshingWarehouse.value) return;
   if (!canRefreshWarehouse.value) {
     warehouseError.value = t('price.refreshWarehouseUnavailable');
     return;
   }
-
-  isRefreshingWarehouse.value = true;
   warehouseError.value = '';
-
-  // Cache only a successful live-collection fetch.
-  // If the bridge fails transiently, leave the state retryable for the next refresh.
-  if (liveCollectionCids.value === undefined) {
-    try {
-      const cidResponse = await window.bidkingDesktop.runAutoOperationCommand('GetCollectionItemCids', {});
-      if (cidResponse?.ok !== false && Array.isArray(cidResponse?.value?.cids)) {
-        liveCollectionCids.value = new Set(
-          cidResponse.value.cids.map(Number).filter(Number.isSafeInteger)
-        );
-      }
-    } catch (error) {
-      console.error('GetCollectionItemCids failed:', error);
-    }
-  }
-
-  try {
-    const response = await window.bidkingDesktop.runAutoOperationCommand('GetStockContainers', {});
-    if (response?.ok === false) throw new Error(response.error || t('price.refreshWarehouseUnavailable'));
-    const nextRows = buildWarehouseRowsFromStockContainers(response?.value ?? response);
-    warehouseRows.value = nextRows;
-    await syncWarehouseSelection();
-  } catch (error) {
-    warehouseError.value = getErrorMessage(error);
-  } finally {
-    isRefreshingWarehouse.value = false;
+  const result = await refreshWarehouseSnapshot();
+  if (!result.ok) {
+    warehouseError.value = result.error ?? t('price.refreshWarehouseUnavailable');
   }
 }
 
@@ -841,13 +890,49 @@ onMounted(() => {
             class="ghost-button"
             type="button"
             data-testid="price-warehouse-refresh"
-            :disabled="isRefreshingWarehouse || !canRefreshWarehouse"
+            :disabled="isRefreshingWarehouse || !canRefreshWarehouse || autoSeller.isActive.value"
             @click="refreshWarehouseItems"
           >
             {{ isRefreshingWarehouse ? t('price.refreshingWarehouse') : t('price.refreshWarehouse') }}
           </button>
+          <button
+            v-if="!autoSeller.isActive.value"
+            class="primary-button"
+            type="button"
+            data-testid="price-auto-seller-start"
+            :disabled="!canStartAutoSeller"
+            @click="autoSeller.start()"
+          >
+            {{ t('price.autoSeller.start') }}
+          </button>
+          <button
+            v-else
+            class="ghost-button"
+            type="button"
+            data-testid="price-auto-seller-stop"
+            :disabled="autoSeller.phase.value === 'stopping'"
+            @click="autoSeller.stop()"
+          >
+            {{ autoSeller.phase.value === 'stopping' ? t('price.autoSeller.phases.stopping') : t('price.autoSeller.stop') }}
+          </button>
         </header>
         <p v-if="warehouseError" class="error-text">{{ warehouseError }}</p>
+        <div
+          v-if="autoSeller.phase.value !== 'idle'"
+          class="auto-seller-status"
+          data-testid="auto-seller-status"
+        >
+          <span data-testid="auto-seller-phase">{{ autoSellerPhaseLabel }}</span>
+          <span v-if="autoSeller.currentItemName.value" data-testid="auto-seller-current-item">
+            {{ autoSeller.currentItemName.value }} ({{ autoSeller.currentItemCid.value }})
+          </span>
+          <span data-testid="auto-seller-counts">
+            {{ t('price.autoSeller.status.success') }}: {{ autoSeller.successCount.value }} / {{ t('price.autoSeller.status.skipped') }}: {{ autoSeller.skippedCount.value }}
+          </span>
+          <p v-if="autoSeller.lastError.value" class="error-text" data-testid="auto-seller-error">
+            {{ autoSeller.lastError.value }}
+          </p>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -956,7 +1041,7 @@ onMounted(() => {
             class="primary-button"
             type="button"
             data-testid="price-quick-listing"
-            :disabled="isQuickListing"
+            :disabled="isQuickListing || autoSeller.isActive.value"
             @click="quickListSelectedItem"
           >
             {{ isQuickListing ? t('price.quickListing.loading') : t('price.quickListing.button') }}
@@ -966,7 +1051,7 @@ onMounted(() => {
             class="primary-button"
             type="button"
             data-testid="price-listing-open"
-            :disabled="isQuickListing"
+            :disabled="isQuickListing || autoSeller.isActive.value"
             @click="openListingModal"
           >
             {{ t('price.listing.open') }}
