@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import App from './App.vue';
+import InjectCabinetRewardPanel from './panels/InjectCabinetRewardPanel.vue';
 import { LOCALE_STORAGE_KEY } from '../shared/i18n.js';
 import { __resetAutoOperationAgentSwitchRuntimeForTest } from '../shared/useAutoOperationAgentSwitch.js';
 
@@ -43,56 +44,53 @@ describe('Inject App', () => {
     vi.restoreAllMocks();
   });
 
-  it('shows a cabinet reward button and renders the value returned by the desktop API', async () => {
-    const queryCabinetReward = vi.fn().mockResolvedValue({
-      ok: true,
-      value: {
-        observedAt: '2026-06-01T03:04:05.000Z',
-        awardCount: 12345,
-      },
+  it('invokes CollectCabinetReward and displays success text', async () => {
+    window.sessionStorage.setItem('bidking-auto-operation-agent-connected', 'true');
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'Ping') return { ok: true, value: { pong: true } };
+      return { ok: true, value: { collected: true } };
     });
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward,
-      claimCabinetReward: vi.fn(),
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand,
     };
 
     const wrapper = await mountApp();
-    const button = wrapper.find('[data-testid="cabinet-reward-button"]');
-    expect(button.exists()).toBe(true);
-
-    await button.trigger('click');
-    expect(queryCabinetReward).toHaveBeenCalledTimes(1);
-
-    await flushPromises();
     await nextTick();
-    expect(wrapper.find('[data-testid="cabinet-reward-value"]').text()).toContain('12,345');
-  });
 
-  it('shows a claim button and refreshes the displayed reward after claiming', async () => {
-    const claimCabinetReward = vi.fn().mockResolvedValue({
-      ok: true,
-      value: {
-        observedAt: '2026-06-01T03:05:06.000Z',
-        awardCount: 0,
-      },
-    });
-    window.bidkingDesktop = {
-      isDesktop: true,
-      queryCabinetReward: vi.fn(),
-      claimCabinetReward,
-    };
-
-    const wrapper = await mountApp();
     const button = wrapper.find('[data-testid="cabinet-claim-button"]');
     expect(button.exists()).toBe(true);
 
     await button.trigger('click');
-    expect(claimCabinetReward).toHaveBeenCalledTimes(1);
+    expect(runAutoOperationCommand).toHaveBeenCalledWith('CollectCabinetReward', {});
 
     await flushPromises();
     await nextTick();
-    expect(wrapper.find('[data-testid="cabinet-reward-value"]').text()).toContain('0');
+    expect(wrapper.text()).toContain('领取成功');
+  });
+
+  it('displays error when CollectCabinetReward fails', async () => {
+    window.sessionStorage.setItem('bidking-auto-operation-agent-connected', 'true');
+    const runAutoOperationCommand = vi.fn(async (command) => {
+      if (command === 'Ping') return { ok: true, value: { pong: true } };
+      return { ok: false, error: 'cabinet is empty' };
+    });
+    window.bidkingDesktop = {
+      isDesktop: true,
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand,
+    };
+
+    const wrapper = await mountApp();
+    await nextTick();
+
+    const button = wrapper.find('[data-testid="cabinet-claim-button"]');
+    await button.trigger('click');
+
+    await flushPromises();
+    await nextTick();
+    expect(wrapper.text()).toContain('cabinet is empty');
   });
 
   it('starts the AutoOperation Agent and renders the ping result', async () => {
@@ -106,8 +104,6 @@ describe('Inject App', () => {
     });
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward: vi.fn(),
-      claimCabinetReward: vi.fn(),
       startAutoOperationAgent,
       runAutoOperationCommand,
     };
@@ -136,8 +132,6 @@ describe('Inject App', () => {
     });
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward: vi.fn(),
-      claimCabinetReward: vi.fn(),
       startAutoOperationAgent,
       runAutoOperationCommand,
     };
@@ -232,8 +226,6 @@ describe('Inject App', () => {
     });
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward: vi.fn(),
-      claimCabinetReward: vi.fn(),
       startAutoOperationAgent: vi.fn(),
       runAutoOperationCommand,
     };
@@ -281,8 +273,6 @@ describe('Inject App', () => {
     });
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward: vi.fn(),
-      claimCabinetReward: vi.fn(),
       startAutoOperationAgent: vi.fn(),
       runAutoOperationCommand,
     };
@@ -323,8 +313,6 @@ describe('Inject App', () => {
     });
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward: vi.fn(),
-      claimCabinetReward: vi.fn(),
       startAutoOperationAgent,
       runAutoOperationCommand,
     };
@@ -360,8 +348,6 @@ describe('Inject App', () => {
     });
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward: vi.fn(),
-      claimCabinetReward: vi.fn(),
       startAutoOperationAgent: vi.fn(),
       runAutoOperationCommand,
     };
@@ -412,8 +398,6 @@ describe('Inject App', () => {
     });
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward: vi.fn(),
-      claimCabinetReward: vi.fn(),
       startAutoOperationAgent: vi.fn(),
       runAutoOperationCommand,
     };
@@ -437,8 +421,6 @@ describe('Inject App', () => {
     });
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward: vi.fn(),
-      claimCabinetReward: vi.fn(),
       startAutoOperationAgent: vi.fn(),
       runAutoOperationCommand,
     };
@@ -493,8 +475,6 @@ describe('Inject App', () => {
     });
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward: vi.fn(),
-      claimCabinetReward: vi.fn(),
       startAutoOperationAgent: vi.fn(),
       runAutoOperationCommand,
     };
@@ -524,8 +504,6 @@ describe('Inject App', () => {
   it('shows the stock move panel in desktop mode when AutoOperation commands are available', async () => {
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward: vi.fn(),
-      claimCabinetReward: vi.fn(),
       startAutoOperationAgent: vi.fn(),
       runAutoOperationCommand: vi.fn(),
     };
@@ -584,8 +562,6 @@ describe('Inject App', () => {
     });
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward: vi.fn(),
-      claimCabinetReward: vi.fn(),
       startAutoOperationAgent: vi.fn(),
       runAutoOperationCommand,
     };
@@ -628,8 +604,6 @@ describe('Inject App', () => {
     const stopCollectionPriceScan = vi.fn().mockResolvedValue({ enabled: false, state: 'stopped' });
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward: vi.fn(),
-      claimCabinetReward: vi.fn(),
       startAutoOperationAgent: vi.fn(),
       runAutoOperationCommand: vi.fn(),
       startCollectionPriceScan,
@@ -675,8 +649,6 @@ describe('Inject App', () => {
     });
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward: vi.fn(),
-      claimCabinetReward: vi.fn(),
       startAutoOperationAgent: vi.fn(),
       runAutoOperationCommand: vi.fn(),
       startCollectionPriceScan: vi.fn(),
@@ -701,16 +673,41 @@ describe('Inject App', () => {
   });
 
 
-  it('disables cabinet actions when the desktop claim API is unavailable', async () => {
+  it('disables cabinet claim button when agent transport is unavailable', async () => {
     window.bidkingDesktop = {
       isDesktop: true,
-      queryCabinetReward: vi.fn(),
     };
 
     const wrapper = await mountApp();
 
-    expect(wrapper.find('[data-testid="cabinet-reward-button"]').attributes('disabled')).toBeDefined();
     expect(wrapper.find('[data-testid="cabinet-claim-button"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.text()).toContain('MetaOperation 通道未就绪，暂时无法发送命令');
+  });
+
+  it('disables button and shows busy hint when another command holds the shared lock', async () => {
+    window.sessionStorage.setItem('bidking-auto-operation-agent-connected', 'true');
+    const runAutoOperationCommand = vi.fn().mockResolvedValue({
+      ok: true,
+      value: { collected: true },
+    });
+    window.bidkingDesktop = {
+      isDesktop: true,
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand,
+    };
+
+    const wrapper = mount(InjectCabinetRewardPanel, {
+      props: { commandLoading: 'Ping' },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    await nextTick();
+
+    const button = wrapper.find('[data-testid="cabinet-claim-button"]');
+    expect(button.attributes('disabled')).toBeDefined();
+    expect(button.text()).not.toContain('领取中');
+    expect(wrapper.text()).toContain('有其他 AutoOperation 命令正在执行');
+    expect(runAutoOperationCommand).not.toHaveBeenCalledWith('CollectCabinetReward', expect.anything());
   });
 
   it('describes the page as a general automation workspace', async () => {

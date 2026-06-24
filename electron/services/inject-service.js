@@ -22,11 +22,6 @@ const EXCHANGE_ITEM_MIN_NATIVE_TIMEOUT_MS = 1000;
 const EXCHANGE_ITEM_MAX_NATIVE_TIMEOUT_MS = 60000;
 const EXCHANGE_ITEM_TIMEOUT_BUFFER_MS = 5000;
 
-function getCabinetRewardPath(documentsDir) {
-    return path.join(documentsDir, 'BidKing', 'cabinet-reward.json');
-}
-
-
 function getStockMoveListsDir(documentsDir) {
     return path.join(documentsDir, 'BidKing', 'stock-move-lists');
 }
@@ -38,26 +33,6 @@ function delay(ms) {
 async function readJsonFile(filePath) {
     const text = await fs.promises.readFile(filePath, 'utf8');
     return JSON.parse(text);
-}
-
-async function waitForJsonFile(filePath, startedAt, options = {}) {
-    const timeoutMs = options.timeoutMs ?? 20000;
-    const pollIntervalMs = options.pollIntervalMs ?? 250;
-    const deadline = Date.now() + timeoutMs;
-
-    while (Date.now() <= deadline) {
-        try {
-            const stat = await fs.promises.stat(filePath);
-            if (stat.mtimeMs >= startedAt - 1000) {
-                return await readJsonFile(filePath);
-            }
-        } catch (error) {
-            if (error?.code !== 'ENOENT') throw error;
-        }
-        await delay(pollIntervalMs);
-    }
-
-    throw new Error(`Timed out waiting for ${filePath}`);
 }
 
 async function runInjector(command, deps = {}) {
@@ -559,46 +534,10 @@ function updateCollectionPriceScanConfig(config = {}, deps = {}) {
     return getCollectionPriceScanController(deps).updateConfig(config);
 }
 
-async function runCabinetRewardCommand(command, deps = {}) {
-    const documentsDir = deps.documentsDir || process.env.BIDKING_DOCUMENTS_DIR;
-    if (!documentsDir) {
-        throw new Error('Documents directory is not available.');
-    }
-
-    const outputPath = getCabinetRewardPath(documentsDir);
-    const startedAt = Date.now();
-    await runInjector(command, {
-        ...deps,
-        dllPath: deps.dllPath || getRuntimePath('tools', 'inject', 'BKCabinetRewardPayload64', 'BKCabinetRewardPayload64.dll'),
-    });
-    const value = await waitForJsonFile(outputPath, startedAt, {
-        timeoutMs: deps.timeoutMs ?? 45000,
-        pollIntervalMs: deps.pollIntervalMs,
-    });
-    const ok = value?.ok !== false;
-    return {
-        ok,
-        error: ok ? undefined : value?.error,
-        path: outputPath,
-        value,
-    };
-}
-
-async function queryCabinetReward(deps = {}) {
-    return runCabinetRewardCommand('CabinetReward', deps);
-}
-
-async function claimCabinetReward(deps = {}) {
-    return runCabinetRewardCommand('ClaimCabinetReward', deps);
-}
-
 module.exports = {
-    claimCabinetReward,
-    getCabinetRewardPath,
     getCollectionPriceScanStatus,
     listStockMoveLists,
     pingAutoOperationAgent,
-    queryCabinetReward,
     queryTradeInfo,
     captureCollectionCidsToFile,
     refreshItemTradeInfo,

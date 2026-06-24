@@ -4,10 +4,8 @@ const path = require('path');
 const { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, Notification, screen } = require('electron');
 const {
     captureCollectionCidsToFile,
-    claimCabinetReward,
     getCollectionPriceScanStatus,
     listStockMoveLists,
-    queryCabinetReward,
     queryTradeInfo,
     refreshItemTradeInfo,
     runAutoOperationCommand,
@@ -588,20 +586,6 @@ function registerIpc() {
     ipcMain.handle('inject:queryTradeInfo', async () => {
         try {
             return await queryTradeInfo();
-        } catch (error) {
-            return { ok: false, error: error.message };
-        }
-    });
-    ipcMain.handle('inject:queryCabinetReward', async () => {
-        try {
-            return await queryCabinetReward();
-        } catch (error) {
-            return { ok: false, error: error.message };
-        }
-    });
-    ipcMain.handle('inject:claimCabinetReward', async () => {
-        try {
-            return await claimCabinetReward();
         } catch (error) {
             return { ok: false, error: error.message };
         }

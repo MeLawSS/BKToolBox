@@ -370,7 +370,7 @@ BKToolBox/
 
 职责：
 
-- 管理展示柜收益查询/领取
+- 管理展示柜收益自动领取（通过 Agent）
 - 启动 AutoOperation Agent 并调试命名管道命令
 - 获取仓库藏品数量
 - 从一个物品箱批量移动藏品到另一个物品箱
@@ -471,7 +471,6 @@ BKToolBox/
   - `getLatestScreenshot*()` / `getScreenshotStatus()` / `clearLatestScreenshot()`
 - 注入调度与展示柜
   - `queryTradeInfo()`
-  - `queryCabinetReward()` / `claimCabinetReward()`
   - `getScheduleState()` / `setScheduleEnabled()` / `resetInjectionTimer()` / `onScheduleState()`
 - AutoOperation 与交易所
   - `startAutoOperationAgent()`
