@@ -400,41 +400,54 @@ async function captureCollectionsToFile() {
   }
 }
 
+let _refreshSnapshotInFlight = null;
+
+async function refreshWarehouseSnapshot() {
+  if (_refreshSnapshotInFlight) return _refreshSnapshotInFlight;
+  _refreshSnapshotInFlight = _doRefreshWarehouseSnapshot().finally(() => {
+    _refreshSnapshotInFlight = null;
+  });
+  return _refreshSnapshotInFlight;
+}
+
+async function _doRefreshWarehouseSnapshot() {
+  isRefreshingWarehouse.value = true;
+  try {
+    if (liveCollectionCids.value === undefined) {
+      try {
+        const cidResponse = await window.bidkingDesktop.runAutoOperationCommand('GetCollectionItemCids', {});
+        if (cidResponse?.ok !== false && Array.isArray(cidResponse?.value?.cids)) {
+          liveCollectionCids.value = new Set(
+            cidResponse.value.cids.map(Number).filter(Number.isSafeInteger),
+          );
+        }
+      } catch (error) {
+        console.error('GetCollectionItemCids failed:', error);
+      }
+    }
+
+    const response = await window.bidkingDesktop.runAutoOperationCommand('GetStockContainers', {});
+    if (response?.ok === false) throw new Error(response.error || t('price.refreshWarehouseUnavailable'));
+    const rows = buildWarehouseRowsFromStockContainers(response?.value ?? response);
+    warehouseRows.value = rows;
+    await syncWarehouseSelection();
+    return { ok: true, rows };
+  } catch (error) {
+    return { ok: false, error: getErrorMessage(error) };
+  } finally {
+    isRefreshingWarehouse.value = false;
+  }
+}
+
 async function refreshWarehouseItems() {
-  if (isRefreshingWarehouse.value) return;
   if (!canRefreshWarehouse.value) {
     warehouseError.value = t('price.refreshWarehouseUnavailable');
     return;
   }
-
-  isRefreshingWarehouse.value = true;
   warehouseError.value = '';
-
-  // Cache only a successful live-collection fetch.
-  // If the bridge fails transiently, leave the state retryable for the next refresh.
-  if (liveCollectionCids.value === undefined) {
-    try {
-      const cidResponse = await window.bidkingDesktop.runAutoOperationCommand('GetCollectionItemCids', {});
-      if (cidResponse?.ok !== false && Array.isArray(cidResponse?.value?.cids)) {
-        liveCollectionCids.value = new Set(
-          cidResponse.value.cids.map(Number).filter(Number.isSafeInteger)
-        );
-      }
-    } catch (error) {
-      console.error('GetCollectionItemCids failed:', error);
-    }
-  }
-
-  try {
-    const response = await window.bidkingDesktop.runAutoOperationCommand('GetStockContainers', {});
-    if (response?.ok === false) throw new Error(response.error || t('price.refreshWarehouseUnavailable'));
-    const nextRows = buildWarehouseRowsFromStockContainers(response?.value ?? response);
-    warehouseRows.value = nextRows;
-    await syncWarehouseSelection();
-  } catch (error) {
-    warehouseError.value = getErrorMessage(error);
-  } finally {
-    isRefreshingWarehouse.value = false;
+  const result = await refreshWarehouseSnapshot();
+  if (!result.ok) {
+    warehouseError.value = result.error ?? t('price.refreshWarehouseUnavailable');
   }
 }
 

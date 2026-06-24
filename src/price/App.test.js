@@ -2551,4 +2551,97 @@ describe('Price App', () => {
     expect(colPanel.exists()).toBe(true);
     expect(colPanel.text()).toContain('暂无 Collections 藏品');
   });
+
+  describe('refreshWarehouseSnapshot()', () => {
+    it('manual refresh still works after extraction refactor', async () => {
+      const runAutoOperationCommand = createWarehouseMocks({
+        stockResponses: [
+          createWarehouseSnapshot([
+            createWarehouseContainer({
+              stockId: 0,
+              items: [
+                createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 3 }),
+              ],
+            }),
+          ]),
+        ],
+      });
+      window.bidkingDesktop = { isDesktop: true, runAutoOperationCommand };
+
+      const wrapper = await mountApp();
+      await wrapper.find('[data-testid="price-tab-warehouse"]').trigger('click');
+      await nextTick();
+
+      await wrapper.find('[data-testid="price-warehouse-refresh"]').trigger('click');
+      await flushPromises();
+      await nextTick();
+
+      expect(runAutoOperationCommand).toHaveBeenCalledWith('GetStockContainers', {});
+      expect(wrapper.find('[data-testid="price-warehouse"]').text()).toContain(
+        getTestCollectible(1022002).name,
+      );
+    });
+
+    it('concurrent callers share one in-flight GetStockContainers request', async () => {
+      const stockDeferred = createDeferred();
+      let getStockContainersCalls = 0;
+      const runAutoOperationCommand = vi.fn(async (command) => {
+        if (command === 'GetCollectionItemCids') return { ok: false, error: 'not available' };
+        if (command === 'GetStockContainers') {
+          getStockContainersCalls++;
+          return stockDeferred.promise;
+        }
+        throw new Error(`unexpected: ${command}`);
+      });
+      window.bidkingDesktop = { isDesktop: true, runAutoOperationCommand };
+
+      const wrapper = await mountApp();
+      await wrapper.find('[data-testid="price-tab-warehouse"]').trigger('click');
+      await nextTick();
+
+      // Trigger two refreshes before the first resolves
+      wrapper.find('[data-testid="price-warehouse-refresh"]').trigger('click');
+      wrapper.find('[data-testid="price-warehouse-refresh"]').trigger('click');
+      await nextTick();
+
+      stockDeferred.resolve({
+        ok: true,
+        value: createWarehouseSnapshot([
+          createWarehouseContainer({
+            stockId: 0,
+            items: [
+              createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+            ],
+          }),
+        ]),
+      });
+      await flushPromises();
+      await nextTick();
+
+      // Only one GetStockContainers call should have been made
+      expect(getStockContainersCalls).toBe(1);
+      expect(wrapper.find('[data-testid="price-warehouse"]').text()).toContain(
+        getTestCollectible(1022002).name,
+      );
+    });
+
+    it('returns ok:false and sets warehouseError on GetStockContainers failure', async () => {
+      const runAutoOperationCommand = vi.fn(async (command) => {
+        if (command === 'GetCollectionItemCids') return { ok: false, error: 'not available' };
+        if (command === 'GetStockContainers') return { ok: false, error: 'bridge unavailable' };
+        throw new Error(`unexpected: ${command}`);
+      });
+      window.bidkingDesktop = { isDesktop: true, runAutoOperationCommand };
+
+      const wrapper = await mountApp();
+      await wrapper.find('[data-testid="price-tab-warehouse"]').trigger('click');
+      await nextTick();
+
+      await wrapper.find('[data-testid="price-warehouse-refresh"]').trigger('click');
+      await flushPromises();
+      await nextTick();
+
+      expect(wrapper.find('[data-testid="price-warehouse"]').text()).toContain('bridge unavailable');
+    });
+  });
 });
