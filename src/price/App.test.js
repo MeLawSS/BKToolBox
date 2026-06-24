@@ -3257,4 +3257,47 @@ describe('auto-seller', () => {
     expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('failed');
     expect(wrapper.find('[data-testid="auto-seller-error"]').text()).toContain('refresh failed after listing');
   });
+
+  it('auto-seller: enters stopping phase when stopped during DLL call, then transitions to stopped', async () => {
+    const exchDeferred = createDeferred();
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+      ],
+      commands: {
+        GetStockContainers: async () => ({
+          ok: true,
+          value: createWarehouseSnapshot([
+            createWarehouseContainer({
+              stockId: 0,
+              items: [createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 })],
+            }),
+          ]),
+        }),
+        GetItemTradeInfo: async () => ({ ok: true, value: { minPrice: 5000 } }),
+        ExchangeItem: async () => exchDeferred.promise,
+      },
+    });
+
+    wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    // ExchangeItem is in flight — _inDllCall is true
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('running');
+
+    // Stop during DLL call → phase should be 'stopping'
+    wrapper.find('[data-testid="price-auto-seller-stop"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('stopping');
+
+    // Resolve the pending ExchangeItem → _checkStop() gate fires → 'stopped'
+    exchDeferred.resolve({ ok: true });
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('stopped');
+    expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('成功: 0');
+  });
 });
