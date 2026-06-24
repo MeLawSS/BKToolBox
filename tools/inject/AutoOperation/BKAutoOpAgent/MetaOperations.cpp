@@ -1784,6 +1784,132 @@ static bool TryReadOpponentPreviousRoundBid(
     return true;
 }
 
+static bool TryReadOpponentCurrentRoundBid(
+    Il2CppObject* battleTransform,
+    int opponentSlot,
+    int roundNumber,
+    int* outBid
+) {
+    if (outBid) *outBid = 0;
+    if (!battleTransform || opponentSlot <= 0 || roundNumber <= 0 || !outBid) return false;
+    const std::string path = GetOpponentCurrentRoundBidPath(opponentSlot, roundNumber);
+    std::string priceText;
+    if (!ReadExactNodeText(battleTransform, path.c_str(), &priceText) || priceText.empty()) return false;
+    return TryParsePriceText(priceText, outBid) && *outBid > 0;
+}
+
+struct ConfirmGateWaitResult {
+    ConfirmGateResult         result           = CONFIRM_GATE_NOT_READY;
+    ConfirmGateSoftExitReason softExitReason   = CONFIRM_GATE_SOFT_EXIT_NONE;
+    int                       opponentRoundBid = 0;
+    bool hardExitAuthcode    = false;
+    bool hardExitInterrupted = false;
+    bool hardExitAuctionEnded = false;
+};
+
+// Polls every 100ms inside the bid dialog (after amount is written, before confirm click).
+// Returns a ready result when the gate fires, or a hard/soft exit reason when it can't.
+// Hard exits (authcode, interrupted, auction_ended) each have their own bool field so
+// the caller never mistakes them for the soft-exit NOT_READY path.
+static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
+    Il2CppObject*      battleTransform,
+    int                opponentSlot,
+    const std::string& gateEntryRoundText,
+    int                gateEntryRoundNumber,
+    int                amountForLog,
+    const std::string& opponentNameForLog
+) {
+    static const int kPollMs = GetExpectedPriceConfirmGatePollIntervalMs();
+    ConfirmGateWaitResult ret;
+
+    // battleTransform is used ONLY for the entry-log snapshot;
+    // the polling loop re-detects screen state on every iteration.
+    {
+        std::string roundText;
+        int secsAtEntry = 9999;
+        ReadBidState(battleTransform, &roundText, &secsAtEntry);
+        Logf(
+            "AutoAuction expected-price confirm gate: entering round=%d secs=%d amount=%d opponent=%s",
+            gateEntryRoundNumber,
+            secsAtEntry,
+            amountForLog,
+            opponentNameForLog.empty() ? "(unresolved)" : opponentNameForLog.c_str()
+        );
+    }
+
+    for (;;) {
+        if (IsAutoAuctionStopRequested()) {
+            ret.hardExitInterrupted = true;
+            return ret;
+        }
+
+        ScreenState sc = DetectScreenState();
+
+        if (IsAutoAuctionVerificationScreen(sc.screen)) {
+            ret.hardExitAuthcode = true;
+            return ret;
+        }
+
+        if (IsAutoAuctionCleanupEndedScreen(sc.screen)) {
+            ret.hardExitAuctionEnded = true;
+            return ret;
+        }
+
+        if (strcmp(sc.screen, "auction_in_progress") != 0 || !sc.battleMainTransform) {
+            ret.softExitReason = CONFIRM_GATE_SOFT_EXIT_DIALOG_LOST;
+            Logf(
+                "AutoAuction expected-price confirm gate: interrupted reason=dialog_lost screen=%s",
+                sc.screen ? sc.screen : "null"
+            );
+            return ret;
+        }
+
+        std::string currentRound;
+        int currentSecs = 9999;
+        ReadBidState(sc.battleMainTransform, &currentRound, &currentSecs);
+
+        if (!currentRound.empty() && currentRound != gateEntryRoundText) {
+            ret.softExitReason = CONFIRM_GATE_SOFT_EXIT_ROUND_CHANGED;
+            Logf("AutoAuction expected-price confirm gate: interrupted reason=round_changed");
+            return ret;
+        }
+
+        if (!HasActiveBidInputDialog(sc.battleMainTransform)) {
+            ret.softExitReason = CONFIRM_GATE_SOFT_EXIT_DIALOG_LOST;
+            Logf("AutoAuction expected-price confirm gate: interrupted reason=dialog_lost (dialog gone)");
+            return ret;
+        }
+
+        if (currentSecs <= 2) {
+            ret.result = CONFIRM_GATE_READY_TIME_FALLBACK;
+            Logf(
+                "AutoAuction expected-price confirm gate: ready reason=time_fallback secs=%d",
+                currentSecs
+            );
+            return ret;
+        }
+
+        if (opponentSlot > 0) {
+            int opponentBid = 0;
+            if (TryReadOpponentCurrentRoundBid(
+                    sc.battleMainTransform, opponentSlot, gateEntryRoundNumber, &opponentBid)) {
+                ret.result = CONFIRM_GATE_READY_OPPONENT_BID;
+                ret.opponentRoundBid = opponentBid;
+                Logf(
+                    "AutoAuction expected-price confirm gate: ready reason=opponent_bid opponentRoundBid=%d",
+                    opponentBid
+                );
+                return ret;
+            }
+        }
+
+        if (!SleepInterruptibly(kPollMs)) {
+            ret.hardExitInterrupted = true;
+            return ret;
+        }
+    }
+}
+
 // AutoAuction: full automated auction sequence from main_lobby.
 // Params: {"roomId":<int>, "bidAmount":<int>}  (defaults: roomId=101, bidAmount=25000)
 // Steps:
@@ -2190,9 +2316,11 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
 
         const int originalBid = amount;
 
+        int capOpponentSlot = 0;
+        std::string capOpponentName;
+
         if (useExpectedPrice && roundsEncountered >= 2 && roundsEncountered <= 5) {
                 std::string fallbackReason;
-                std::string opponentName;
 
                 // Bounded settle window for opponent-cap UI on new rounds.
                 // On a fresh round the player-name and previous-bid widgets may
@@ -2216,20 +2344,19 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                 if (!hasPlayer1Name && !hasPlayer2Name) {
                     fallbackReason = "player_names_missing";
                 } else {
-                    int opponentSlot = 0;
                     if (!TryResolveOpponentSlot(
                         selfName,
                         hasPlayer1Name ? player1Name : std::string(),
                         hasPlayer2Name ? player2Name : std::string(),
-                        &opponentSlot
+                        &capOpponentSlot
                     )) {
                         fallbackReason = "opponent_slot_ambiguous";
                     } else {
-                        opponentName = opponentSlot == 1 ? player1Name : player2Name;
+                        capOpponentName = capOpponentSlot == 1 ? player1Name : player2Name;
                         int opponentPreviousBid = 0;
                         if (!TryReadOpponentPreviousRoundBid(
                             s.battleMainTransform,
-                            opponentSlot,
+                            capOpponentSlot,
                             roundsEncountered,
                             &opponentPreviousBid,
                             &fallbackReason
@@ -2248,7 +2375,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                                     Logf(
                                         "AutoAuction round=%d opponent=%s prevBid=%d multiplier=%.2f originalBid=%d cappedBid=%d finalBid=%d",
                                         roundsEncountered,
-                                        opponentName.c_str(),
+                                        capOpponentName.c_str(),
                                         opponentPreviousBid,
                                         multiplier,
                                         originalBid,
@@ -2262,13 +2389,13 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                 }
 
                 if (!fallbackReason.empty()) {
-                    if (!opponentName.empty()) {
+                    if (!capOpponentName.empty()) {
                         Logf(
                             "AutoAuction round=%d limiter skipped: %s; originalBid=%d; opponent=%s",
                             roundsEncountered,
                             fallbackReason.c_str(),
                             originalBid,
-                            opponentName.c_str()
+                            capOpponentName.c_str()
                         );
                     } else {
                         Logf(
@@ -2385,6 +2512,30 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                                     sendAuthCodeRequired();
                                     return;
                                 }
+                            }
+                        }
+                        // Expected-price confirm gate: wait until opponent bids or secs <= 2
+                        if (useExpectedPrice) {
+                            ConfirmGateWaitResult gateResult = WaitForExpectedPriceConfirmGate(
+                                s2.battleMainTransform,
+                                capOpponentSlot,
+                                round,
+                                roundsEncountered,
+                                finalAmount,
+                                capOpponentName
+                            );
+                            if (gateResult.hardExitAuthcode) {
+                                Logf("AutoAuction interrupted: AuthCode_Main detected during expected-price confirm gate");
+                                sendAuthCodeRequired();
+                                return;
+                            }
+                            if (gateResult.hardExitInterrupted) {
+                                stopIfRequested();
+                                return;
+                            }
+                            if (gateResult.hardExitAuctionEnded ||
+                                gateResult.result == CONFIRM_GATE_NOT_READY) {
+                                continue;
                             }
                         }
                         bool primaryConfirmClicked = ClickNode(

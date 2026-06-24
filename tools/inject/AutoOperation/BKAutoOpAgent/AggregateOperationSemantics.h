@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ctype.h>
+#include <stdio.h>
 #include <string.h>
 #include <string>
 
@@ -332,3 +333,37 @@ inline bool ShouldContinueExchangeConverge(const char* screen) {
 inline bool IsExchangeSellTabReady(const char* screen, bool hasTradingPanel) {
     return IsExchangeScreen(screen) && hasTradingPanel;
 }
+
+// ---- Expected-price confirm gate semantics ---------------------------------
+
+enum ConfirmGateResult {
+    CONFIRM_GATE_READY_OPPONENT_BID  = 0,
+    CONFIRM_GATE_READY_TIME_FALLBACK = 1,
+    CONFIRM_GATE_NOT_READY           = 2
+};
+
+enum ConfirmGateSoftExitReason {
+    CONFIRM_GATE_SOFT_EXIT_NONE          = 0,
+    CONFIRM_GATE_SOFT_EXIT_ROUND_CHANGED = 1,
+    CONFIRM_GATE_SOFT_EXIT_DIALOG_LOST   = 2
+};
+
+// Returns the UI path to the current-round price cell for the given player slot
+// and script-side round counter (1-based, matches roundsEncountered in CmdAutoAuction).
+// round == 1  → RoundUnit/priceTxt
+// round >= 2  → RoundUnit(Clone)[round-2]/priceTxt
+inline std::string GetOpponentCurrentRoundBidPath(int slot, int round) {
+    char path[256];
+    if (round <= 1) {
+        snprintf(path, sizeof(path),
+            "Gaming/PlayerContainer/Player_%d/containers/RoundUnit/priceTxt",
+            slot);
+    } else {
+        snprintf(path, sizeof(path),
+            "Gaming/PlayerContainer/Player_%d/containers/RoundUnit(Clone)[%d]/priceTxt",
+            slot, round - 2);
+    }
+    return std::string(path);
+}
+
+inline int GetExpectedPriceConfirmGatePollIntervalMs() { return 100; }
