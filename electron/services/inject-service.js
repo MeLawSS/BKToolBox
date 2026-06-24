@@ -35,26 +35,6 @@ async function readJsonFile(filePath) {
     return JSON.parse(text);
 }
 
-async function waitForJsonFile(filePath, startedAt, options = {}) {
-    const timeoutMs = options.timeoutMs ?? 20000;
-    const pollIntervalMs = options.pollIntervalMs ?? 250;
-    const deadline = Date.now() + timeoutMs;
-
-    while (Date.now() <= deadline) {
-        try {
-            const stat = await fs.promises.stat(filePath);
-            if (stat.mtimeMs >= startedAt - 1000) {
-                return await readJsonFile(filePath);
-            }
-        } catch (error) {
-            if (error?.code !== 'ENOENT') throw error;
-        }
-        await delay(pollIntervalMs);
-    }
-
-    throw new Error(`Timed out waiting for ${filePath}`);
-}
-
 async function runInjector(command, deps = {}) {
     const execFileImpl = deps.execFile || execFile;
     const psPath  = getRuntimePath('tools', 'inject', 'BKPayload64', 'inject.ps1');
