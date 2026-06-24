@@ -2612,6 +2612,18 @@ static bool WaitForScreenREFRESH(const char* targetScreen, int timeoutMs, int po
     }
 }
 
+static bool WaitForScreenNot(int timeoutMs, int pollIntervalMs, const char* notScreen) {
+    DWORD start = GetTickCount();
+    for (;;) {
+        if (IsAgentShuttingDown()) return false;
+        ScreenState s = DetectScreenState();
+        if (strcmp(s.screen, notScreen) != 0) return true;
+        if (s.screen[0] == '\0') return false; // detection failure
+        if ((int)(GetTickCount() - start) >= timeoutMs) return false;
+        Sleep(pollIntervalMs);
+    }
+}
+
 static bool WaitForToggleStateREFRESH(Il2CppObject* transform, const char* nodePath,
                                        bool expectedOn, int timeoutMs, int pollIntervalMs) {
     DWORD start = GetTickCount();
@@ -2658,16 +2670,20 @@ void CmdRefreshExchangeSellSlots(AgentConn* c, const char* id, const char* /*jso
                 SendResponse(c, id, false, "no close target for current screen");
                 return;
             }
+            std::string prevScreen(s.screen);
             std::string err;
             if (!ClickNode(closeXform, closePath, 0, &err)) {
                 SendResponse(c, id, false, ("close overlay failed: " + err).c_str());
                 return;
             }
+            // Wait for the screen to change from what it was — don't
+            // require main_lobby yet, so intermediate screens get closed
+            // by the next iteration of the while loop.
             int stepBudget = std::min(STEP_MS, budgetLeft());
-            if (!WaitForScreenREFRESH("main_lobby", stepBudget, POLL_MS)) {
+            if (!WaitForScreenNot(stepBudget, POLL_MS, prevScreen.c_str())) {
                 s = DetectScreenState();
                 if (strcmp(s.screen, "main_lobby") != 0 && strcmp(s.screen, "exchange") != 0) {
-                    SendResponse(c, id, false, "failed to reach main_lobby after closing overlay");
+                    SendResponse(c, id, false, "failed to converge after closing overlay");
                     return;
                 }
             }

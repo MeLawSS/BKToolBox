@@ -2763,7 +2763,7 @@ describe('auto-seller', () => {
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toContain('completed');
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toContain('已完成');
   });
 
   it('enters failed state when initial warehouse refresh fails', async () => {
@@ -2777,7 +2777,7 @@ describe('auto-seller', () => {
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toContain('failed');
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toContain('失败');
     expect(wrapper.find('[data-testid="auto-seller-error"]').text()).toContain('bridge error');
   });
 
@@ -2873,7 +2873,7 @@ describe('auto-seller', () => {
       await vi.advanceTimersByTimeAsync(2000);
       await nextTick();
 
-      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('completed');
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('已完成');
       expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('成功: 1');
       expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('跳过: 0');
     } finally {
@@ -2921,7 +2921,7 @@ describe('auto-seller', () => {
       // After first ExchangeItem, we're in the 1.5s sleep
       // Only one ExchangeItem call so far
       expect(exchCallCount.value).toBe(1);
-      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('running');
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('售卖中');
 
       // Advance past 1.5s
       await vi.advanceTimersByTimeAsync(2000);
@@ -2964,7 +2964,7 @@ describe('auto-seller', () => {
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('completed');
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('已完成');
     expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('跳过: 1');
     expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('成功: 0');
     // ExchangeItem must NOT have been called
@@ -3001,7 +3001,7 @@ describe('auto-seller', () => {
 
     // The item is skipped and added to terminalSkipCids. Even though warehouse still shows the item
     // (stockCallCount > 1), the composable sees it's already in terminalSkipCids → completed.
-    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('completed');
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('已完成');
     expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('跳过: 1');
   });
 
@@ -3036,7 +3036,7 @@ describe('auto-seller', () => {
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('completed');
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('已完成');
     expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('跳过: 1');
     expect(wrapper.find('[data-testid="auto-seller-error"]').text()).toContain('slot full');
   });
@@ -3080,7 +3080,7 @@ describe('auto-seller', () => {
       await vi.advanceTimersByTimeAsync(0); // initial load + first GetItemTradeInfo + first ExchangeItem
 
       // ExchangeItem returned false → retry_wait phase, 10s sleep begins
-      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('retry_wait');
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('等待重试');
 
       // Advance past 10s — sleep ends → Refresh → retry ExchangeItem(2nd, succeeds) → 1.5s sleep starts
       await vi.advanceTimersByTimeAsync(10100);
@@ -3095,7 +3095,7 @@ describe('auto-seller', () => {
       await vi.advanceTimersByTimeAsync(2000);
       await nextTick();
 
-      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('completed');
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('已完成');
       expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('成功: 1');
     } finally {
       vi.useRealTimers();
@@ -3137,7 +3137,7 @@ describe('auto-seller', () => {
       await vi.advanceTimersByTimeAsync(0);
 
       // First retry cycle: ExchangeItem(1) called, 10s sleep begins
-      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('retry_wait');
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('等待重试');
       expect(exchCallCount).toBe(1);
       await vi.advanceTimersByTimeAsync(10100);
       await vi.advanceTimersByTimeAsync(0);
@@ -3146,7 +3146,7 @@ describe('auto-seller', () => {
       expect(exchCallCount).toBe(2);
 
       // Second retry cycle starts: still in retry_wait for the second sleep
-      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('retry_wait');
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('等待重试');
       await vi.advanceTimersByTimeAsync(10100);
       await vi.advanceTimersByTimeAsync(0);
       // Refresh(2) fired → ExchangeItem(3) retry fired (also fails) → third 10s sleep started
@@ -3154,7 +3154,7 @@ describe('auto-seller', () => {
       expect(exchCallCount).toBe(3);
 
       // Still in retry_wait (third sleep), not stuck or completed
-      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('retry_wait');
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('等待重试');
     } finally {
       vi.useRealTimers();
     }
@@ -3185,12 +3185,12 @@ describe('auto-seller', () => {
     try {
       await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
       await vi.advanceTimersByTimeAsync(0); // first ExchangeItem call
-      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('retry_wait');
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('等待重试');
 
       await vi.advanceTimersByTimeAsync(10100);
       await vi.advanceTimersByTimeAsync(0); // RefreshExchangeSellSlots resolves
 
-      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('failed');
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('失败');
       expect(wrapper.find('[data-testid="auto-seller-error"]').text()).toContain('unknown screen');
     } finally {
       vi.useRealTimers();
@@ -3221,14 +3221,14 @@ describe('auto-seller', () => {
     try {
       await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
       await vi.advanceTimersByTimeAsync(0); // first ExchangeItem
-      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('retry_wait');
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('等待重试');
 
       // Click stop during the 10s wait
       await wrapper.find('[data-testid="price-auto-seller-stop"]').trigger('click');
       await vi.advanceTimersByTimeAsync(100); // let the 50ms sleep poll fire
       await nextTick();
 
-      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('stopped');
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('已停止');
     } finally {
       vi.useRealTimers();
     }
@@ -3266,7 +3266,7 @@ describe('auto-seller', () => {
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('failed');
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('失败');
     expect(wrapper.find('[data-testid="auto-seller-error"]').text()).toContain('refresh failed after listing');
   });
 
@@ -3296,20 +3296,20 @@ describe('auto-seller', () => {
     await nextTick();
 
     // ExchangeItem is in flight — _inDllCall is true
-    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('running');
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('售卖中');
 
     // Stop during DLL call → phase should be 'stopping'
     await wrapper.find('[data-testid="price-auto-seller-stop"]').trigger('click');
     await nextTick();
 
-    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('stopping');
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('正在停止...');
 
     // Resolve the pending ExchangeItem → _checkStop() gate fires → 'stopped'
     exchDeferred.resolve({ ok: true });
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('stopped');
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('已停止');
     expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('成功: 0');
   });
 });

@@ -184,6 +184,20 @@ const autoSeller = useWarehouseAutoSeller({
   canStart: () => canStartAutoSeller.value,
 });
 
+const autoSellerPhaseLabel = computed(() => {
+  const labels = {
+    idle: '空闲',
+    running: '售卖中',
+    retry_wait: '等待重试',
+    refreshing_exchange: '刷新交易所',
+    stopping: '正在停止...',
+    stopped: '已停止',
+    completed: '已完成',
+    failed: '失败',
+  };
+  return labels[autoSeller.phase.value] ?? autoSeller.phase.value;
+});
+
 const canStartAutoSeller = computed(() =>
   canRefreshWarehouse.value
   && !isQuickListing.value
@@ -902,7 +916,7 @@ onMounted(() => {
           class="auto-seller-status"
           data-testid="auto-seller-status"
         >
-          <span data-testid="auto-seller-phase">{{ autoSeller.phase.value }}</span>
+          <span data-testid="auto-seller-phase">{{ autoSellerPhaseLabel }}</span>
           <span v-if="autoSeller.currentItemName.value" data-testid="auto-seller-current-item">
             {{ autoSeller.currentItemName.value }} ({{ autoSeller.currentItemCid.value }})
           </span>
