@@ -69,8 +69,12 @@ inline bool IsAutoAuctionCleanupRecoverableScreen(const char* screen) {
         IsAutoAuctionCleanupEndedScreen(screen);
 }
 
+inline const char* GetAutoAuctionVerificationScreenName() {
+    return "authcode";
+}
+
 inline bool IsAutoAuctionVerificationScreen(const char* screen) {
-    return screen && strcmp(screen, "authcode") == 0;
+    return screen && strcmp(screen, GetAutoAuctionVerificationScreenName()) == 0;
 }
 
 inline bool TryResolveAutoAuctionVerificationDismissTarget(

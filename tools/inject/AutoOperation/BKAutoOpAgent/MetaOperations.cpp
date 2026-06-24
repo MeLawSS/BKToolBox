@@ -661,10 +661,12 @@ static void TryDismissAutoAuctionVerificationDialog(const char* screen) {
         error,
         sizeof(error)
     );
+    // panelName and closePath are guaranteed non-null here — TryResolveAutoAuctionVerificationDismissTarget
+    // only returns true after setting both outputs to hard-coded literals.
     if (lookup != UI_PANEL_FOUND || !panelTransform) {
         Logf(
             "AutoAuction authcode dismiss skipped: panel lookup failed panel=%s err=%s",
-            panelName ? panelName : "null",
+            panelName,
             error[0] ? error : "not found"
         );
         return;
@@ -675,7 +677,7 @@ static void TryDismissAutoAuctionVerificationDialog(const char* screen) {
         Logf(
             "AutoAuction authcode dismiss failed: panel=%s path=%s error=%s",
             panelName,
-            closePath ? closePath : "null",
+            closePath,
             clickError.c_str()
         );
         return;
@@ -1844,12 +1846,14 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         return true;
     };
 
+    // All 18 call sites pre-verify authcode before invoking this lambda,
+    // so the screen name is hard-coded — a parameter would be unused abstraction.
     auto sendAuthCodeRequired = [&]() -> bool {
         const int reportedExpectedPrice = ResolveAutoAuctionReportedExpectedPrice(
             lastExpectedPrice,
             g_notifiedExpectedPrice.load()
         );
-        TryDismissAutoAuctionVerificationDialog("authcode");
+        TryDismissAutoAuctionVerificationDialog(GetAutoAuctionVerificationScreenName());
         const std::string result = BuildAutoAuctionAuthCodeRequiredResult(roundsPlayed, reportedExpectedPrice);
         SendResponse(c, id, true, result.c_str());
         return true;
