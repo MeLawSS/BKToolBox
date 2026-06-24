@@ -42,6 +42,10 @@ const canRunCollect = computed(() =>
   Boolean(transportReady.value && !effectiveCommandLoading.value),
 );
 
+const isBusyFromOtherCommand = computed(() =>
+  effectiveCommandLoading.value && props.commandLoading !== 'CollectCabinetReward',
+);
+
 const transportHintText = computed(() => {
   if (!desktopReady.value) return t('inject.unavailable');
   if (!agentBridgeAvailable.value || !runAutoOperationCommandAvailable.value) {
@@ -92,12 +96,12 @@ async function collectCabinetReward() {
         :disabled="!canRunCollect"
         @click="collectCabinetReward"
       >
-        {{ effectiveCommandLoading ? t('inject.claimingCabinetReward') : t('inject.claimCabinetReward') }}
+        {{ (props.commandLoading === 'CollectCabinetReward' || localLoading) ? t('inject.claimingCabinetReward') : t('inject.claimCabinetReward') }}
       </button>
     </div>
   </header>
 
-  <p v-if="!transportReady" class="status-text is-muted">
+  <p v-if="!transportReady || isBusyFromOtherCommand" class="status-text is-muted">
     {{ transportHintText }}
   </p>
   <p v-else-if="errorMessage" class="status-text is-error">
