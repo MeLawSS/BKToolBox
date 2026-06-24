@@ -1819,7 +1819,7 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
     int                amountForLog,
     const std::string& opponentNameForLog
 ) {
-    static const int kPollMs = GetExpectedPriceConfirmGatePollIntervalMs();
+    static const int kPollMs = 100;
     ConfirmGateWaitResult ret;
 
     {
@@ -1848,7 +1848,7 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
             return ret;
         }
 
-        if (strcmp(sc.screen, "auction_ended") == 0) {
+        if (IsAutoAuctionCleanupEndedScreen(sc.screen)) {
             ret.hardExitAuctionEnded = true;
             return ret;
         }
