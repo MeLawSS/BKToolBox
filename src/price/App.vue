@@ -181,6 +181,7 @@ const autoSeller = useWarehouseAutoSeller({
   listingDefaultPricePercent,
   refreshWarehouseSnapshot,
   runAutoOperationCommand: (cmd, args) => window.bidkingDesktop.runAutoOperationCommand(cmd, args),
+  canStart: () => canStartAutoSeller.value,
 });
 
 const canStartAutoSeller = computed(() =>

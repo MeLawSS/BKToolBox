@@ -6,6 +6,7 @@ export function useWarehouseAutoSeller({
   listingDefaultPricePercent,
   refreshWarehouseSnapshot,
   runAutoOperationCommand,
+  canStart = null,
 }) {
   const phase = ref('idle');
   const currentItemCid = ref(null);
@@ -154,6 +155,7 @@ export function useWarehouseAutoSeller({
 
   async function start() {
     if (isActive.value) return;
+    if (canStart && !canStart()) return;
 
     phase.value = 'running';
     stopRequested.value = false;
