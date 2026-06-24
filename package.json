@@ -81,14 +81,6 @@
         "to": "runtime/collectibles.json"
       },
       {
-        "from": "Archive/BidKing/BidKing_Data/StreamingAssets/Tables/Item.txt",
-        "to": "runtime/Archive/BidKing/BidKing_Data/StreamingAssets/Tables/Item.txt"
-      },
-      {
-        "from": "Archive/BidKing/BidKing_Data/StreamingAssets/Tables/Item_Type.txt",
-        "to": "runtime/Archive/BidKing/BidKing_Data/StreamingAssets/Tables/Item_Type.txt"
-      },
-      {
         "from": "lib",
         "to": "runtime/lib"
       },

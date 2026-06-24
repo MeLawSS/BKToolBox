@@ -11,19 +11,6 @@ describe('package build config', () => {
     expect(packageJson.build.files).toContain('lib/**/*.js');
   });
 
-  it('packages BidKing table data required to name monitor reveal types', () => {
-    expect(packageJson.build.extraResources).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        from: 'Archive/BidKing/BidKing_Data/StreamingAssets/Tables/Item.txt',
-        to: 'runtime/Archive/BidKing/BidKing_Data/StreamingAssets/Tables/Item.txt',
-      }),
-      expect.objectContaining({
-        from: 'Archive/BidKing/BidKing_Data/StreamingAssets/Tables/Item_Type.txt',
-        to: 'runtime/Archive/BidKing/BidKing_Data/StreamingAssets/Tables/Item_Type.txt',
-      }),
-    ]));
-  });
-
   it('requires administrator privileges for Windows monitor capture', () => {
     expect(packageJson.build.win.requestedExecutionLevel).toBe('requireAdministrator');
     expect(packageJson.build.win.signAndEditExecutable).toBe(true);

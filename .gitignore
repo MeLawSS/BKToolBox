@@ -15,8 +15,6 @@ Archive/**
 !Archive/BidKing/BidKing_Data/
 !Archive/BidKing/BidKing_Data/StreamingAssets/
 !Archive/BidKing/BidKing_Data/StreamingAssets/Tables/
-!Archive/BidKing/BidKing_Data/StreamingAssets/Tables/Item.txt
-!Archive/BidKing/BidKing_Data/StreamingAssets/Tables/Item_Type.txt
 build/*
 !build/after-pack.js
 !build/icon.ico
