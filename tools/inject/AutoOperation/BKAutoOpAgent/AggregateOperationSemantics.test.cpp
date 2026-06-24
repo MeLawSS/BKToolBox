@@ -215,7 +215,7 @@ int main() {
     assert(ShouldContinueExchangeConverge("mailbox"));
     assert(ShouldContinueExchangeConverge("auction_lobby_map"));
     assert(ShouldContinueExchangeConverge("auction_lobby_room"));
-    assert(ShouldContinueExchangeConverge("unknown"));
+    assert(!ShouldContinueExchangeConverge("unknown"));  // unknown is not a navigable screen
     assert(!ShouldContinueExchangeConverge("main_lobby"));
     assert(!ShouldContinueExchangeConverge("exchange"));
     assert(!ShouldContinueExchangeConverge(""));       // detection failure

@@ -355,6 +355,17 @@ export const messages = {
           success: '成功',
           skipped: '跳过',
         },
+        errors: {
+          warehouseRefreshFailed: '仓库刷新失败',
+          getItemTradeInfoFailed: '获取交易信息失败',
+          invalidMinPrice: '交易信息中的最低价格无效',
+          priceCalculationFailed: '价格计算失败',
+          refreshExchangeSlotsFailed: '刷新交易所售卖栏位失败',
+          exchangeItemFailed: '交易所上架失败',
+          loadWarehouseFailed: '仓库加载失败',
+          warehouseRefreshAfterSuccessFailed: '上架成功后刷新仓库失败',
+          belowBasePrice: '上架价 {listPrice} 低于底价 {basePrice}，无法上架',
+        },
       },
       tabs: {
         label: '价格视图',
@@ -1221,6 +1232,17 @@ export const messages = {
         status: {
           success: 'Success',
           skipped: 'Skipped',
+        },
+        errors: {
+          warehouseRefreshFailed: 'Warehouse refresh failed',
+          getItemTradeInfoFailed: 'GetItemTradeInfo failed',
+          invalidMinPrice: 'Invalid min price from GetItemTradeInfo',
+          priceCalculationFailed: 'Price calculation failed',
+          refreshExchangeSlotsFailed: 'RefreshExchangeSellSlots failed',
+          exchangeItemFailed: 'ExchangeItem failed',
+          loadWarehouseFailed: 'Failed to load warehouse',
+          warehouseRefreshAfterSuccessFailed: 'Warehouse refresh failed after success',
+          belowBasePrice: 'List price {listPrice} below base price {basePrice}',
         },
       },
       tabs: {

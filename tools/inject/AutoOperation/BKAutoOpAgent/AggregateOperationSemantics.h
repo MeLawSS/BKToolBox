@@ -307,7 +307,7 @@ inline bool IsExchangeConvergeTargetScreen(const char* screen) {
 }
 
 inline bool ShouldContinueExchangeConverge(const char* screen) {
-    return screen && screen[0] != '\0' && !IsExchangeConvergeTargetScreen(screen);
+    return screen && screen[0] != '\0' && strcmp(screen, "unknown") != 0 && !IsExchangeConvergeTargetScreen(screen);
 }
 
 inline bool IsExchangeSellTabReady(const char* screen, bool hasTradingPanel) {

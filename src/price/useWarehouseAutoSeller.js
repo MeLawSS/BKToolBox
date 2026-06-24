@@ -18,6 +18,7 @@ export function useWarehouseAutoSeller({
     exchangeItemFailed: 'ExchangeItem failed',
     loadWarehouseFailed: 'Failed to load warehouse',
     warehouseRefreshAfterSuccessFailed: 'Warehouse refresh failed after success',
+    belowBasePrice: (listPrice, basePrice) => `List price ${listPrice} below base price ${basePrice}`,
     ...(customErrors ?? {}),
   };
   const phase = ref('idle');
@@ -127,7 +128,7 @@ export function useWarehouseAutoSeller({
 
       const basePrice = Number(item.basePrice);
       if (Number.isFinite(basePrice) && basePrice > 0 && listPrice < basePrice) {
-        lastError.value = `List price ${listPrice} below base price ${basePrice}`;  // dynamic — values needed for debugging
+        lastError.value = errors.belowBasePrice(listPrice, basePrice);
         return _handleNonRecoverableSkip(item);
       }
 
@@ -166,10 +167,15 @@ export function useWarehouseAutoSeller({
   }
 
   async function start() {
-    if (isActive.value) return 'rejected:already-active';
+    if (isActive.value) return { ok: false, reason: 'already-active' };
     if (canStart) {
-      const reason = canStart();
-      if (reason) return reason;
+      const canStartResult = canStart();
+      if (canStartResult) {
+        const reason = String(canStartResult).startsWith('rejected:')
+          ? String(canStartResult).slice('rejected:'.length)
+          : String(canStartResult);
+        return { ok: false, reason };
+      }
     }
 
     phase.value = 'running';

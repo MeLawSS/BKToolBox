@@ -187,6 +187,17 @@ const autoSeller = useWarehouseAutoSeller({
     if (isListingModalOpen.value) return 'rejected:listing-modal-open';
     return null; // OK
   },
+  errors: {
+    warehouseRefreshFailed: t('price.autoSeller.errors.warehouseRefreshFailed'),
+    getItemTradeInfoFailed: t('price.autoSeller.errors.getItemTradeInfoFailed'),
+    invalidMinPrice: t('price.autoSeller.errors.invalidMinPrice'),
+    priceCalculationFailed: t('price.autoSeller.errors.priceCalculationFailed'),
+    refreshExchangeSlotsFailed: t('price.autoSeller.errors.refreshExchangeSlotsFailed'),
+    exchangeItemFailed: t('price.autoSeller.errors.exchangeItemFailed'),
+    loadWarehouseFailed: t('price.autoSeller.errors.loadWarehouseFailed'),
+    warehouseRefreshAfterSuccessFailed: t('price.autoSeller.errors.warehouseRefreshAfterSuccessFailed'),
+    belowBasePrice: (listPrice, basePrice) => t('price.autoSeller.errors.belowBasePrice', { listPrice, basePrice }),
+  },
 });
 
 const autoSellerPhaseLabel = computed(() =>

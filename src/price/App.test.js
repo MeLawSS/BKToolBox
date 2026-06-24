@@ -3,9 +3,10 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { nextTick } from 'vue';
+import { nextTick, ref } from 'vue';
 import realCollectibles from '../../public/data/collectibles.json';
 import App from './App.vue';
+import { useWarehouseAutoSeller } from './useWarehouseAutoSeller.js';
 
 const priceCss = readFileSync(resolve(process.cwd(), 'src/price/price.css'), 'utf8');
 
@@ -3311,5 +3312,51 @@ describe('auto-seller', () => {
 
     expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('已停止');
     expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('成功: 0');
+  });
+
+  describe('useWarehouseAutoSeller start() rejection API', () => {
+    function makeMinimalSeller(overrides = {}) {
+      return useWarehouseAutoSeller({
+        warehouseItems: ref([]),
+        listingDefaultPricePercent: ref(110),
+        refreshWarehouseSnapshot: async () => ({ ok: true }),
+        runAutoOperationCommand: async () => ({ ok: true }),
+        ...overrides,
+      });
+    }
+
+    it('returns { ok: false, reason: "already-active" } when called while running', async () => {
+      const { start } = makeMinimalSeller({
+        refreshWarehouseSnapshot: () => new Promise(() => {}), // never resolves
+      });
+      start(); // not awaited — keeps it running
+      const result = await start();
+      expect(result).toEqual({ ok: false, reason: 'already-active' });
+    });
+
+    it('returns { ok: false, reason } from canStart rejection (strips "rejected:" prefix)', async () => {
+      const { start } = makeMinimalSeller({
+        canStart: () => 'rejected:no-bridge',
+      });
+      const result = await start();
+      expect(result).toEqual({ ok: false, reason: 'no-bridge' });
+    });
+
+    it('returns { ok: false, reason } for any canStart rejection code', async () => {
+      const { start } = makeMinimalSeller({
+        canStart: () => 'rejected:quick-listing-active',
+      });
+      const result = await start();
+      expect(result).toEqual({ ok: false, reason: 'quick-listing-active' });
+    });
+
+    it('returns undefined (no rejection) when run completes normally', async () => {
+      const { start } = makeMinimalSeller({
+        refreshWarehouseSnapshot: async () => ({ ok: true }),
+        // warehouseItems is empty → completes immediately
+      });
+      const result = await start();
+      expect(result).toBeUndefined();
+    });
   });
 });
