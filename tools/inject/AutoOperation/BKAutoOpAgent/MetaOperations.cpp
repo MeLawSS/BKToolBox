@@ -1784,6 +1784,130 @@ static bool TryReadOpponentPreviousRoundBid(
     return true;
 }
 
+static bool TryReadOpponentCurrentRoundBid(
+    Il2CppObject* battleTransform,
+    int opponentSlot,
+    int roundNumber,
+    int* outBid
+) {
+    if (outBid) *outBid = 0;
+    if (!battleTransform || opponentSlot <= 0 || roundNumber <= 0 || !outBid) return false;
+    const std::string path = GetOpponentCurrentRoundBidPath(opponentSlot, roundNumber);
+    std::string priceText;
+    if (!ReadExactNodeText(battleTransform, path.c_str(), &priceText) || priceText.empty()) return false;
+    return TryParsePriceText(priceText, outBid) && *outBid > 0;
+}
+
+struct ConfirmGateWaitResult {
+    ConfirmGateResult         result           = CONFIRM_GATE_NOT_READY;
+    ConfirmGateSoftExitReason softExitReason   = CONFIRM_GATE_SOFT_EXIT_NONE;
+    int                       opponentRoundBid = 0;
+    bool hardExitAuthcode    = false;
+    bool hardExitInterrupted = false;
+    bool hardExitAuctionEnded = false;
+};
+
+// Polls every 100ms inside the bid dialog (after amount is written, before confirm click).
+// Returns a ready result when the gate fires, or a hard/soft exit reason when it can't.
+// Hard exits (authcode, interrupted, auction_ended) each have their own bool field so
+// the caller never mistakes them for the soft-exit NOT_READY path.
+static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
+    Il2CppObject*      battleTransform,
+    int                opponentSlot,
+    const std::string& gateEntryRoundText,
+    int                gateEntryRoundNumber,
+    int                amountForLog,
+    const std::string& opponentNameForLog
+) {
+    static const int kPollMs = GetExpectedPriceConfirmGatePollIntervalMs();
+    ConfirmGateWaitResult ret;
+
+    {
+        std::string roundText;
+        int secsAtEntry = 9999;
+        ReadBidState(battleTransform, &roundText, &secsAtEntry);
+        Logf(
+            "AutoAuction expected-price confirm gate: entering round=%d secs=%d amount=%d opponent=%s",
+            gateEntryRoundNumber,
+            secsAtEntry,
+            amountForLog,
+            opponentNameForLog.empty() ? "(unresolved)" : opponentNameForLog.c_str()
+        );
+    }
+
+    for (;;) {
+        if (IsAutoAuctionStopRequested()) {
+            ret.hardExitInterrupted = true;
+            return ret;
+        }
+
+        ScreenState sc = DetectScreenState();
+
+        if (IsAutoAuctionVerificationScreen(sc.screen)) {
+            ret.hardExitAuthcode = true;
+            return ret;
+        }
+
+        if (strcmp(sc.screen, "auction_ended") == 0) {
+            ret.hardExitAuctionEnded = true;
+            return ret;
+        }
+
+        if (strcmp(sc.screen, "auction_in_progress") != 0 || !sc.battleMainTransform) {
+            ret.softExitReason = CONFIRM_GATE_SOFT_EXIT_DIALOG_LOST;
+            Logf(
+                "AutoAuction expected-price confirm gate: interrupted reason=dialog_lost screen=%s",
+                sc.screen ? sc.screen : "null"
+            );
+            return ret;
+        }
+
+        std::string currentRound;
+        int currentSecs = 9999;
+        ReadBidState(sc.battleMainTransform, &currentRound, &currentSecs);
+
+        if (!currentRound.empty() && currentRound != gateEntryRoundText) {
+            ret.softExitReason = CONFIRM_GATE_SOFT_EXIT_ROUND_CHANGED;
+            Logf("AutoAuction expected-price confirm gate: interrupted reason=round_changed");
+            return ret;
+        }
+
+        if (!HasActiveBidInputDialog(sc.battleMainTransform)) {
+            ret.softExitReason = CONFIRM_GATE_SOFT_EXIT_DIALOG_LOST;
+            Logf("AutoAuction expected-price confirm gate: interrupted reason=dialog_lost (dialog gone)");
+            return ret;
+        }
+
+        if (currentSecs <= 2) {
+            ret.result = CONFIRM_GATE_READY_TIME_FALLBACK;
+            Logf(
+                "AutoAuction expected-price confirm gate: ready reason=time_fallback secs=%d",
+                currentSecs
+            );
+            return ret;
+        }
+
+        if (opponentSlot > 0) {
+            int opponentBid = 0;
+            if (TryReadOpponentCurrentRoundBid(
+                    sc.battleMainTransform, opponentSlot, gateEntryRoundNumber, &opponentBid)) {
+                ret.result = CONFIRM_GATE_READY_OPPONENT_BID;
+                ret.opponentRoundBid = opponentBid;
+                Logf(
+                    "AutoAuction expected-price confirm gate: ready reason=opponent_bid opponentRoundBid=%d",
+                    opponentBid
+                );
+                return ret;
+            }
+        }
+
+        if (!SleepInterruptibly(kPollMs)) {
+            ret.hardExitInterrupted = true;
+            return ret;
+        }
+    }
+}
+
 // AutoAuction: full automated auction sequence from main_lobby.
 // Params: {"roomId":<int>, "bidAmount":<int>}  (defaults: roomId=101, bidAmount=25000)
 // Steps:
