@@ -2662,7 +2662,7 @@ void CmdRefreshExchangeSellSlots(AgentConn* c, const char* id, const char* /*jso
         while (ShouldContinueExchangeConverge(s.screen)) {
             if (IsAgentShuttingDown()) { SendResponse(c, id, false, "agent shutting down"); return; }
             if (budgetLeft() <= 0) { SendResponse(c, id, false, "budget exhausted converging to main_lobby"); return; }
-            if (s.screen[0] == '\0') { SendResponse(c, id, false, "screen detection failed"); return; }
+            if (strcmp(s.screen, "unknown") == 0) { SendResponse(c, id, false, "unknown screen"); return; }
 
             Il2CppObject* closeXform = nullptr;
             const char*   closePath  = nullptr;

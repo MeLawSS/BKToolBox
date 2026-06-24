@@ -7,7 +7,19 @@ export function useWarehouseAutoSeller({
   refreshWarehouseSnapshot,
   runAutoOperationCommand,
   canStart = null,
+  errors: customErrors = null,
 }) {
+  const errors = {
+    warehouseRefreshFailed: 'Warehouse refresh failed',
+    getItemTradeInfoFailed: 'GetItemTradeInfo failed',
+    invalidMinPrice: 'Invalid minPrice from GetItemTradeInfo',
+    priceCalculationFailed: 'Price calculation failed',
+    refreshExchangeSlotsFailed: 'RefreshExchangeSellSlots failed',
+    exchangeItemFailed: 'ExchangeItem failed',
+    loadWarehouseFailed: 'Failed to load warehouse',
+    warehouseRefreshAfterSuccessFailed: 'Warehouse refresh failed after success',
+    ...(customErrors ?? {}),
+  };
   const phase = ref('idle');
   const currentItemCid = ref(null);
   const currentItemName = ref('');
@@ -79,7 +91,7 @@ export function useWarehouseAutoSeller({
     const snap = await _snapshot();
     if (_checkStop()) return 'stop';
     if (!snap.ok) {
-      lastError.value = snap.error ?? 'Warehouse refresh failed';
+      lastError.value = snap.error ?? errors.warehouseRefreshFailed;
       return 'failed';
     }
     return 'skipped';
@@ -97,25 +109,25 @@ export function useWarehouseAutoSeller({
       if (_checkStop()) return 'stop';
 
       if (!tradeResp || tradeResp.ok === false) {
-        lastError.value = tradeResp?.error ?? 'GetItemTradeInfo failed';
+        lastError.value = tradeResp?.error ?? errors.getItemTradeInfoFailed;
         return _handleNonRecoverableSkip(item);
       }
 
       const minPrice = Number(tradeResp.value?.minPrice);
       if (!Number.isFinite(minPrice) || minPrice <= 0) {
-        lastError.value = 'Invalid minPrice from GetItemTradeInfo';
+        lastError.value = errors.invalidMinPrice;
         return _handleNonRecoverableSkip(item);
       }
 
       const listPrice = computeDefaultUnitPrice(minPrice, listingDefaultPricePercent.value);
       if (listPrice === null) {
-        lastError.value = 'Price calculation failed';
+        lastError.value = errors.priceCalculationFailed;
         return _handleNonRecoverableSkip(item);
       }
 
       const basePrice = Number(item.basePrice);
       if (Number.isFinite(basePrice) && basePrice > 0 && listPrice < basePrice) {
-        lastError.value = `List price ${listPrice} below base price ${basePrice}`;
+        lastError.value = `List price ${listPrice} below base price ${basePrice}`;  // dynamic — values needed for debugging
         return _handleNonRecoverableSkip(item);
       }
 
@@ -142,20 +154,23 @@ export function useWarehouseAutoSeller({
         if (_checkStop()) return 'stop';
 
         if (!refreshResp || refreshResp.ok === false) {
-          lastError.value = refreshResp?.error ?? 'RefreshExchangeSellSlots failed';
+          lastError.value = refreshResp?.error ?? errors.refreshExchangeSlotsFailed;
           return 'failed';
         }
         continue; // retry current item
       }
 
-      lastError.value = errMsg || 'ExchangeItem failed';
+      lastError.value = errMsg || errors.exchangeItemFailed;
       return _handleNonRecoverableSkip(item);
     }
   }
 
   async function start() {
     if (isActive.value) return 'rejected:already-active';
-    if (canStart && !canStart()) return 'rejected:guard-blocked';
+    if (canStart) {
+      const reason = canStart();
+      if (reason) return reason;
+    }
 
     phase.value = 'running';
     stopRequested.value = false;
@@ -169,7 +184,7 @@ export function useWarehouseAutoSeller({
     const snap = await _snapshot();
     if (_checkStop()) return;
     if (!snap.ok) {
-      lastError.value = snap.error ?? 'Failed to load warehouse';
+      lastError.value = snap.error ?? errors.loadWarehouseFailed;
       phase.value = 'failed';
       return;
     }
@@ -193,7 +208,7 @@ export function useWarehouseAutoSeller({
         const snapAfter = await _snapshot();
         if (_checkStop()) return;
         if (!snapAfter.ok) {
-          lastError.value = snapAfter.error ?? 'Warehouse refresh failed after success';
+          lastError.value = snapAfter.error ?? errors.warehouseRefreshAfterSuccessFailed;
           phase.value = 'failed';
           return;
         }

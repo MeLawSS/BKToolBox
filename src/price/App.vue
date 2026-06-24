@@ -181,7 +181,12 @@ const autoSeller = useWarehouseAutoSeller({
   listingDefaultPricePercent,
   refreshWarehouseSnapshot,
   runAutoOperationCommand: (cmd, args) => window.bidkingDesktop.runAutoOperationCommand(cmd, args),
-  canStart: () => canStartAutoSeller.value,
+  canStart: () => {
+    if (!canRefreshWarehouse.value) return 'rejected:no-bridge';
+    if (isQuickListing.value) return 'rejected:quick-listing-active';
+    if (isListingModalOpen.value) return 'rejected:listing-modal-open';
+    return null; // OK
+  },
 });
 
 const autoSellerPhaseLabel = computed(() =>

@@ -1205,6 +1205,24 @@ export const messages = {
         fetchError: 'Failed to fetch trade info',
         belowBasePrice: 'List price below base price',
       },
+      autoSeller: {
+        start: 'Start Auto Sell',
+        stop: 'Stop Auto Sell',
+        phases: {
+          idle: 'Idle',
+          running: 'Selling',
+          retry_wait: 'Retry wait',
+          refreshing_exchange: 'Refreshing exchange',
+          stopping: 'Stopping...',
+          stopped: 'Stopped',
+          completed: 'Completed',
+          failed: 'Failed',
+        },
+        status: {
+          success: 'Success',
+          skipped: 'Skipped',
+        },
+      },
       tabs: {
         label: 'Price views',
         opportunities: 'High Multiples',
