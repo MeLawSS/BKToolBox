@@ -73,6 +73,21 @@ inline bool IsAutoAuctionVerificationScreen(const char* screen) {
     return screen && strcmp(screen, "authcode") == 0;
 }
 
+inline bool TryResolveAutoAuctionVerificationDismissTarget(
+    const char* screen,
+    const char** panelNameOut,
+    const char** pathOut
+) {
+    if (panelNameOut) *panelNameOut = nullptr;
+    if (pathOut) *pathOut = nullptr;
+    if (!IsAutoAuctionVerificationScreen(screen)) {
+        return false;
+    }
+    if (panelNameOut) *panelNameOut = "AuthCode_Main";
+    if (pathOut) *pathOut = "Main/m_BtnClose";
+    return true;
+}
+
 inline int GetAutoAuctionCleanupMaxAttempts() {
     return 200;  // ~40s budget at 200ms poll (was 40 × 1000ms)
 }

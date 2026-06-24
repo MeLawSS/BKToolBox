@@ -54,6 +54,22 @@ int main() {
     assert(!IsAutoAuctionCleanupRecoverableScreen("warehouse"));
     assert(IsAutoAuctionVerificationScreen("authcode"));
     assert(!IsAutoAuctionVerificationScreen("auction_in_progress"));
+    const char* verificationPanel = nullptr;
+    const char* verificationPath = nullptr;
+    assert(TryResolveAutoAuctionVerificationDismissTarget(
+        "authcode",
+        &verificationPanel,
+        &verificationPath
+    ));
+    assert(strcmp(verificationPanel, "AuthCode_Main") == 0);
+    assert(strcmp(verificationPath, "Main/m_BtnClose") == 0);
+    verificationPanel = nullptr;
+    verificationPath = nullptr;
+    assert(!TryResolveAutoAuctionVerificationDismissTarget(
+        "auction_lobby_room",
+        &verificationPanel,
+        &verificationPath
+    ));
     assert(GetAutoAuctionCleanupMaxAttempts() == 200);  // ~40s at 200ms poll
     assert(strcmp(PickAutoAuctionEndedPrimaryActionPath(true, false), "EndPanel/tuichu/receiveBtn") == 0);
     assert(strcmp(PickAutoAuctionEndedPrimaryActionPath(false, true), "EndPanel/tuichu/continueBtn") == 0);

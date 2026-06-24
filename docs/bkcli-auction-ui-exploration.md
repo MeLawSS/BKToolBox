@@ -319,3 +319,34 @@ node tools/bkcli/bkcli.js run GetWarehouseItemList
 | `SetBidAmount {amount}` | 设置出价金额 |
 | `PlaceBid` | 出价 |
 | `ConfirmBid` | 确认出价 |
+
+## 七、滑动验证界面（AuthCode_Main）
+
+2026-06-24 现场抓取结果：
+
+- 当前 screen：`authcode`
+- 可见 panels：`UIMain`、`BattlePrevPanel_Main`、`AuthCode_Main`、`ItemDetail_Main`、`InvitePanel`
+- 关闭按钮：`Main/m_BtnClose` `[Button]`
+- 滑块拖动按钮：`Main/Move` `[Button]`
+- 遮罩：`Mask` `[Button]`
+
+### 关键路径
+
+| 用途 | 路径 |
+|------|------|
+| 关闭验证界面 | `Main/m_BtnClose` |
+| 拖动滑块 | `Main/Move` |
+| 点击遮罩 | `Mask` |
+
+### 实测验证
+
+```bash
+node tools/bkcli/bkcli.js get-current-screen
+node tools/bkcli/bkcli.js dump AuthCode_Main --all --depth 8 --limit 800
+node tools/bkcli/bkcli.js click AuthCode_Main Main/m_BtnClose
+```
+
+实测结果：
+
+- 点击 `Main/m_BtnClose` 后，`AuthCode_Main` 立即不可见
+- screen 从 `authcode` 回到 `auction_lobby_room`

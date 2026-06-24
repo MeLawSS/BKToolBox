@@ -250,6 +250,10 @@
 
 ## 最新验证
 
+- 2026-06-24：`node tools/bkcli/bkcli.js get-current-screen` 返回 `authcode`，`node tools/bkcli/bkcli.js get-visible-panels` 返回 `UIMain`、`BattlePrevPanel_Main`、`AuthCode_Main`、`ItemDetail_Main`、`InvitePanel`，`node tools/bkcli/bkcli.js dump AuthCode_Main --all --depth 8 --limit 800` 确认滑动验证界面的关闭按钮路径是 `Main/m_BtnClose`、滑块路径是 `Main/Move`。
+- 2026-06-24：`node tools/bkcli/bkcli.js click AuthCode_Main Main/m_BtnClose` 成功关闭验证界面；随后 `node tools/bkcli/bkcli.js get-current-screen` 返回 `auction_lobby_room`，`AuthCode_Main` 不再可见。
+- 2026-06-24：`wsl bash -lc "cd /mnt/a/BidKing/.worktrees/feat-auto-auction-dismiss-authcode && g++ -std=c++11 tools/inject/AutoOperation/BKAutoOpAgent/AggregateOperationSemantics.test.cpp -o /tmp/aggregate-operation-semantics-test && /tmp/aggregate-operation-semantics-test"`、`wsl bash -lc "cd /mnt/a/BidKing/.worktrees/feat-auto-auction-dismiss-authcode && g++ -std=c++11 tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.test.cpp -o /tmp/meta-operations-test && /tmp/meta-operations-test"`、`wsl bash -lc "cd /mnt/a/BidKing/.worktrees/feat-auto-auction-dismiss-authcode/tools/inject/AutoOperation/BKAutoOpAgent && ./build.sh"` 均通过；说明新增的 authcode 关闭目标语义、既有 AutoAuction JSON 契约，以及 `BKAutoOpAgent.dll` 原生构建链路都保持正常。
+- 2026-06-24：`npx vitest run src/elsa/useElsaAutoOperation.test.js` 通过，`1` 个测试文件、`29` 个用例全绿；说明这轮 native `AutoAuction` authcode 关闭补点没有改变 renderer 侧现有停止/通知/focus 合约。
 - 2026-06-19：`npx vitest run src/inject/App.test.js src/inject/panels/InjectMetaOperationPanel.test.js` 通过；覆盖 Inject 基础分组新增 MetaOperation tab、英文文案路径、MetaOperation 入口渲染、EnterRoom 中文房间下拉、正确命令分发、共享 command lock gating，以及最近一次结果 JSON 展示。
 - 2026-06-19：`npm run build:inject` 通过；说明新增 InjectMetaOperationPanel.vue、i18n 和样式改动可正常构建到 `public/inject/`。
 - 2026-06-19：`git diff --check` 无输出，说明这轮 MetaOperation panel 改动和文档同步未引入补丁格式问题。

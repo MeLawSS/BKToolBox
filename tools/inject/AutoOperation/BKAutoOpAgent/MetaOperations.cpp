@@ -645,6 +645,45 @@ static bool IsButtonNodeReady(Il2CppObject* anchor, const char* path) {
     return !m.empty() && m[0].active && m[0].components.button;
 }
 
+static void TryDismissAutoAuctionVerificationDialog(const char* screen) {
+    const char* panelName = nullptr;
+    const char* closePath = nullptr;
+    if (!TryResolveAutoAuctionVerificationDismissTarget(screen, &panelName, &closePath)) {
+        return;
+    }
+
+    Il2CppObject* panelTransform = nullptr;
+    char error[128] = {};
+    UiPanelLookupResult lookup = FindVisiblePanelTransform(
+        panelName,
+        nullptr,
+        &panelTransform,
+        error,
+        sizeof(error)
+    );
+    if (lookup != UI_PANEL_FOUND || !panelTransform) {
+        Logf(
+            "AutoAuction authcode dismiss skipped: panel lookup failed panel=%s err=%s",
+            panelName ? panelName : "null",
+            error[0] ? error : "not found"
+        );
+        return;
+    }
+
+    std::string clickError;
+    if (!ClickNode(panelTransform, closePath, 0, &clickError)) {
+        Logf(
+            "AutoAuction authcode dismiss failed: panel=%s path=%s error=%s",
+            panelName,
+            closePath ? closePath : "null",
+            clickError.c_str()
+        );
+        return;
+    }
+
+    Logf("AutoAuction authcode dismiss clicked: panel=%s path=%s", panelName, closePath);
+}
+
 // ==========================================================================
 // AutoAuction polling types and helpers — replace fixed SleepInterruptibly
 // with state-driven polling. Every cycle checks stop and authcode.
@@ -1810,6 +1849,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             lastExpectedPrice,
             g_notifiedExpectedPrice.load()
         );
+        TryDismissAutoAuctionVerificationDialog("authcode");
         const std::string result = BuildAutoAuctionAuthCodeRequiredResult(roundsPlayed, reportedExpectedPrice);
         SendResponse(c, id, true, result.c_str());
         return true;
