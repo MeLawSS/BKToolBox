@@ -338,6 +338,24 @@ export const messages = {
         fetchError: '获取交易信息失败',
         belowBasePrice: '上架价低于原价，无法上架',
       },
+      autoSeller: {
+        start: '开始自动售卖',
+        stop: '停止自动售卖',
+        phases: {
+          idle: '空闲',
+          running: '售卖中',
+          retry_wait: '等待重试',
+          refreshing_exchange: '刷新交易所',
+          stopping: '正在停止...',
+          stopped: '已停止',
+          completed: '已完成',
+          failed: '失败',
+        },
+        status: {
+          success: '成功',
+          skipped: '跳过',
+        },
+      },
       tabs: {
         label: '价格视图',
         opportunities: '高倍售价',

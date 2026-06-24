@@ -184,19 +184,9 @@ const autoSeller = useWarehouseAutoSeller({
   canStart: () => canStartAutoSeller.value,
 });
 
-const autoSellerPhaseLabel = computed(() => {
-  const labels = {
-    idle: '空闲',
-    running: '售卖中',
-    retry_wait: '等待重试',
-    refreshing_exchange: '刷新交易所',
-    stopping: '正在停止...',
-    stopped: '已停止',
-    completed: '已完成',
-    failed: '失败',
-  };
-  return labels[autoSeller.phase.value] ?? autoSeller.phase.value;
-});
+const autoSellerPhaseLabel = computed(() =>
+  t(`price.autoSeller.phases.${autoSeller.phase.value}`) || autoSeller.phase.value,
+);
 
 const canStartAutoSeller = computed(() =>
   canRefreshWarehouse.value
@@ -897,7 +887,7 @@ onMounted(() => {
             :disabled="!canStartAutoSeller"
             @click="autoSeller.start()"
           >
-            开始自动售卖
+            {{ t('price.autoSeller.start') }}
           </button>
           <button
             v-else
@@ -907,7 +897,7 @@ onMounted(() => {
             :disabled="autoSeller.phase.value === 'stopping'"
             @click="autoSeller.stop()"
           >
-            {{ autoSeller.phase.value === 'stopping' ? '正在停止...' : '停止自动售卖' }}
+            {{ autoSeller.phase.value === 'stopping' ? t('price.autoSeller.phases.stopping') : t('price.autoSeller.stop') }}
           </button>
         </header>
         <p v-if="warehouseError" class="error-text">{{ warehouseError }}</p>
@@ -921,7 +911,7 @@ onMounted(() => {
             {{ autoSeller.currentItemName.value }} ({{ autoSeller.currentItemCid.value }})
           </span>
           <span data-testid="auto-seller-counts">
-            成功: {{ autoSeller.successCount.value }} / 跳过: {{ autoSeller.skippedCount.value }}
+            {{ t('price.autoSeller.status.success') }}: {{ autoSeller.successCount.value }} / {{ t('price.autoSeller.status.skipped') }}: {{ autoSeller.skippedCount.value }}
           </span>
           <p v-if="autoSeller.lastError.value" class="error-text" data-testid="auto-seller-error">
             {{ autoSeller.lastError.value }}

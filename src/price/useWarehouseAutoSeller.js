@@ -154,8 +154,8 @@ export function useWarehouseAutoSeller({
   }
 
   async function start() {
-    if (isActive.value) return;
-    if (canStart && !canStart()) return;
+    if (isActive.value) return 'rejected:already-active';
+    if (canStart && !canStart()) return 'rejected:guard-blocked';
 
     phase.value = 'running';
     stopRequested.value = false;

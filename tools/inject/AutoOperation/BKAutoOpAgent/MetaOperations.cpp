@@ -2657,12 +2657,12 @@ void CmdRefreshExchangeSellSlots(AgentConn* c, const char* id, const char* /*jso
     bool toggledBuyThenSell = false;
 
     // ---- Phase 1: converge to exchange screen --------------------------------
-    if (strcmp(s.screen, "exchange") != 0) {
+    if (!IsExchangeScreen(s.screen)) {
         // Close overlays until main_lobby or exchange
-        while (strcmp(s.screen, "main_lobby") != 0 && strcmp(s.screen, "exchange") != 0) {
+        while (ShouldContinueExchangeConverge(s.screen)) {
             if (IsAgentShuttingDown()) { SendResponse(c, id, false, "agent shutting down"); return; }
             if (budgetLeft() <= 0) { SendResponse(c, id, false, "budget exhausted converging to main_lobby"); return; }
-            if (strcmp(s.screen, "unknown") == 0) { SendResponse(c, id, false, "unknown screen"); return; }
+            if (s.screen[0] == '\0') { SendResponse(c, id, false, "screen detection failed"); return; }
 
             Il2CppObject* closeXform = nullptr;
             const char*   closePath  = nullptr;
@@ -2682,7 +2682,7 @@ void CmdRefreshExchangeSellSlots(AgentConn* c, const char* id, const char* /*jso
             int stepBudget = std::min(STEP_MS, budgetLeft());
             if (!WaitForScreenNot(stepBudget, POLL_MS, prevScreen.c_str())) {
                 s = DetectScreenState();
-                if (strcmp(s.screen, "main_lobby") != 0 && strcmp(s.screen, "exchange") != 0) {
+                if (ShouldContinueExchangeConverge(s.screen)) {
                     SendResponse(c, id, false, "failed to converge after closing overlay");
                     return;
                 }
@@ -2690,7 +2690,7 @@ void CmdRefreshExchangeSellSlots(AgentConn* c, const char* id, const char* /*jso
             s = DetectScreenState();
         }
 
-        if (strcmp(s.screen, "main_lobby") == 0) {
+        if (IsMainLobbyScreen(s.screen)) {
             if (!s.uiMainTransform) { SendResponse(c, id, false, "UIMain transform unavailable"); return; }
             std::string err;
             if (!ClickNode(s.uiMainTransform, "MainPanel/Btns2/Button_2", 0, &err)) {
@@ -2708,7 +2708,7 @@ void CmdRefreshExchangeSellSlots(AgentConn* c, const char* id, const char* /*jso
     }
 
     // ---- Phase 2: toggle sell tab (buy → sell when was already in exchange; just sell when entered) ----
-    if (strcmp(s.screen, "exchange") != 0 || !s.tradingPanelTransform) {
+    if (!IsExchangeSellTabReady(s.screen, s.tradingPanelTransform != nullptr)) {
         SendResponse(c, id, false, "not in exchange after navigation");
         return;
     }
