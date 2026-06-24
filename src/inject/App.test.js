@@ -707,6 +707,7 @@ describe('Inject App', () => {
     expect(button.attributes('disabled')).toBeDefined();
     expect(button.text()).not.toContain('领取中');
     expect(wrapper.text()).toContain('有其他 AutoOperation 命令正在执行');
+    expect(runAutoOperationCommand).not.toHaveBeenCalledWith('CollectCabinetReward', expect.anything());
   });
 
   it('describes the page as a general automation workspace', async () => {

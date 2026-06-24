@@ -564,9 +564,9 @@ git commit -m "test: rewrite cabinet tests for agent-driven flow, remove old API
 npx vitest run src/inject/App.test.js electron/services/inject-service.test.mjs 2>&1
 ```
 
-Expected: all tests pass (23 + 27 = 50 tests, zero failures).
+Expected: all tests pass (24 + 27 = 51 tests, zero failures).
 
-Optional full suite: `npm test` — 13 pre-existing failures in unrelated areas (Ethan, server, scripts, controllerUiNodeLabels) are expected and not caused by this feature.
+Optional full suite: `npm test` — 14 pre-existing failures are expected. 13 are in unrelated areas (Ethan, server, scripts, controllerUiNodeLabels). The 14th is `inject-service.test.mjs:277` (UnloadAgent pipe-wait test) which intermittently times out under full-suite load; it is not caused by this feature.
 
 - [ ] **Step 2: Run build for inject page**
 
