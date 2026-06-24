@@ -122,7 +122,8 @@ agent 新增命令：`RefreshExchangeSellSlots`
 
 Electron bridge 还需要配套调整：
 
-- `electron/services/inject-service.js` 的 auto-operation timeout 映射必须为 `RefreshExchangeSellSlots` 提供不少于 15 秒的 transport timeout
+- `electron/services/inject-service.js` 的 auto-operation timeout 映射必须为 `RefreshExchangeSellSlots` 提供大于 agent 内部 15 秒预算的 transport timeout
+- 建议采用“15 秒内部预算 + 显式 buffer”的方式，默认映射为 20 秒；至少要保留不小于 5 秒的 transport 余量，避免 IPC 调度与收发帧抖动把命令卡死在边界
 - 不能让该命令落回当前 5 秒默认超时，否则 15 秒命令预算无法兑现
 
 agent 不负责：
@@ -233,7 +234,7 @@ agent 不负责：
 4. 状态置为 `refreshing_exchange`
 5. 调用 `RefreshExchangeSellSlots`
 6. 若刷新成功，重新尝试当前件；该重试若成功，必须回归 §7.4 的完整成功链，即执行 `successCount + 1` -> `refreshWarehouseSnapshot()` -> 等待 1.5 秒 -> 再进入下一件
-7. 若刷新失败，将其视为当前件不可恢复错误并跳过
+7. 若刷新失败，任务进入 `failed`；`RefreshExchangeSellSlots` 负责的是全局交易所恢复，不是 CID 级恢复，失败意味着运行环境异常且需要用户介入，而不是当前件不可恢复
 
 这里的“重试当前件”必须是单件内层循环，而不是回到外层仓库循环重新取件。
 
@@ -246,7 +247,6 @@ agent 不负责：
 - 默认价格计算失败
 - 上架价低于基础价
 - `ExchangeItem` 返回除 `ExchangeItem returned false` 以外的错误
-- `RefreshExchangeSellSlots` 失败
 
 处理方式：
 
@@ -315,8 +315,8 @@ agent 不负责：
 ### 9.4 失败返回
 
 - 返回明确错误文本
-- 前端收到失败后，将当前件计为跳过，而不是终止整个任务
-- 若当前屏幕无法识别、无法在限定时间内收敛到 `main_lobby`、或无法在限定时间内确认出售页 ready，都属于失败返回
+- 前端收到失败后，当前自动售卖 run 进入 `failed`，而不是把当前件计为跳过
+- 若当前屏幕无法识别、无法在限定时间内收敛到 `main_lobby`、或无法在限定时间内确认出售页 ready，都属于运行环境失败返回
 
 ### 9.5 Agent 内部逻辑
 
@@ -338,7 +338,7 @@ agent 不负责：
 
 - 若 `DetectScreenState()` 返回未知状态，或当前界面在限定超时内无法通过关闭逻辑收敛到 `main_lobby`，命令直接失败返回
 - 若进入交易所后在限定超时内仍无法确认出售页 toggle 激活，命令直接失败返回
-- 返回值需带明确错误文本，前端收到后将当前件计为跳过
+- 返回值需带明确错误文本，前端收到后将整个自动售卖 run 置为 `failed`
 
 ### 9.6 等待策略
 
@@ -353,6 +353,7 @@ agent 不负责：
 具体约束：
 
 - 命令整体超时上限为 15 秒，与当前 `ExchangeItem` 默认超时量级保持一致
+- Electron transport timeout 默认映射为 20 秒，即 15 秒命令预算 + 5 秒 buffer
 - 建议轮询间隔为 200ms 到 250ms，作为状态探测间隔而非业务完成依据
 
 不允许的做法：
@@ -425,6 +426,7 @@ agent 不负责：
 - 运行中按钮禁用状态正确
 - 运行中状态文本和计数反馈正确
 - 仓库刷新失败不会被误判为空仓完成，而会进入失败态或明确错误态
+- `RefreshExchangeSellSlots` 因未知屏幕、无法收敛或无法确认出售页而失败时，任务进入 `failed`，而不是把剩余可见 CID 逐个耗尽到 `terminalSkipCids`
 
 测试数据要求：
 
@@ -445,7 +447,7 @@ agent 不负责：
 为 Electron bridge 补充测试，覆盖：
 
 - `RefreshExchangeSellSlots` 不会落回 5 秒默认 auto-operation timeout
-- transport timeout 配置满足该命令 15 秒预算
+- transport timeout 配置满足“15 秒命令预算 + 5 秒 buffer”的 20 秒默认映射
 
 ## 12. 风险与约束
 
@@ -461,6 +463,7 @@ agent 不负责：
 - 成功上架后会刷新仓库并等待 1.5 秒再继续。
 - 遇到 `ExchangeItem returned false` 时会等待 10 秒、刷新交易所出售页并重试当前件。
 - 遇到 `ExchangeItem returned false` 时重试链可持续执行，直到成功或手动停止为止。
+- 若交易所恢复命令因未知屏幕、收敛失败或出售页确认失败而失败，任务进入 `failed`，等待用户介入。
 - 遇到其他错误时会将该 CID 作为本次 run 的终态跳过项，并继续处理其他候选项。
 - 仓库为空，或本次 run 的剩余可见候选项均已被终态跳过时，自动结束。
 - 手动停止在等待阶段立即生效，在不可中断命令阶段以最短尾延迟停止。
