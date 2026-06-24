@@ -558,13 +558,15 @@ git commit -m "test: rewrite cabinet tests for agent-driven flow, remove old API
 
 ### Task 9: Full verification
 
-- [ ] **Step 1: Run full test suite**
+- [ ] **Step 1: Run scoped tests for affected modules**
 
 ```bash
-npm test 2>&1
+npx vitest run src/inject/App.test.js electron/services/inject-service.test.mjs 2>&1
 ```
 
-Expected: all feature-related tests pass. The project has 13 pre-existing failures in unrelated areas (Ethan app, server, scripts, controllerUiNodeLabels) — ignore those.
+Expected: all tests pass (23 + 27 = 50 tests, zero failures).
+
+Optional full suite: `npm test` — 13 pre-existing failures in unrelated areas (Ethan, server, scripts, controllerUiNodeLabels) are expected and not caused by this feature.
 
 - [ ] **Step 2: Run build for inject page**
 

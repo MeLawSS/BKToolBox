@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import App from './App.vue';
+import InjectCabinetRewardPanel from './panels/InjectCabinetRewardPanel.vue';
 import { LOCALE_STORAGE_KEY } from '../shared/i18n.js';
 import { __resetAutoOperationAgentSwitchRuntimeForTest } from '../shared/useAutoOperationAgentSwitch.js';
 
@@ -681,6 +682,31 @@ describe('Inject App', () => {
 
     expect(wrapper.find('[data-testid="cabinet-claim-button"]').attributes('disabled')).toBeDefined();
     expect(wrapper.text()).toContain('MetaOperation 通道未就绪，暂时无法发送命令');
+  });
+
+  it('disables button and shows busy hint when another command holds the shared lock', async () => {
+    window.sessionStorage.setItem('bidking-auto-operation-agent-connected', 'true');
+    const runAutoOperationCommand = vi.fn().mockResolvedValue({
+      ok: true,
+      value: { collected: true },
+    });
+    window.bidkingDesktop = {
+      isDesktop: true,
+      startAutoOperationAgent: vi.fn(),
+      runAutoOperationCommand,
+    };
+
+    const wrapper = mount(InjectCabinetRewardPanel, {
+      props: { commandLoading: 'Ping' },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    await nextTick();
+
+    const button = wrapper.find('[data-testid="cabinet-claim-button"]');
+    expect(button.attributes('disabled')).toBeDefined();
+    expect(button.text()).not.toContain('领取中');
+    expect(wrapper.text()).toContain('有其他 AutoOperation 命令正在执行');
   });
 
   it('describes the page as a general automation workspace', async () => {
