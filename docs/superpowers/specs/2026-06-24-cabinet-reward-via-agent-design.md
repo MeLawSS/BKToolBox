@@ -108,5 +108,5 @@ git worktree add ../BidKing-feat-cabinet-reward-via-agent feat/cabinet-reward-vi
 - [ ] 旧的 `BKCabinetRewardPayload64.dll` 注入路径不再被任何代码调用
 - [ ] i18n 中旧 key 删除/更新，`claimCabinetRewardSuccess` 新增
 - [ ] `App.test.js` 中旧 cabinet API 测试改写为新 agent 路径
-- [ ] `inject-service.test.mjs` 中 cabinet reward 测试删除（service 函数已删）
+- [ ] `inject-service.test.mjs` 中 `describe('inject-service cabinet reward')` 块（`queryCabinetReward`/`claimCabinetReward` 旧函数测试，约第 31 行起）删除；第 438 行起的 `runAutoOperationCommand('CollectCabinetReward')` 超时覆盖测试**保留**
 - [ ] tests → lint → typecheck → build 全部通过
