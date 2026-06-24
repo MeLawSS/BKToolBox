@@ -2645,3 +2645,172 @@ describe('Price App', () => {
     });
   });
 });
+
+async function mountAutoSellerTab(options = {}) {
+  const stockItems = options.stockItems ?? [];
+  const commands = options.commands ?? {};
+  const calls = [];
+
+  const runAutoOperationCommand = vi.fn(async (command, args) => {
+    calls.push({ command, args });
+    if (command === 'GetCollectionItemCids') {
+      return { ok: true, value: { cids: stockItems.map(i => i.itemCid) } };
+    }
+    if (command === 'GetStockContainers') {
+      const fn = commands.GetStockContainers;
+      if (fn) return fn(args, calls);
+      return {
+        ok: true,
+        value: createWarehouseSnapshot([
+          createWarehouseContainer({ stockId: 0, items: stockItems }),
+        ]),
+      };
+    }
+    const fn = commands[command];
+    if (fn) return fn(args, calls);
+    throw new Error(`unexpected auto-seller command: ${command}`);
+  });
+
+  window.bidkingDesktop = { isDesktop: true, runAutoOperationCommand };
+  const wrapper = await mountApp();
+  await wrapper.find('[data-testid="price-tab-warehouse"]').trigger('click');
+  await nextTick();
+
+  return { wrapper, calls, runAutoOperationCommand };
+}
+
+describe('auto-seller', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    window.localStorage.clear();
+    delete window.bidkingDesktop;
+    mockFetch();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('start button is shown in warehouse tab when desktop available', async () => {
+    const { wrapper } = await mountAutoSellerTab();
+    expect(wrapper.find('[data-testid="price-auto-seller-start"]').exists()).toBe(true);
+  });
+
+  it('start button is disabled when quick listing is in progress', async () => {
+    const listingDeferred = createDeferred();
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+      ],
+      commands: {
+        GetItemTradeInfo: async () => ({ ok: true, value: { minPrice: 5000 } }),
+        ExchangeItem: async () => listingDeferred.promise,
+      },
+    });
+
+    // First: load warehouse via manual refresh to select the item
+    await wrapper.find('[data-testid="price-warehouse-refresh"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    // Select the item and start quick listing
+    await wrapper.find('[data-testid="warehouse-1022002"]').trigger('click');
+    await nextTick();
+    wrapper.find('[data-testid="price-quick-listing"]').trigger('click');
+    await nextTick();
+
+    // While quick listing is in progress, start auto-seller button should be disabled
+    expect(wrapper.find('[data-testid="price-auto-seller-start"]').attributes('disabled')).toBeDefined();
+
+    listingDeferred.resolve({ ok: true });
+    await flushPromises();
+  });
+
+  it('start button is disabled when listing modal is open', async () => {
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+      ],
+    });
+
+    await wrapper.find('[data-testid="price-warehouse-refresh"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+    await wrapper.find('[data-testid="warehouse-1022002"]').trigger('click');
+    await nextTick();
+    await wrapper.find('[data-testid="price-listing-open"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="price-auto-seller-start"]').attributes('disabled')).toBeDefined();
+  });
+
+  it('completes immediately when warehouse is empty after initial refresh', async () => {
+    const { wrapper } = await mountAutoSellerTab({ stockItems: [] });
+
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toContain('completed');
+  });
+
+  it('enters failed state when initial warehouse refresh fails', async () => {
+    const { wrapper } = await mountAutoSellerTab({
+      commands: {
+        GetStockContainers: async () => ({ ok: false, error: 'bridge error' }),
+      },
+    });
+
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toContain('failed');
+    expect(wrapper.find('[data-testid="auto-seller-error"]').text()).toContain('bridge error');
+  });
+
+  it('disables refresh button, quick-listing button, and listing-open button while auto-seller is active', async () => {
+    const exchDeferred = createDeferred();
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+      ],
+      commands: {
+        GetItemTradeInfo: async () => ({ ok: true, value: { minPrice: 5000 } }),
+        ExchangeItem: async () => exchDeferred.promise,
+      },
+    });
+
+    // Load warehouse first so the quick-listing buttons appear
+    await wrapper.find('[data-testid="price-warehouse-refresh"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+    await wrapper.find('[data-testid="warehouse-1022002"]').trigger('click');
+    await nextTick();
+
+    wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    // Auto-seller is now active (ExchangeItem pending)
+    expect(wrapper.find('[data-testid="price-warehouse-refresh"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.find('[data-testid="price-auto-seller-start"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="price-auto-seller-stop"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="price-quick-listing"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.find('[data-testid="price-listing-open"]').attributes('disabled')).toBeDefined();
+
+    exchDeferred.resolve({ ok: true });
+    await flushPromises();
+  });
+
+  it('returns to idle-like state (start button shown) after completion', async () => {
+    const { wrapper } = await mountAutoSellerTab({ stockItems: [] });
+
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    // After completed, start button is back
+    expect(wrapper.find('[data-testid="price-auto-seller-start"]').exists()).toBe(true);
+  });
+});

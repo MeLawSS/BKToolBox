@@ -5,6 +5,7 @@ import { useI18n } from '../shared/i18n.js';
 import PriceTrendChart from './PriceTrendChart.vue';
 import ListingModal from './ListingModal.vue';
 import { DEFAULT_LISTING_PRICE_PERCENT, parseListingDefaultPricePercent, computeDefaultUnitPrice } from './listing-form.js';
+import { useWarehouseAutoSeller } from './useWarehouseAutoSeller.js';
 
 const { t, isEnglish } = useI18n();
 const LISTING_DEFAULT_PRICE_PERCENT_KEY = 'bidking-price-listing-default-percent:v1';
@@ -174,6 +175,20 @@ const canCaptureCollections = computed(() =>
 
 const listingDefaultPricePercent = computed(() =>
   parseListingDefaultPricePercent(listingDefaultPricePercentInput.value));
+
+const autoSeller = useWarehouseAutoSeller({
+  warehouseItems,
+  listingDefaultPricePercent,
+  refreshWarehouseSnapshot,
+  runAutoOperationCommand: (cmd, args) => window.bidkingDesktop.runAutoOperationCommand(cmd, args),
+});
+
+const canStartAutoSeller = computed(() =>
+  canRefreshWarehouse.value
+  && !isQuickListing.value
+  && !isListingModalOpen.value
+  && !autoSeller.isActive.value,
+);
 
 const selectedOwnedCount = computed(() => {
   const row = warehouseItems.value.find((item) => item.itemCid === selectedItemCid.value);
@@ -854,13 +869,49 @@ onMounted(() => {
             class="ghost-button"
             type="button"
             data-testid="price-warehouse-refresh"
-            :disabled="isRefreshingWarehouse || !canRefreshWarehouse"
+            :disabled="isRefreshingWarehouse || !canRefreshWarehouse || autoSeller.isActive.value"
             @click="refreshWarehouseItems"
           >
             {{ isRefreshingWarehouse ? t('price.refreshingWarehouse') : t('price.refreshWarehouse') }}
           </button>
+          <button
+            v-if="!autoSeller.isActive.value"
+            class="primary-button"
+            type="button"
+            data-testid="price-auto-seller-start"
+            :disabled="!canStartAutoSeller"
+            @click="autoSeller.start()"
+          >
+            开始自动售卖
+          </button>
+          <button
+            v-else
+            class="ghost-button"
+            type="button"
+            data-testid="price-auto-seller-stop"
+            :disabled="autoSeller.phase.value === 'stopping'"
+            @click="autoSeller.stop()"
+          >
+            {{ autoSeller.phase.value === 'stopping' ? '正在停止...' : '停止自动售卖' }}
+          </button>
         </header>
         <p v-if="warehouseError" class="error-text">{{ warehouseError }}</p>
+        <div
+          v-if="autoSeller.phase.value !== 'idle'"
+          class="auto-seller-status"
+          data-testid="auto-seller-status"
+        >
+          <span data-testid="auto-seller-phase">{{ autoSeller.phase.value }}</span>
+          <span v-if="autoSeller.currentItemName.value" data-testid="auto-seller-current-item">
+            {{ autoSeller.currentItemName.value }} ({{ autoSeller.currentItemCid.value }})
+          </span>
+          <span data-testid="auto-seller-counts">
+            成功: {{ autoSeller.successCount.value }} / 跳过: {{ autoSeller.skippedCount.value }}
+          </span>
+          <p v-if="autoSeller.lastError.value" class="error-text" data-testid="auto-seller-error">
+            {{ autoSeller.lastError.value }}
+          </p>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -969,7 +1020,7 @@ onMounted(() => {
             class="primary-button"
             type="button"
             data-testid="price-quick-listing"
-            :disabled="isQuickListing"
+            :disabled="isQuickListing || autoSeller.isActive.value"
             @click="quickListSelectedItem"
           >
             {{ isQuickListing ? t('price.quickListing.loading') : t('price.quickListing.button') }}
@@ -979,7 +1030,7 @@ onMounted(() => {
             class="primary-button"
             type="button"
             data-testid="price-listing-open"
-            :disabled="isQuickListing"
+            :disabled="isQuickListing || autoSeller.isActive.value"
             @click="openListingModal"
           >
             {{ t('price.listing.open') }}
