@@ -21,6 +21,7 @@ const EXCHANGE_ITEM_DEFAULT_NATIVE_TIMEOUT_MS = 15000;
 const EXCHANGE_ITEM_MIN_NATIVE_TIMEOUT_MS = 1000;
 const EXCHANGE_ITEM_MAX_NATIVE_TIMEOUT_MS = 60000;
 const EXCHANGE_ITEM_TIMEOUT_BUFFER_MS = 5000;
+const REFRESH_EXCHANGE_SELL_SLOTS_TIMEOUT_MS = 20000;
 
 function getCabinetRewardPath(documentsDir) {
     return path.join(documentsDir, 'BidKing', 'cabinet-reward.json');
@@ -354,6 +355,9 @@ function getAutoOperationCommandTimeoutMs(command, args = {}, deps = {}) {
             EXCHANGE_ITEM_DEFAULT_NATIVE_TIMEOUT_MS
         );
         return nativeTimeoutMs * 3 + EXCHANGE_ITEM_TIMEOUT_BUFFER_MS;
+    }
+    if (command === 'RefreshExchangeSellSlots') {
+        return REFRESH_EXCHANGE_SELL_SLOTS_TIMEOUT_MS;
     }
     return DEFAULT_AUTO_OPERATION_TIMEOUT_MS;
 }
