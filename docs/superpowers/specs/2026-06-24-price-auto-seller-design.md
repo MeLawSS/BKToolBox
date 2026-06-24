@@ -54,7 +54,7 @@
 
 1. 调用 `GetItemTradeInfo`
 2. 读取 `minPrice`
-3. 使用 `listingDefaultPricePercent` 计算默认上架单价
+3. 使用 `listingDefaultPricePercent` 计算默认上架单价，计算公式与 `quickListSelectedItem` 当前通过 `computeDefaultUnitPrice(...)` 使用的实现保持一致
 4. 若计算后的上架价低于藏品基础价，则跳过该藏品
 
 ### 3.3 错误策略
@@ -133,6 +133,7 @@ agent 不负责：
 - `retry_wait`：等待 10 秒后重试当前件
 - `refreshing_exchange`：正在执行 `RefreshExchangeSellSlots`
 - `stopping`：已收到停止请求，等待当前不可中断调用返回
+- `stopped`：任务已被用户停止
 - `completed`：仓库可见藏品已空
 - `failed`：控制器级异常
 
@@ -142,9 +143,17 @@ agent 不负责：
 - `currentItemName`
 - `successCount`
 - `skippedCount`
+- `hasLoadedWarehouseOnce`
 - `lastError`
 - `stopRequested`
 - `startedAt`
+
+状态与控制 flag 的关系：
+
+- `stopRequested` 是内部控制 flag，用于阻止当前调用返回后继续后续步骤。
+- `stopping` 是用户可见状态，只在停止请求发生于不可中断调用期间时进入。
+- 若停止请求发生于可取消等待阶段，则不进入 `stopping`，而是直接转入 `stopped`。
+- 若停止请求发生于不可中断调用阶段，则流程为：设置 `stopRequested = true` -> 状态切到 `stopping` -> 当前调用返回后转为 `stopped`。
 
 ## 7. 数据流与执行流程
 
@@ -152,8 +161,11 @@ agent 不负责：
 
 1. 用户点击“开始自动售卖”
 2. 控制器重置统计与错误状态
-3. 若仓库列表尚未准备好，先执行一次 `refreshWarehouseItems`
-4. 进入外层循环
+3. 若当前已有单件快速上架进行中，则阻止启动并提示当前存在进行中的仓库操作
+4. 若当前已有仓库刷新进行中，则等待该次刷新完成，而不是并发再发起一次刷新
+5. 若 `hasLoadedWarehouseOnce` 为 `false`，则执行一次 `refreshWarehouseItems`；该 flag 或等价状态用于区分“仓库尚未加载”与“仓库已加载但当前为空”
+6. 若首次准备完成后仓库可见列表为空，则直接结束为 `completed`
+7. 进入外层循环
 
 ### 7.2 外层循环
 
@@ -172,7 +184,7 @@ agent 不负责：
 
 ### 7.3 单件处理流程
 
-1. 读取当前件 `itemCid` 与拥有数量
+1. 读取当前件 `itemCid` 与拥有数量；拥有数量作为本次 `ExchangeItem` 的 `count` 参数，保持与 `quickListSelectedItem` 当前“按该藏品现有拥有数量一次性上架”的语义一致
 2. 调用 `GetItemTradeInfo`
 3. 计算默认上架价
 4. 若上架价低于基础价：
@@ -184,7 +196,7 @@ agent 不负责：
 
 ### 7.4 成功链
 
-1. `ExchangeItem` 成功
+1. `ExchangeItem` 成功。该成功既包括首次尝试成功，也包括经过 `RefreshExchangeSellSlots` 后的重试成功
 2. `successCount + 1`
 3. 调用 `refreshWarehouseItems`
 4. 等待 1.5 秒
@@ -199,7 +211,7 @@ agent 不负责：
 3. 若期间收到停止请求，立即退出
 4. 状态置为 `refreshing_exchange`
 5. 调用 `RefreshExchangeSellSlots`
-6. 若刷新成功，重新尝试当前件
+6. 若刷新成功，重新尝试当前件；该重试若成功，必须回归 §7.4 的完整成功链，即执行 `successCount + 1` -> `refreshWarehouseItems` -> 等待 1.5 秒 -> 再进入下一件
 7. 若刷新失败，将其视为当前件不可恢复错误并跳过
 
 这里的“重试当前件”必须是单件内层循环，而不是回到外层仓库循环重新取件。
@@ -230,6 +242,7 @@ agent 不负责：
 
 - 若正处于 10 秒等待中，停止应立刻生效
 - 若正处于 1.5 秒成功间隔等待中，停止也应立刻生效
+- 若正处于可取消等待中，停止后状态直接转为 `stopped`
 
 ### 8.2 不可中断调用的处理
 
@@ -244,7 +257,7 @@ agent 不负责：
 
 - 收到停止请求后立刻设置 `stopRequested = true`
 - 所有可取消等待立刻退出
-- 对正在进行的原生命令，等待 Promise 返回后立即终止后续流程
+- 对正在进行的原生命令，状态切为 `stopping`，等待 Promise 返回后立即终止后续流程并转为 `stopped`
 
 这意味着“立即停止”的技术定义是：
 
@@ -275,6 +288,7 @@ agent 不负责：
 
 - 返回明确错误文本
 - 前端收到失败后，将当前件计为跳过，而不是终止整个任务
+- 若当前屏幕无法识别、无法在限定时间内收敛到 `main_lobby`、或无法在限定时间内确认出售页 ready，都属于失败返回
 
 ### 9.5 Agent 内部逻辑
 
@@ -292,6 +306,12 @@ agent 不负责：
 2. 点击出售页 toggle
 3. 确认出售页 toggle 为激活状态
 
+#### 情况 C：未知屏幕或收敛失败
+
+- 若 `DetectScreenState()` 返回未知状态，或当前界面在限定超时内无法通过关闭逻辑收敛到 `main_lobby`，命令直接失败返回
+- 若进入交易所后在限定超时内仍无法确认出售页 toggle 激活，命令直接失败返回
+- 返回值需带明确错误文本，前端收到后将当前件计为跳过
+
 ### 9.6 等待策略
 
 该命令不得依赖长时间固定 `Sleep` 作为完成依据。
@@ -301,6 +321,11 @@ agent 不负责：
 - 以短轮询间隔检测 `DetectScreenState()`
 - 检测 `TradingPanel/Toggles/Toggle (1)` 与 `Toggle (2)` 的 `isOn` 状态
 - 在有限超时内等待目标状态成立
+
+具体约束：
+
+- 命令整体超时上限为 15 秒，与当前 `ExchangeItem` 默认超时量级保持一致
+- 建议轮询间隔为 200ms 到 250ms，作为状态探测间隔而非业务完成依据
 
 不允许的做法：
 
@@ -335,6 +360,11 @@ agent 不负责：
 - 禁用单件“快速上架”
 - 禁用“刷新仓库”
 
+自动售卖启动前：
+
+- 若单件“快速上架”仍在进行中，则开始自动售卖按钮保持禁用
+- 若通过非 UI 方式触发启动，控制器应拒绝启动并返回“已有仓库操作进行中”之类的明确信息
+
 自动售卖运行中切换 tab：
 
 - 不自动停止任务
@@ -350,8 +380,10 @@ agent 不负责：
 - 成功路径会在两次上架之间等待 1.5 秒
 - 低于基础价时跳过当前件且不调用 `ExchangeItem`
 - `ExchangeItem returned false` 会等待 10 秒、调用 `RefreshExchangeSellSlots`，然后重试当前件
+- `ExchangeItem returned false` 在一次刷新后若再次返回同样错误，会再次进入等待 + 刷新 + 重试链，直到成功或手动停止，而不是跳出当前件循环
 - 非 `ExchangeItem returned false` 错误会跳过当前件
 - 等待期间点击停止会立即终止流程
+- 单件“快速上架”进行中时不能启动自动售卖
 - 运行中按钮禁用状态正确
 - 运行中状态文本和计数反馈正确
 
@@ -366,8 +398,10 @@ agent 不负责：
 
 - 已在 `exchange` 时的买入页 -> 出售页刷新路径
 - 不在 `exchange` 时的回主界面 -> 进交易所 -> 出售页路径
+- 当前为未知屏幕或无法收敛回 `main_lobby` 时的失败返回
 - 节点不存在或状态不满足时的失败返回
 - 超时返回明确错误，而不是无限等待
+- 15 秒整体超时约束的行为验证
 
 ## 12. 风险与约束
 
@@ -382,6 +416,7 @@ agent 不负责：
 - 自动售卖沿用现有单件快速上架的定价规则。
 - 成功上架后会刷新仓库并等待 1.5 秒再继续。
 - 遇到 `ExchangeItem returned false` 时会等待 10 秒、刷新交易所出售页并重试当前件。
+- 遇到 `ExchangeItem returned false` 时重试链可持续执行，直到成功或手动停止为止。
 - 遇到其他错误时会跳过该件并继续。
 - 仓库为空时自动结束。
 - 手动停止在等待阶段立即生效，在不可中断命令阶段以最短尾延迟停止。
