@@ -137,7 +137,10 @@ onUnmounted(() => {
           data-testid="inject-panel-cabinet"
           :aria-label="t('inject.cabinetReward')"
         >
-          <InjectCabinetRewardPanel />
+          <InjectCabinetRewardPanel
+            :command-loading="autoOperationCommandLoading"
+            @command-loading-change="setAutoOperationCommandLoading"
+          />
         </section>
 
         <section
