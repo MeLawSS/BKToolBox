@@ -3039,7 +3039,7 @@ describe('auto-seller', () => {
       commands: {
         GetStockContainers: async () => {
           stockCallCount++;
-          if (stockCallCount <= 2) {
+          if (stockCallCount <= 1) {
             return {
               ok: true,
               value: createWarehouseSnapshot([

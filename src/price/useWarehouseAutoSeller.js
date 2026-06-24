@@ -57,11 +57,13 @@ export function useWarehouseAutoSeller({
   }
 
   async function _cancelableSleep(ms) {
-    const end = Date.now() + ms;
-    while (Date.now() < end) {
+    let remaining = ms;
+    while (remaining > 0) {
       if (stopRequested.value) return false;
       // eslint-disable-next-line no-await-in-loop
-      await new Promise((resolve) => { setTimeout(resolve, 50); });
+      const step = Math.min(50, remaining);
+      await new Promise((resolve) => { setTimeout(resolve, step); });
+      remaining -= step;
     }
     return !stopRequested.value;
   }
