@@ -5,6 +5,7 @@
 #include "AutoCollectCabinetRewardSchedulerSemantics.h"
 #include "AutoCollectCabinetRewardStateFormatting.h"
 #include <atomic>
+#include <algorithm>
 
 static const uint64_t kAutoCollectCabinetRewardIntervalMs = 10800000ULL;
 static std::atomic<int> g_notifiedExpectedPrice{0};
@@ -2593,4 +2594,148 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         roundsPlayed,
         ResolveAutoAuctionReportedExpectedPrice(lastExpectedPrice, g_notifiedExpectedPrice.load()));
     SendResponse(c, id, true, result);
+}
+
+// ==========================================================================
+// CmdRefreshExchangeSellSlots — navigate to exchange sell tab and confirm ready.
+// Uses local helpers that check IsAgentShuttingDown() only (not AutoAuction stop).
+// ==========================================================================
+
+static bool WaitForScreenREFRESH(const char* targetScreen, int timeoutMs, int pollIntervalMs) {
+    DWORD start = GetTickCount();
+    for (;;) {
+        if (IsAgentShuttingDown()) return false;
+        ScreenState s = DetectScreenState();
+        if (strcmp(s.screen, targetScreen) == 0) return true;
+        if ((int)(GetTickCount() - start) >= timeoutMs) return false;
+        Sleep(pollIntervalMs);
+    }
+}
+
+static bool WaitForToggleStateREFRESH(Il2CppObject* transform, const char* nodePath,
+                                       bool expectedOn, int timeoutMs, int pollIntervalMs) {
+    DWORD start = GetTickCount();
+    for (;;) {
+        if (IsAgentShuttingDown()) return false;
+        std::vector<UiNodeSnapshot> m;
+        ResolveUiNodeMatches(transform, nodePath, UI_PATH_EXACT, 1, &m);
+        if (!m.empty()) {
+            bool on = false;
+            if (ReadToggleValue(m[0].components, &on) && on == expectedOn) return true;
+        }
+        if ((int)(GetTickCount() - start) >= timeoutMs) return false;
+        Sleep(pollIntervalMs);
+    }
+}
+
+void CmdRefreshExchangeSellSlots(AgentConn* c, const char* id, const char* /*json*/) {
+    const int TOTAL_BUDGET_MS = 15000;
+    const int STEP_MS         = 4000;
+    const int POLL_MS         = 200;
+
+    DWORD overallStart = GetTickCount();
+    auto budgetLeft = [&]() -> int {
+        int elapsed = (int)(GetTickCount() - overallStart);
+        return TOTAL_BUDGET_MS - elapsed;
+    };
+
+    ScreenState s = DetectScreenState();
+    std::string screenBefore(s.screen);
+    bool enteredExchange   = false;
+    bool toggledBuyThenSell = false;
+
+    // ---- Phase 1: converge to exchange screen --------------------------------
+    if (strcmp(s.screen, "exchange") != 0) {
+        // Close overlays until main_lobby or exchange
+        while (strcmp(s.screen, "main_lobby") != 0 && strcmp(s.screen, "exchange") != 0) {
+            if (IsAgentShuttingDown()) { SendResponse(c, id, false, "agent shutting down"); return; }
+            if (budgetLeft() <= 0) { SendResponse(c, id, false, "budget exhausted converging to main_lobby"); return; }
+            if (strcmp(s.screen, "unknown") == 0) { SendResponse(c, id, false, "unknown screen"); return; }
+
+            Il2CppObject* closeXform = nullptr;
+            const char*   closePath  = nullptr;
+            if (!ResolveCloseTarget(s, &closeXform, &closePath)) {
+                SendResponse(c, id, false, "no close target for current screen");
+                return;
+            }
+            std::string err;
+            if (!ClickNode(closeXform, closePath, 0, &err)) {
+                SendResponse(c, id, false, ("close overlay failed: " + err).c_str());
+                return;
+            }
+            int stepBudget = std::min(STEP_MS, budgetLeft());
+            if (!WaitForScreenREFRESH("main_lobby", stepBudget, POLL_MS)) {
+                s = DetectScreenState();
+                if (strcmp(s.screen, "main_lobby") != 0 && strcmp(s.screen, "exchange") != 0) {
+                    SendResponse(c, id, false, "failed to reach main_lobby after closing overlay");
+                    return;
+                }
+            }
+            s = DetectScreenState();
+        }
+
+        if (strcmp(s.screen, "main_lobby") == 0) {
+            if (!s.uiMainTransform) { SendResponse(c, id, false, "UIMain transform unavailable"); return; }
+            std::string err;
+            if (!ClickNode(s.uiMainTransform, "MainPanel/Btns2/Button_2", 0, &err)) {
+                SendResponse(c, id, false, ("click exchange entry: " + err).c_str());
+                return;
+            }
+            int stepBudget = std::min(STEP_MS, budgetLeft());
+            if (!WaitForScreenREFRESH("exchange", stepBudget, POLL_MS)) {
+                SendResponse(c, id, false, "exchange did not appear after clicking entry");
+                return;
+            }
+            s = DetectScreenState();
+            enteredExchange = true;
+        }
+    }
+
+    // ---- Phase 2: toggle sell tab (buy → sell when was already in exchange; just sell when entered) ----
+    if (strcmp(s.screen, "exchange") != 0 || !s.tradingPanelTransform) {
+        SendResponse(c, id, false, "not in exchange after navigation");
+        return;
+    }
+    Il2CppObject* tp = s.tradingPanelTransform;
+    std::string err;
+
+    if (!enteredExchange) {
+        // Was already in exchange: click buy tab first to reset, then sell
+        if (!ClickNode(tp, "Toggles/Toggle (1)", 0, &err)) {
+            SendResponse(c, id, false, ("click buy tab: " + err).c_str());
+            return;
+        }
+        int stepBudget = std::min(STEP_MS, budgetLeft());
+        if (!WaitForToggleStateREFRESH(tp, "Toggles/Toggle (1)", true, stepBudget, POLL_MS)) {
+            SendResponse(c, id, false, "buy tab did not activate");
+            return;
+        }
+        if (!ClickNode(tp, "Toggles/Toggle (2)", 0, &err)) {
+            SendResponse(c, id, false, ("click sell tab: " + err).c_str());
+            return;
+        }
+        toggledBuyThenSell = true;
+    } else {
+        // Entered fresh: just click sell tab
+        if (!ClickNode(tp, "Toggles/Toggle (2)", 0, &err)) {
+            SendResponse(c, id, false, ("click sell tab: " + err).c_str());
+            return;
+        }
+    }
+
+    // ---- Phase 3: confirm sell tab active ----------------------------------------
+    int stepBudget = std::min(STEP_MS, budgetLeft());
+    if (!WaitForToggleStateREFRESH(tp, "Toggles/Toggle (2)", true, stepBudget, POLL_MS)) {
+        SendResponse(c, id, false, "sell tab did not activate within budget");
+        return;
+    }
+
+    std::string result =
+        "{\"screenBefore\":\"" + screenBefore + "\""
+        ",\"screenAfter\":\"exchange\""
+        ",\"enteredExchange\":"  + std::string(enteredExchange    ? "true" : "false") +
+        ",\"toggledBuyThenSell\":" + std::string(toggledBuyThenSell ? "true" : "false") +
+        ",\"sellTabReady\":true"
+        "}";
+    SendResponse(c, id, true, result.c_str());
 }

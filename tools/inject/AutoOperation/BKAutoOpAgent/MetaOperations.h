@@ -112,3 +112,4 @@ void CmdSetAutoCollectCabinetRewardEnabled(AgentConn* c, const char* id, const c
 void CmdAutoAuction(AgentConn* c, const char* id, const char* json);
 void CmdCancelAutoAuction(AgentConn* c, const char* id, const char* json);
 void CmdSetExpectedPrice(AgentConn* c, const char* id, const char* json);
+void CmdRefreshExchangeSellSlots(AgentConn* c, const char* id, const char* json);
