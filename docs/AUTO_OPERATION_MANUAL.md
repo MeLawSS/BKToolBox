@@ -247,10 +247,11 @@ The current dispatch table in `BKAutoOpAgent.cpp` registers all of these command
 | Connectivity / lifecycle | `Ping`, `UnloadAgent` |
 | Panel-level UI | `GetCurrentUI`, `GetVisiblePanels`, `OpenPanel`, `ClosePanel` |
 | UI automation selector commands | `DumpPanelTree`, `ClickNode`, `SetInputText`, `GetNodeState`, `DescribeNodeComponents`, `DescribeNodeComponentMethods`, `DescribeNodeComponentMethodSignatures`, `DescribeNodeComponentFields`, `DescribeClassMethodSignatures`, `CallNodeComponentMethod`, `InvokeNodeComponentMethod`, `WaitForVisiblePanel`, `WaitForNode` |
-| Collection / warehouse / exchange | `CollectionPrices`, `GetCollectionItemCids`, `GetWarehouseItemList`, `GetStockCollectibleCounts`, `GetStockContainers`, `MoveStockItem`, `GetItemTradeInfo`, `ExchangeItem` |
+| Collection / warehouse / exchange | `CollectionPrices`, `GetCollectionItemCids`, `GetWarehouseItemList`, `GetStockCollectibleCounts`, `GetStockContainers`, `MoveStockItem`, `GetItemTradeInfo`, `ExchangeItem`, `RefreshExchangeSellSlots` |
 | Delayed query | `StartDelayedPriceQuery`, `GetDelayedPriceQueryStatus`, `CancelDelayedPriceQuery` |
 | Probe infrastructure | `LoadProbe`, `InvokeMethod` |
 | Business / MetaOperation | `GoToBattlePrev`, `EnterRoom`, `OpenSkillConfig`, `SelectRole`, `StartAction`, `GetBidState`, `PlaceBid`, `SetBidAmount`, `ConfirmBid`, `DismissRewardsBox`, `DismissCollectAward`, `GetCurrentScreen`, `CloseCurrentOverlay`, `SetExpectedPrice`, `CancelAutoAuction` |
+| Cabinet reward scheduler | `GetAutoCollectCabinetRewardState`, `SetAutoCollectCabinetRewardEnabled` |
 | AggregateOperation | `CollectCabinetReward`, `AutoAuction` |
 
 This is one dispatch table, not separate transport layers.
@@ -296,6 +297,9 @@ Current command matrix:
 | `SetExpectedPrice` | yes | yes | no | helper command for renderer-driven expected-price sync; not exposed in Inject MetaOperation panel |
 | `CancelAutoAuction` | yes | yes | no | stop/cancel companion to `AutoAuction`; not exposed in Inject MetaOperation panel |
 | `CollectCabinetReward` | yes | yes | yes | aggregate by behavior, but exposed in the panel |
+| `GetAutoCollectCabinetRewardState` | yes | yes | yes | reads scheduler state (`enabled`, `running`, `lastResultCode`); called automatically by the panel on transport-ready |
+| `SetAutoCollectCabinetRewardEnabled` | yes | yes | yes | toggles the cabinet reward scheduler; takes `{ enabled: boolean }` |
+| `RefreshExchangeSellSlots` | yes | yes | no | navigates to exchange sell tab and confirms ready; used by price page auto-seller |
 | `AutoAuction` | yes | yes | no | available in native dispatch and `bkcli`, not in Inject MetaOperation panel |
 
 Current non-member that is easy to confuse with MetaOperation:
@@ -307,7 +311,7 @@ Current non-member that is easy to confuse with MetaOperation:
 
 ### Current Inject MetaOperation panel surface
 
-`src/inject/panels/InjectMetaOperationPanel.vue` currently exposes 14 native business commands:
+`src/inject/panels/InjectMetaOperationPanel.vue` currently exposes 16 native business commands:
 
 - zero-arg actions
   - `GoToBattlePrev`
@@ -322,11 +326,13 @@ Current non-member that is easy to confuse with MetaOperation:
   - `GetCurrentScreen`
   - `CloseCurrentOverlay`
   - `CollectCabinetReward`
+  - `GetAutoCollectCabinetRewardState`
 - argument-taking actions
   - `EnterRoom`
   - `SetBidAmount`
+  - `SetAutoCollectCabinetRewardEnabled`
 
-It currently does not expose `AutoAuction`, `SetExpectedPrice`, or `CancelAutoAuction`.
+It currently does not expose `AutoAuction`, `SetExpectedPrice`, `CancelAutoAuction`, or `RefreshExchangeSellSlots`.
 
 ## `AggregateOperation`
 

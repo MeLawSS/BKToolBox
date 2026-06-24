@@ -348,6 +348,7 @@ BKToolBox/
 - 浏览倍率大于等于 2x 的“高倍售价藏品”
 - 浏览 Collections 藏品价格历史
 - 在桌面模式下读取仓库藏品数量、显示单件占用格数并刷新单个藏品交易所价格
+- 在桌面模式下通过 `useWarehouseAutoSeller` 按序自动批量上架仓库藏品
 - 对仓库表的 `占用格数`、`仓库数量`、`本身价格`、`最新最低价` 做前端数值排序
 
 页面数据源：
@@ -356,13 +357,14 @@ BKToolBox/
 - `/api/price-history/latest`
 - `/api/price-history/collections`
 - `/api/price-history/item/:itemCid`
-- 桌面模式下还会调用 `window.bidkingDesktop.refreshItemTradeInfo()`，并通过 `runAutoOperationCommand('GetStockContainers' | 'GetItemTradeInfo' | 'ExchangeItem')` 读取持有快照与执行上架
+- 桌面模式下还会调用 `window.bidkingDesktop.refreshItemTradeInfo()`，并通过 `runAutoOperationCommand('GetStockContainers' | 'GetItemTradeInfo' | 'ExchangeItem' | 'RefreshExchangeSellSlots')` 读取持有快照与执行上架
 
 页面关注点：
 
 - 仓库表会复用 `GetStockContainers` 的主仓识别语义，只显示主仓 `stockId: 0` 中存在的交易所藏品，并把 `/data/collectibles.json` 中的 `size.width * size.height` 派生成单件占用格数；显示的 `仓库数量` 仍按所有仓库 / 物品箱中的同 `itemCid` 总数统计
 - 默认仓库表顺序保持主仓内首次出现顺序；点击表头后切换为对应数值列的升序/降序排序
 - 选中仓库持有藏品后，详情区可继续走 `ListingModal` 的桌面上架链路
+- `src/price/useWarehouseAutoSeller.js` 实现批量自动上架生命周期：按序遍历主仓藏品，对每件依次调用 `GetItemTradeInfo` 获取基准价、`RefreshExchangeSellSlots` 刷新交易所卖出槽、`ExchangeItem` 执行上架；`phase` 状态机跟踪 `idle / running / retry_wait / refreshing_exchange / stopping / stopped` 阶段，完成数/跳过数/最近错误实时向 UI 暴露
 
 ### Inject
 

@@ -1302,10 +1302,13 @@ DismissCollectAward
 GetCurrentScreen
 CloseCurrentOverlay
 CollectCabinetReward
+GetAutoCollectCabinetRewardState
+SetAutoCollectCabinetRewardEnabled
 SetExpectedPrice
 AutoAuction
 CancelAutoAuction
 UnloadAgent
+RefreshExchangeSellSlots
 ```
 
 When adding a new command, update both:
