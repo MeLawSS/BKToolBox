@@ -2813,4 +2813,448 @@ describe('auto-seller', () => {
     // After completed, start button is back
     expect(wrapper.find('[data-testid="price-auto-seller-start"]').exists()).toBe(true);
   });
+
+  it('auto-seller: lists one item successfully then completes when warehouse empties', async () => {
+    let stockCallCount = 0;
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 2 }),
+      ],
+      commands: {
+        GetStockContainers: async () => {
+          stockCallCount++;
+          // First call (on start): return one item; second call (after ExchangeItem): empty
+          if (stockCallCount === 1) {
+            return {
+              ok: true,
+              value: createWarehouseSnapshot([
+                createWarehouseContainer({
+                  stockId: 0,
+                  items: [createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 2 })],
+                }),
+              ]),
+            };
+          }
+          return { ok: true, value: createWarehouseSnapshot([createWarehouseContainer({ stockId: 0, items: [] })]) };
+        },
+        GetItemTradeInfo: async (args) => {
+          expect(args.itemCid).toBe(1022002);
+          return { ok: true, value: { minPrice: 5000 } };
+        },
+        ExchangeItem: async (args) => {
+          expect(args.itemCid).toBe(1022002);
+          expect(args.count).toBe(2);
+          // listPrice = floor(5000 * 98/100) = 4900
+          expect(args.unitPrice).toBe(4900);
+          return { ok: true };
+        },
+      },
+    });
+
+    vi.useFakeTimers();
+    try {
+      wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+      await vi.advanceTimersByTimeAsync(0); // bridge calls resolve immediately
+
+      // After ExchangeItem success, successCount increments and 1.5s sleep begins
+      // Advance past the 1.5s wait
+      await vi.advanceTimersByTimeAsync(2000);
+      await nextTick();
+
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('completed');
+      expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('成功: 1');
+      expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('跳过: 0');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('auto-seller: waits 1.5 seconds between successful listings', async () => {
+    let stockCallCount = 0;
+    const exchCallCount = { value: 0 };
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+      ],
+      commands: {
+        GetStockContainers: async () => {
+          stockCallCount++;
+          if (stockCallCount <= 2) {
+            // First two calls return one item each (simulates item being present for second listing)
+            return {
+              ok: true,
+              value: createWarehouseSnapshot([
+                createWarehouseContainer({
+                  stockId: 0,
+                  items: [createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 })],
+                }),
+              ]),
+            };
+          }
+          return { ok: true, value: createWarehouseSnapshot([createWarehouseContainer({ stockId: 0, items: [] })]) };
+        },
+        GetItemTradeInfo: async () => ({ ok: true, value: { minPrice: 5000 } }),
+        ExchangeItem: async () => {
+          exchCallCount.value++;
+          return { ok: true };
+        },
+      },
+    });
+
+    vi.useFakeTimers();
+    try {
+      wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+      await vi.advanceTimersByTimeAsync(0); // first item bridges resolve
+
+      // After first ExchangeItem, we're in the 1.5s sleep
+      // Only one ExchangeItem call so far
+      expect(exchCallCount.value).toBe(1);
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('running');
+
+      // Advance past 1.5s
+      await vi.advanceTimersByTimeAsync(2000);
+      await nextTick();
+      // Second item has been processed
+      expect(exchCallCount.value).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('auto-seller: skips item below base price without calling ExchangeItem', async () => {
+    // itemCid 1022001 (急救毯): basePrice=770; minPrice=700 → listPrice=floor(700*98/100)=686 < 770 → skip
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022001, stockId: 0, pos: 0, count: 1 }),
+      ],
+      commands: {
+        GetStockContainers: async (_args, calls) => {
+          // After the below-base-price skip, the composable calls refresh → return empty
+          const stockCalls = calls.filter((c) => c.command === 'GetStockContainers').length;
+          if (stockCalls <= 1) {
+            return {
+              ok: true,
+              value: createWarehouseSnapshot([
+                createWarehouseContainer({
+                  stockId: 0,
+                  items: [createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022001, stockId: 0, pos: 0, count: 1 })],
+                }),
+              ]),
+            };
+          }
+          return { ok: true, value: createWarehouseSnapshot([createWarehouseContainer({ stockId: 0, items: [] })]) };
+        },
+        GetItemTradeInfo: async () => ({ ok: true, value: { minPrice: 700 } }),
+      },
+    });
+
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('completed');
+    expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('跳过: 1');
+    expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('成功: 0');
+    // ExchangeItem must NOT have been called
+    // (if ExchangeItem were called, the test would throw "unexpected auto-seller command: ExchangeItem")
+  });
+
+  it('auto-seller: items all in terminalSkipCids → completes rather than looping', async () => {
+    let stockCallCount = 0;
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022001, stockId: 0, pos: 0, count: 1 }),
+      ],
+      commands: {
+        GetStockContainers: async () => {
+          stockCallCount++;
+          // always return same item
+          return {
+            ok: true,
+            value: createWarehouseSnapshot([
+              createWarehouseContainer({
+                stockId: 0,
+                items: [createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022001, stockId: 0, pos: 0, count: 1 })],
+              }),
+            ]),
+          };
+        },
+        GetItemTradeInfo: async () => ({ ok: true, value: { minPrice: 700 } }), // below base price → skip
+      },
+    });
+
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    // The item is skipped and added to terminalSkipCids. Even though warehouse still shows the item
+    // (stockCallCount > 1), the composable sees it's already in terminalSkipCids → completed.
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('completed');
+    expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('跳过: 1');
+  });
+
+  it('auto-seller: non-ExchangeItem-returned-false error skips the item', async () => {
+    let stockCallCount = 0;
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+      ],
+      commands: {
+        GetStockContainers: async () => {
+          stockCallCount++;
+          if (stockCallCount <= 1) {
+            return {
+              ok: true,
+              value: createWarehouseSnapshot([
+                createWarehouseContainer({
+                  stockId: 0,
+                  items: [createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 })],
+                }),
+              ]),
+            };
+          }
+          return { ok: true, value: createWarehouseSnapshot([createWarehouseContainer({ stockId: 0, items: [] })]) };
+        },
+        GetItemTradeInfo: async () => ({ ok: true, value: { minPrice: 5000 } }),
+        ExchangeItem: async () => ({ ok: false, error: 'slot full' }),
+      },
+    });
+
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('completed');
+    expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('跳过: 1');
+    expect(wrapper.find('[data-testid="auto-seller-error"]').text()).toContain('slot full');
+  });
+
+  it('auto-seller: ExchangeItem returned false → 10s wait → RefreshExchangeSellSlots → retry success', async () => {
+    let exchCallCount = 0;
+    let stockCallCount = 0;
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+      ],
+      commands: {
+        GetStockContainers: async () => {
+          stockCallCount++;
+          if (stockCallCount <= 2) {
+            return {
+              ok: true,
+              value: createWarehouseSnapshot([
+                createWarehouseContainer({
+                  stockId: 0,
+                  items: [createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 })],
+                }),
+              ]),
+            };
+          }
+          return { ok: true, value: createWarehouseSnapshot([createWarehouseContainer({ stockId: 0, items: [] })]) };
+        },
+        GetItemTradeInfo: async () => ({ ok: true, value: { minPrice: 5000 } }),
+        ExchangeItem: async () => {
+          exchCallCount++;
+          if (exchCallCount === 1) return { ok: false, error: 'ExchangeItem returned false' };
+          return { ok: true };
+        },
+        RefreshExchangeSellSlots: async () => ({ ok: true }),
+      },
+    });
+
+    vi.useFakeTimers();
+    try {
+      wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+      await vi.advanceTimersByTimeAsync(0); // initial load + first GetItemTradeInfo + first ExchangeItem
+
+      // ExchangeItem returned false → retry_wait phase, 10s sleep begins
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('retry_wait');
+
+      // Advance past 10s — sleep ends → Refresh → retry ExchangeItem(2nd, succeeds) → 1.5s sleep starts
+      await vi.advanceTimersByTimeAsync(10100);
+      // Flush remaining microtasks from the async chain (Refresh → ExchangeItem → snapshot)
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
+
+      // ExchangeItem(2nd) has been called and succeeded; 1.5s post-success sleep is now running
+      expect(exchCallCount).toBe(2);
+
+      // Advance past the 1.5s wait and let the outer loop reach _getNextCandidate → null → completed
+      await vi.advanceTimersByTimeAsync(2000);
+      await nextTick();
+
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('completed');
+      expect(wrapper.find('[data-testid="auto-seller-counts"]').text()).toContain('成功: 1');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('auto-seller: ExchangeItem returned false persists → repeats retry chain each time', async () => {
+    let exchCallCount = 0;
+    let refreshCallCount = 0;
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+      ],
+      commands: {
+        GetStockContainers: async () => ({
+          ok: true,
+          value: createWarehouseSnapshot([
+            createWarehouseContainer({
+              stockId: 0,
+              items: [createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 })],
+            }),
+          ]),
+        }),
+        GetItemTradeInfo: async () => ({ ok: true, value: { minPrice: 5000 } }),
+        ExchangeItem: async () => {
+          exchCallCount++;
+          return { ok: false, error: 'ExchangeItem returned false' };
+        },
+        RefreshExchangeSellSlots: async () => {
+          refreshCallCount++;
+          return { ok: true };
+        },
+      },
+    });
+
+    vi.useFakeTimers();
+    try {
+      wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+      await vi.advanceTimersByTimeAsync(0);
+
+      // First retry cycle: ExchangeItem(1) called, 10s sleep begins
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('retry_wait');
+      expect(exchCallCount).toBe(1);
+      await vi.advanceTimersByTimeAsync(10100);
+      await vi.advanceTimersByTimeAsync(0);
+      // Refresh(1) fired → ExchangeItem(2) retry fired (also fails) → second 10s sleep started
+      expect(refreshCallCount).toBe(1);
+      expect(exchCallCount).toBe(2);
+
+      // Second retry cycle starts: still in retry_wait for the second sleep
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('retry_wait');
+      await vi.advanceTimersByTimeAsync(10100);
+      await vi.advanceTimersByTimeAsync(0);
+      // Refresh(2) fired → ExchangeItem(3) retry fired (also fails) → third 10s sleep started
+      expect(refreshCallCount).toBe(2);
+      expect(exchCallCount).toBe(3);
+
+      // Still in retry_wait (third sleep), not stuck or completed
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('retry_wait');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('auto-seller: RefreshExchangeSellSlots failure → task enters failed', async () => {
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+      ],
+      commands: {
+        GetStockContainers: async () => ({
+          ok: true,
+          value: createWarehouseSnapshot([
+            createWarehouseContainer({
+              stockId: 0,
+              items: [createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 })],
+            }),
+          ]),
+        }),
+        GetItemTradeInfo: async () => ({ ok: true, value: { minPrice: 5000 } }),
+        ExchangeItem: async () => ({ ok: false, error: 'ExchangeItem returned false' }),
+        RefreshExchangeSellSlots: async () => ({ ok: false, error: 'unknown screen' }),
+      },
+    });
+
+    vi.useFakeTimers();
+    try {
+      wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+      await vi.advanceTimersByTimeAsync(0); // first ExchangeItem call
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('retry_wait');
+
+      await vi.advanceTimersByTimeAsync(10100);
+      await vi.advanceTimersByTimeAsync(0); // RefreshExchangeSellSlots resolves
+
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('failed');
+      expect(wrapper.find('[data-testid="auto-seller-error"]').text()).toContain('unknown screen');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('auto-seller: stop during retry_wait immediately stops the run', async () => {
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+      ],
+      commands: {
+        GetStockContainers: async () => ({
+          ok: true,
+          value: createWarehouseSnapshot([
+            createWarehouseContainer({
+              stockId: 0,
+              items: [createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 })],
+            }),
+          ]),
+        }),
+        GetItemTradeInfo: async () => ({ ok: true, value: { minPrice: 5000 } }),
+        ExchangeItem: async () => ({ ok: false, error: 'ExchangeItem returned false' }),
+      },
+    });
+
+    vi.useFakeTimers();
+    try {
+      wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+      await vi.advanceTimersByTimeAsync(0); // first ExchangeItem
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('retry_wait');
+
+      // Click stop during the 10s wait
+      wrapper.find('[data-testid="price-auto-seller-stop"]').trigger('click');
+      await vi.advanceTimersByTimeAsync(100); // let the 50ms sleep poll fire
+      await nextTick();
+
+      expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('stopped');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('auto-seller: warehouse refresh failure after success → task enters failed', async () => {
+    let stockCallCount = 0;
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+      ],
+      commands: {
+        GetStockContainers: async () => {
+          stockCallCount++;
+          if (stockCallCount === 1) {
+            return {
+              ok: true,
+              value: createWarehouseSnapshot([
+                createWarehouseContainer({
+                  stockId: 0,
+                  items: [createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 })],
+                }),
+              ]),
+            };
+          }
+          // second call (after success) fails
+          return { ok: false, error: 'refresh failed after listing' };
+        },
+        GetItemTradeInfo: async () => ({ ok: true, value: { minPrice: 5000 } }),
+        ExchangeItem: async () => ({ ok: true }),
+      },
+    });
+
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toBe('failed');
+    expect(wrapper.find('[data-testid="auto-seller-error"]').text()).toContain('refresh failed after listing');
+  });
 });
