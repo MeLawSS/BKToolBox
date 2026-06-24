@@ -9,4 +9,7 @@ export const {
   parseSlotType,
   applyMonitorEventToGridState,
   inferMinimumOccupiedCells,
+  inferMinimumOccupiedCellsV1,
+  inferMinimumOccupiedCellsV2,
+  setInferenceAlgorithmV2,
 } = gridModule;

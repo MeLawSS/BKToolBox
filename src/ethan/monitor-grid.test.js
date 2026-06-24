@@ -4,7 +4,9 @@ import {
   createEmptyMonitorGridState,
   createMonitorCells,
   inferMinimumOccupiedCells,
+  inferMinimumOccupiedCellsV2,
   parseSlotType,
+  setInferenceAlgorithmV2,
 } from './monitor-grid.js';
 
 function skillEvent(overrides = {}) {
@@ -422,5 +424,133 @@ describe('Ethan monitor grid helpers', () => {
     expect(state.warnings.join(' ')).toContain('box 430');
     expect(state.warnings.join(' ')).toContain('box 429');
     expect(state.warnings.join(' ')).toContain('slot 20');
+  });
+});
+
+describe('V2 inference algorithm', () => {
+  it('matches V1 on the placement-sequence-with-holes case', () => {
+    const result = inferMinimumOccupiedCellsV2({
+      outlines: [
+        { boxId: 1, row: 1, column: 1, width: 1, height: 1, cells: [1], label: '1x1' },
+        { boxId: 2, row: 1, column: 2, width: 2, height: 2, cells: [2, 3, 12, 13], label: '2x2' },
+        { boxId: 4, row: 1, column: 4, width: 1, height: 1, cells: [4], label: '1x1' },
+        { boxId: 5, row: 1, column: 5, width: 2, height: 2, cells: [5, 6, 15, 16], label: '2x2' },
+        { boxId: 21, row: 3, column: 1, width: 5, height: 1, cells: [21, 22, 23, 24, 25], label: '5x1' },
+        { boxId: 26, row: 3, column: 6, width: 5, height: 1, cells: [26, 27, 28, 29, 30], label: '5x1' },
+      ],
+    });
+
+    expect(result.valid).toBe(true);
+    expect(result.minTotalCells).toBe(30);
+    expect(result.knownOutlineCellCount).toBe(20);
+    expect(result.unknownBlockingCellCount).toBe(10);
+    expect(result.order).toEqual([1, 2, 4, 5, 21, 26]);
+    expect(result.holeCells).toEqual([]);
+  });
+
+  it('matches V1 on the single-outline case', () => {
+    const result = inferMinimumOccupiedCellsV2({
+      outlines: [{
+        boxId: 19,
+        row: 2,
+        column: 9,
+        width: 2,
+        height: 2,
+        cells: [19, 20, 29, 30],
+        label: '2x2',
+      }],
+    });
+
+    expect(result.valid).toBe(true);
+    expect(result.minTotalCells).toBe(22);
+    expect(result.knownOutlineCellCount).toBe(4);
+    expect(result.unknownBlockingCellCount).toBe(18);
+    expect(result.unknownBlockingCells).not.toContain(21);
+  });
+
+  it('defaults cells before the bottom-right outline top-left as occupied', () => {
+    const result = inferMinimumOccupiedCellsV2({
+      outlines: [{
+        boxId: 88,
+        row: 9,
+        column: 8,
+        width: 2,
+        height: 2,
+        cells: [88, 89, 98, 99],
+        label: '2x2',
+      }],
+    });
+
+    expect(result.valid).toBe(true);
+    expect(result.minTotalCells).toBe(91);
+    expect(result.knownOutlineCellCount).toBe(4);
+    expect(result.unknownBlockingCellCount).toBe(87);
+  });
+
+  it('produces a valid result on the complex 12-outline case', () => {
+    const result = inferMinimumOccupiedCellsV2({
+      outlines: [
+        { boxId: 2, width: 1, height: 2, cells: [2, 12], label: '1x2' },
+        { boxId: 4, width: 2, height: 1, cells: [4, 5], label: '2x1' },
+        { boxId: 6, width: 2, height: 1, cells: [6, 7], label: '2x1' },
+        { boxId: 8, width: 1, height: 2, cells: [8, 18], label: '1x2' },
+        { boxId: 11, width: 1, height: 1, cells: [11], label: '1x1' },
+        { boxId: 13, width: 2, height: 2, cells: [13, 14, 23, 24], label: '2x2' },
+        { boxId: 17, width: 1, height: 2, cells: [17, 27], label: '1x2' },
+        { boxId: 19, width: 2, height: 2, cells: [19, 20, 29, 30], label: '2x2' },
+        { boxId: 28, width: 1, height: 1, cells: [28], label: '1x1' },
+        { boxId: 35, width: 4, height: 4, cells: [35, 36, 37, 38, 45, 46, 47, 48, 55, 56, 57, 58, 65, 66, 67, 68], label: '4x4' },
+        { boxId: 41, width: 1, height: 1, cells: [41], label: '1x1' },
+        { boxId: 53, width: 2, height: 1, cells: [53, 54], label: '2x1' },
+      ],
+    });
+
+    expect(result.valid).toBe(true);
+    expect(result.knownOutlineCellCount).toBe(39);
+    // V2 may differ slightly from V1 due to stricter shape-first-fit enforcement;
+    // the bound should be at least as large as V1 and at most a few cells larger.
+    expect(result.minTotalCells).toBeGreaterThanOrEqual(60);
+    expect(result.minTotalCells).toBeLessThanOrEqual(62);
+    expect(result.order).toEqual([2, 4, 6, 8, 11, 13, 17, 19, 28, 35, 41, 53]);
+  });
+
+  it('returns null for empty outlines', () => {
+    expect(inferMinimumOccupiedCellsV2({ outlines: [] })).toBeNull();
+  });
+
+  it('sorts outlines by boxId regardless of input order', () => {
+    const result = inferMinimumOccupiedCellsV2({
+      outlines: [
+        { boxId: 26, width: 5, height: 1, cells: [26, 27, 28, 29, 30], label: '5x1' },
+        { boxId: 1, width: 1, height: 1, cells: [1], label: '1x1' },
+        { boxId: 4, width: 1, height: 1, cells: [4], label: '1x1' },
+      ],
+    });
+
+    // Order should be sorted by boxId: 1, 4, 26
+    expect(result.order).toEqual([1, 4, 26]);
+    expect(result.valid).toBe(true);
+  });
+
+  it('setInferenceAlgorithmV2 toggles the dispatcher', () => {
+    const outlines = [
+      { boxId: 1, row: 1, column: 1, width: 1, height: 1, cells: [1], label: '1x1' },
+    ];
+
+    // Default: V1
+    const v1Result = inferMinimumOccupiedCells({ outlines });
+    expect(v1Result).not.toBeNull();
+
+    // Switch to V2
+    setInferenceAlgorithmV2(true);
+    const v2Result = inferMinimumOccupiedCells({ outlines });
+    expect(v2Result).not.toBeNull();
+    // V2 sorts by boxId (only 1 outline, so same)
+    expect(v2Result.order).toEqual([1]);
+
+    // Switch back to V1
+    setInferenceAlgorithmV2(false);
+    const v1Again = inferMinimumOccupiedCells({ outlines });
+    expect(v1Again).not.toBeNull();
   });
 });
