@@ -183,7 +183,6 @@ Today, `inferMinimumOccupiedCellsV2(...)` still relies on `outline.cells` in fal
 
 - `buildFallbackMinimum(...)`
 - `countKnownOutlineCells(...)`
-- `withDefaultPrefixOccupiedCells(...)`
 
 The happy path inside `inferMinimumOccupiedCellsV2(...)` recomputes occupied shape cells from `boxId / width / height`, but fallback/debug bookkeeping still consumes `outline.cells`. So in this round the debugger must treat `cells` as part of the effective algorithm payload, not as discardable presentation-only data. The matrix editor may derive `cells` from `{ boxId, width, height }`, but the actual object passed into the current V2 implementation must preserve `cells`.
 
@@ -385,6 +384,12 @@ Each history entry should support:
 
 This gives the user both a safe inspection path and a one-click rerun path.
 
+Hydration rule:
+
+- persisted history outlines are storage payloads, not live UI instances
+- on `Restore` or `Recalculate`, the panel must generate fresh runtime `id` values for each restored outline before putting them back into live component state
+- keyed rendering, selection, and delete behavior must operate on those regenerated runtime IDs rather than assuming history entries already contain UI IDs
+
 ## Localization
 
 All new user-facing debugger strings must be added to the locale tables in [`src/shared/messages.js`](../../../src/shared/messages.js) for both:
@@ -458,7 +463,7 @@ Do not duplicate V2 algorithm correctness tests inside the panel suite. Existing
 
 The debugger-specific tests should only verify:
 
-- the panel passes the expected `outlines` and `columns`
+- the panel passes the expected `outlines`, `columns`, and derived `cells`
 - the returned payload is displayed and persisted correctly
 
 ## Verification Commands
