@@ -130,6 +130,17 @@ class FakeMarketLadderStore {
   }
 }
 
+class FakeMinCellsDebuggerHistoryStore {
+  constructor() {
+    this.result = {
+      written: true,
+      savedAt: '2026-06-25T06:00:01.234Z',
+      outputPath: 'C:\\Users\\alice\\Documents\\BKToolBox\\min-cells-debugger-history\\history.ndjson',
+    };
+    this.recordEntry = vi.fn(() => this.result);
+  }
+}
+
 
 function createTestApp(spawnImpl = vi.fn(), monitor = undefined, captureDriver = undefined) {
   return createApp({
@@ -138,6 +149,29 @@ function createTestApp(spawnImpl = vi.fn(), monitor = undefined, captureDriver =
     captureDriver,
     logServerEvent: () => {},
   });
+}
+
+function createValidDebuggerHistoryEntry(overrides = {}) {
+  return {
+    id: 'hist-test-route',
+    createdAt: '2026-06-25T06:00:00.000Z',
+    version: 1,
+    grid: { rows: 43, columns: 10 },
+    outlines: [
+      { boxId: 12, width: 2, height: 3, cells: [12, 13, 22, 23, 32, 33] },
+    ],
+    result: {
+      valid: true,
+      minTotalCells: 19,
+      knownOutlineCellCount: 6,
+      unknownBlockingCellCount: 5,
+      unknownBlockingCells: [41, 42],
+      order: [12],
+      holeCells: [],
+    },
+    summary: '1 / 6 / 19',
+    ...overrides,
+  };
 }
 
 describe('server routes', () => {
@@ -604,6 +638,66 @@ describe('server routes', () => {
       });
 
     expect(priceHistoryStore.readCollectionCids).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists minimum cells debugger history through the tools API', async () => {
+    const minCellsDebuggerHistoryStore = new FakeMinCellsDebuggerHistoryStore();
+    const app = createApp({
+      spawn: vi.fn(),
+      minCellsDebuggerHistoryStore,
+      logServerEvent: () => {},
+    });
+
+    const entry = createValidDebuggerHistoryEntry();
+    const response = await request(app)
+      .post('/api/tools/min-cells-debugger/history')
+      .send({ entry })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      ok: true,
+      savedAt: '2026-06-25T06:00:01.234Z',
+      outputPath: 'C:\\Users\\alice\\Documents\\BKToolBox\\min-cells-debugger-history\\history.ndjson',
+    });
+    expect(minCellsDebuggerHistoryStore.recordEntry).toHaveBeenCalledWith(entry);
+  });
+
+  it('rejects invalid minimum cells debugger history payloads', async () => {
+    const minCellsDebuggerHistoryStore = new FakeMinCellsDebuggerHistoryStore();
+    minCellsDebuggerHistoryStore.recordEntry.mockImplementation(() => {
+      throw new Error('Invalid minimum cells debugger history entry');
+    });
+    const app = createApp({
+      spawn: vi.fn(),
+      minCellsDebuggerHistoryStore,
+      logServerEvent: () => {},
+    });
+
+    const response = await request(app)
+      .post('/api/tools/min-cells-debugger/history')
+      .send({ entry: createValidDebuggerHistoryEntry({ id: '' }) })
+      .expect(400);
+
+    expect(response.body.error).toBe('Invalid minimum cells debugger history entry');
+  });
+
+  it('reports minimum cells debugger history disk write failures', async () => {
+    const minCellsDebuggerHistoryStore = new FakeMinCellsDebuggerHistoryStore();
+    minCellsDebuggerHistoryStore.recordEntry.mockImplementation(() => {
+      throw new Error('disk full');
+    });
+    const app = createApp({
+      spawn: vi.fn(),
+      minCellsDebuggerHistoryStore,
+      logServerEvent: () => {},
+    });
+
+    const response = await request(app)
+      .post('/api/tools/min-cells-debugger/history')
+      .send({ entry: createValidDebuggerHistoryEntry() })
+      .expect(500);
+
+    expect(response.body.error).toBe('disk full');
   });
 
   it('rejects invalid persisted price history item ids', async () => {

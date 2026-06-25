@@ -9,6 +9,7 @@ const { CaptureDriverManager } = require('./lib/capture-driver');
 const { MarketPriceStore } = require('./lib/bidking-market-price-store');
 const { PriceHistoryStore } = require('./lib/bidking-price-history-store');
 const { MarketLadderStore } = require('./lib/bidking-market-ladder-store');
+const { MinCellsDebuggerHistoryStore } = require('./lib/bidking-min-cells-debugger-history-store');
 
 
 const serverLogPath = path.join(os.tmpdir(), 'bidking-server.log');
@@ -65,6 +66,7 @@ function createApp(deps = {}) {
     const marketPriceStore = deps.marketPriceStore || monitor.marketPriceStore || new MarketPriceStore();
     const priceHistoryStore = deps.priceHistoryStore || monitor.priceHistoryStore || new PriceHistoryStore();
     const marketLadderStore = deps.marketLadderStore || new MarketLadderStore();
+    const minCellsDebuggerHistoryStore = deps.minCellsDebuggerHistoryStore || new MinCellsDebuggerHistoryStore();
 
     const collectibles = Array.isArray(deps.collectibles) ? deps.collectibles : readCollectibles(logger);
     const services = {
@@ -242,6 +244,20 @@ function createApp(deps = {}) {
             itemCid,
             ladders: marketLadderStore.readLadders(itemCid, { hours })
         });
+    });
+
+    app.post('/api/tools/min-cells-debugger/history', (req, res) => {
+        try {
+            const result = minCellsDebuggerHistoryStore.recordEntry(req.body?.entry);
+            res.json({
+                ok: true,
+                savedAt: result.savedAt,
+                outputPath: result.outputPath
+            });
+        } catch (error) {
+            const status = error?.message === 'Invalid minimum cells debugger history entry' ? 400 : 500;
+            res.status(status).json({ error: error.message });
+        }
     });
 
 
