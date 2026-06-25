@@ -2457,7 +2457,12 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
             }
         }
 
-        amount = ClampAutoAuctionFirstRoundBid(amount, roundsEncountered, 17000);
+        const int firstRoundFloorAmount = ResolveAutoAuctionFirstRoundFloorAmount(roomId);
+        amount = ClampAutoAuctionFirstRoundBid(
+            amount,
+            roundsEncountered,
+            firstRoundFloorAmount
+        );
 
         const int originalBid = amount;
 
