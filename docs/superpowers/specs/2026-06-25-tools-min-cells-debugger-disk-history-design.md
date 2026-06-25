@@ -201,19 +201,43 @@ The store exposes one main method: `recordEntry(entry)`, returning:
 }
 ```
 
+Module export shape:
+
+```javascript
+module.exports = {
+  MinCellsDebuggerHistoryStore,
+  normalizeMinCellsDebuggerHistoryEntry,
+};
+```
+
 Validation requirements:
 
 - `id` must be a string
 - `createdAt` must parse as a valid date
 - `version` must equal `1`
-- `grid.rows` must equal `43`
-- `grid.columns` must equal `10`
+- `grid.rows` must equal `DEBUGGER_GRID_ROWS` (`43` in the current implementation)
+- `grid.columns` must equal `DEBUGGER_GRID_COLUMNS` (`10` in the current implementation)
 - `outlines` must be an array
 - every outline must include numeric `boxId`, `width`, `height`, and `cells[]`
 - `summary` must be a string
 - `result` may be `null` or an object
 
 The store does not need to validate every semantic detail of the algorithm result. It only needs to reject obviously malformed payloads.
+
+Because this store lives on the server side, it should define mirrored grid constants locally rather than importing the frontend module directly into CommonJS route code. The coupling must be documented inline in the store and covered by a test so grid drift is caught early.
+
+## Server Wiring
+
+Instantiate the store inside `createApp()` in [`server.js`](../../../server.js) following the existing dependency-injection pattern used for other stores.
+
+Required shape:
+
+```javascript
+const minCellsDebuggerHistoryStore =
+  deps.minCellsDebuggerHistoryStore || new MinCellsDebuggerHistoryStore();
+```
+
+The new route handler closes over that instance in the same way current price-history and market-history routes close over their stores. This also makes route tests straightforward because they can inject a fake store through `createApp({ minCellsDebuggerHistoryStore: fakeStore })`.
 
 ## Frontend Integration
 
@@ -231,18 +255,32 @@ Important behavior constraints:
 - disk-write failure must not remove the `localStorage` entry
 - restore and recalculate continue to use `localStorage` only
 - no automatic retry is added
+- `calculate()` remains a synchronous function and does not change its public return shape in this round
 
-The fetch request should be awaited only for its own success or failure handling. It must not delay local result rendering or local history persistence, and it must not be moved into a retry queue in this round.
+The disk-persistence request must be launched as a background promise from inside `calculate()`, using `.then(...)` / `.catch(...)` or an equivalent non-`await` pattern. Do not `await fetch(...)` inside `calculate()`. This keeps:
+
+- `result.value` updates synchronous from the caller's perspective
+- `calculate()` returning `void`
+- `recalculateHistoryEntry()` behavior unchanged apart from the later asynchronous disk-write side effect
+
+The background promise is only responsible for:
+
+- clearing stale disk-write error state on success
+- setting disk-write error state on failure
+
+It must not delay local result rendering or local history persistence, and it must not be moved into a retry queue in this round.
 
 ## Error Handling
 
-The debugger already exposes `storageError` in the panel. Extend its meaning so the panel can surface disk persistence failures clearly.
+The debugger currently exposes `storageError`. Do not overload that single ref with both local-storage and disk-write failures.
 
 Required behavior:
 
+- keep `storageError` for browser `localStorage` failures
+- add a separate `diskPersistenceError` ref for file-write failures
 - if `localStorage` write fails, keep the existing storage error behavior
 - if disk persistence fails, show a dedicated debugger error message indicating that local history succeeded but file persistence failed
-- if disk persistence later succeeds on another run, clear the stale disk error state
+- if disk persistence later succeeds on another run, clear the stale `diskPersistenceError` state
 
 This preserves the difference between:
 
@@ -261,9 +299,11 @@ Add a new test file for the disk-history store and verify:
 - valid entries create `BKToolBox/min-cells-debugger-history/history.ndjson`
 - one call appends exactly one JSON line
 - two valid calls produce two lines
+- the appended line JSON-parses to an object containing `savedAt` as an ISO string and `source: "tools-min-cells-debugger"`
 - malformed entries are rejected and no line is written
+- the store-side mirrored grid constants stay aligned with the frontend debugger grid constants
 
-Use a temp documents directory via `BIDKING_DOCUMENTS_DIR` or explicit constructor injection, matching the repo's current filesystem test style.
+Use explicit constructor injection for the temp root directory, matching the repo's current filesystem test style.
 
 ### 2. Server route tests
 
@@ -280,7 +320,7 @@ Extend [`src/elsa/App.test.js`](../../../src/elsa/App.test.js) to verify:
 - a successful debugger calculation still writes `localStorage` history
 - the calculation also performs a `fetch('/api/tools/min-cells-debugger/history', ...)`
 - a failed disk-persistence response does not remove the visible result or `localStorage` history
-- a failed disk-persistence response surfaces the correct error state
+- a failed disk-persistence response surfaces `diskPersistenceError` without clobbering `storageError`
 
 ## Acceptance Criteria
 
