@@ -836,6 +836,34 @@ describe('HeroEstimatorPanel', () => {
     expect(wrapper.findAll('.monitor-outline')).toHaveLength(0);
   });
 
+  it('shows a zero purple placeholder when an Ethan purple aggregate packet reports zero count without total cells', async () => {
+    const wrapper = mount(HeroEstimatorPanel, {
+      props: { profile: ethanProfile, activePage: 'ethan' },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    const monitorSource = FakeEventSource.instances.find((source) => source.url === '/api/bidking-monitor/events');
+
+    monitorSource.emitEvent('event', {
+      key: 'ethan-purple-zero-count',
+      gameUid: 'game-1',
+      group: 'map',
+      skill: {
+        uid: 'ethan-purple-zero-count-skill',
+        skillCid: 203,
+        hitItemIndex: 0,
+      },
+    });
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('#cells-purple').element.value).toBe('');
+    expect(wrapper.find('#cells-purple').attributes('placeholder')).toBe('0');
+  });
+
   it('does not restore Elsa results derived from monitor total-cells placeholder after remount without fresh monitor context', async () => {
     const wrapper = mount(HeroEstimatorPanel, {
       props: { profile: elsaProfile, embedded: true },
