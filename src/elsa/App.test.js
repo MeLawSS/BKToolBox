@@ -134,6 +134,29 @@ function getLatestToolsWorker() {
   return FakeToolsOutputWorker.instances[FakeToolsOutputWorker.instances.length - 1] || null;
 }
 
+function buildCollectibleSizeKey(width, height) {
+  return `${width}x${height}`;
+}
+
+function findMissingCollectibleSize(collectibles, maxWidth = 10, maxHeight = 10) {
+  const supported = new Set(
+    collectibles
+      .map((item) => item?.size)
+      .filter((size) => Number.isFinite(size?.width) && Number.isFinite(size?.height))
+      .map((size) => buildCollectibleSizeKey(size.width, size.height)),
+  );
+
+  for (let width = 1; width <= maxWidth; width += 1) {
+    for (let height = 1; height <= maxHeight; height += 1) {
+      if (!supported.has(buildCollectibleSizeKey(width, height))) {
+        return { width, height };
+      }
+    }
+  }
+
+  throw new Error('Expected at least one unsupported collectible size in test search range.');
+}
+
 async function selectTab(wrapper, index) {
   await wrapper.findAll('.tab-button')[index].trigger('click');
   await nextTick();
@@ -1224,6 +1247,54 @@ describe('Tools App', () => {
       await nextTick();
       // Validation message should appear
       expect(wrapper.find('.debugger-validation').exists()).toBe(true);
+    });
+
+    it('rejects outline sizes missing from collectibles.json', async () => {
+      const { width, height } = findMissingCollectibleSize(realCollectibles);
+      const wrapper = mountDebuggerApp();
+      mountedWrappers.push(wrapper);
+      const buttons = wrapper.findAll('.tab-button');
+      const tabButtons = buttons.filter((btn) => btn.text().includes('Min Cells') || btn.text().includes('最小格数'));
+      await tabButtons[0].trigger('click');
+      await nextTick();
+
+      const panel = wrapper.findComponent({ name: 'ToolsMinimumCellsDebuggerPanel' });
+      const added = panel.vm.addOutlineFromDrag(0, 0, height - 1, width - 1);
+      await nextTick();
+
+      expect(added).toBe(false);
+      expect(wrapper.findAll('.debugger-outline-item').length).toBe(0);
+      expect(wrapper.find('.debugger-validation').text()).not.toBe('tools.debugger.unsupportedSize');
+    });
+
+    it('refreshes supported outline sizes from runtime collectibles data', async () => {
+      const runtimeCollectibles = realCollectibles.filter((item) => item?.size?.width === 1 && item?.size?.height === 1);
+      const fetchMock = vi.fn(async (url) => {
+        if (String(url) === '/api/bidking-monitor/status') {
+          return { ok: true, json: async () => ({ state: 'idle', running: false, totalEvents: 0, lastError: null }) };
+        }
+        return {
+          ok: true,
+          json: async () => String(url).includes('/data/collectibles.json') ? runtimeCollectibles : realAveragePrices,
+        };
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const wrapper = mountDebuggerApp();
+      mountedWrappers.push(wrapper);
+      await flushPromises();
+      const buttons = wrapper.findAll('.tab-button');
+      const tabButtons = buttons.filter((btn) => btn.text().includes('Min Cells') || btn.text().includes('最小格数'));
+      await tabButtons[0].trigger('click');
+      await flushPromises();
+      await nextTick();
+
+      const panel = wrapper.findComponent({ name: 'ToolsMinimumCellsDebuggerPanel' });
+      const added = panel.vm.addOutlineFromDrag(0, 0, 1, 1);
+      await nextTick();
+
+      expect(added).toBe(false);
+      expect(wrapper.find('.debugger-validation').text()).not.toBe('tools.debugger.unsupportedSize');
     });
 
     it('adds an outline via drag simulation, calculates, and shows result', async () => {

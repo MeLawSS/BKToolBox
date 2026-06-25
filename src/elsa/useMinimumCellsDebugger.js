@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue';
+import fallbackCollectibles from '../../collectibles.json';
 import { inferMinimumOccupiedCellsV2 } from '../ethan/monitor-grid.js';
 import {
   DEBUGGER_GRID_COLUMNS,
@@ -7,6 +8,8 @@ import {
   normalizeRect,
   rectToOutline,
   detectOverlap,
+  buildOutlineSizeKey,
+  collectAllowedOutlineSizeKeys,
   generateRuntimeId,
   createHistoryEntry,
   serializeHistory,
@@ -25,6 +28,7 @@ export function useMinimumCellsDebugger() {
   const storageError = ref('');
   const diskPersistenceError = ref('');
   const lastPayloadOutlines = ref([]);
+  const allowedOutlineSizeKeys = ref(collectAllowedOutlineSizeKeys(fallbackCollectibles));
 
   // ── Derived ──
   function buildOccupiedCellSet(outlineList) {
@@ -46,9 +50,18 @@ export function useMinimumCellsDebugger() {
     return detectOverlap(draft.cells, outlines.value) !== null;
   }
 
+  function supportsOutlineSize(width, height) {
+    return allowedOutlineSizeKeys.value.has(buildOutlineSizeKey(width, height));
+  }
+
   function addOutlineFromDrag(rawStartRow, rawStartCol, rawEndRow, rawEndCol) {
     const { topRow, leftCol, bottomRow, rightCol } = normalizeRect(rawStartRow, rawStartCol, rawEndRow, rawEndCol);
     const base = rectToOutline(topRow, leftCol, bottomRow, rightCol, DEBUGGER_GRID_COLUMNS);
+
+    if (!supportsOutlineSize(base.width, base.height)) {
+      validationMessage.value = 'tools.debugger.unsupportedSize';
+      return false;
+    }
 
     if (detectOverlap(base.cells, outlines.value)) {
       validationMessage.value = 'tools.debugger.conflict';
@@ -130,6 +143,23 @@ export function useMinimumCellsDebugger() {
     }
   }
 
+  function loadCollectibleOutlineSizes() {
+    if (typeof fetch !== 'function') return;
+
+    fetch('/data/collectibles.json', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const collectibles = await response.json();
+        const allowed = collectAllowedOutlineSizeKeys(collectibles);
+        if (allowed.size > 0) {
+          allowedOutlineSizeKeys.value = allowed;
+        }
+      })
+      .catch(() => {
+        // Keep the bundled fallback dimensions when runtime data is unavailable.
+      });
+  }
+
   function saveHistoryEntry(entry) {
     try {
       const updated = [entry, ...history.value];
@@ -192,6 +222,7 @@ export function useMinimumCellsDebugger() {
 
   // ── Init ──
   loadHistory();
+  loadCollectibleOutlineSizes();
 
   return {
     outlines,

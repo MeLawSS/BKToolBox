@@ -7,6 +7,8 @@ import {
   expandOutlineCells,
   rectToOutline,
   detectOverlap,
+  buildOutlineSizeKey,
+  collectAllowedOutlineSizeKeys,
   generateRuntimeId,
   createHistoryEntry,
   serializeHistory,
@@ -143,6 +145,31 @@ describe('detectOverlap', () => {
 
   it('returns null for empty existing outlines', () => {
     expect(detectOverlap([1, 2], [])).toBeNull();
+  });
+});
+
+describe('collectAllowedOutlineSizeKeys', () => {
+  it('builds unique size keys from collectible size data', () => {
+    const collectibles = [
+      { size: { width: 2, height: 3 } },
+      { size: { width: 2, height: 3 } },
+      { size: { width: 3, height: 2 } },
+      { size: { width: 0, height: 2 } },
+      { size: { width: 1 } },
+      {},
+    ];
+
+    expect(Array.from(collectAllowedOutlineSizeKeys(collectibles)).sort()).toEqual(['2x3', '3x2']);
+  });
+
+  it('treats orientation-specific sizes as distinct keys', () => {
+    const collectibles = [
+      { size: { width: 6, height: 3 } },
+    ];
+
+    const keys = collectAllowedOutlineSizeKeys(collectibles);
+    expect(keys.has(buildOutlineSizeKey(6, 3))).toBe(true);
+    expect(keys.has(buildOutlineSizeKey(3, 6))).toBe(false);
   });
 });
 

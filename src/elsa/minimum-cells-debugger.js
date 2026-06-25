@@ -5,6 +5,24 @@ export const DEBUGGER_GRID_COLUMNS = 10;
 export const HISTORY_STORAGE_KEY = 'bidking-tools-min-cells-debugger-history:v1';
 export const MAX_HISTORY_ENTRIES = 100;
 
+export function buildOutlineSizeKey(width, height) {
+  return `${width}x${height}`;
+}
+
+export function collectAllowedOutlineSizeKeys(collectibles) {
+  const allowed = new Set();
+  if (!Array.isArray(collectibles)) return allowed;
+
+  for (const collectible of collectibles) {
+    const width = Number(collectible?.size?.width);
+    const height = Number(collectible?.size?.height);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) continue;
+    allowed.add(buildOutlineSizeKey(width, height));
+  }
+
+  return allowed;
+}
+
 /**
  * Convert zero-based (row, col) to row-major boxId (1-based).
  */
