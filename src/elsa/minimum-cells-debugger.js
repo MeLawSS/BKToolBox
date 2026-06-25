@@ -133,7 +133,15 @@ export function deserializeHistory(raw) {
         entry &&
         typeof entry.id === 'string' &&
         Array.isArray(entry.outlines) &&
-        typeof entry.createdAt === 'string',
+        typeof entry.createdAt === 'string' &&
+        entry.outlines.every(
+          (o) =>
+            o &&
+            typeof o.boxId === 'number' &&
+            typeof o.width === 'number' &&
+            typeof o.height === 'number' &&
+            Array.isArray(o.cells),
+        ),
     );
   } catch (_err) {
     return [];

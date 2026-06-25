@@ -229,7 +229,8 @@ describe('serializeHistory / deserializeHistory', () => {
       { id: 'good', createdAt: 'ts', outlines: [] },
       { noId: true },
       { id: 'bad', createdAt: 'ts' },       // missing outlines array
-      { id: 'good2', createdAt: 'ts', outlines: [{ boxId: 1 }] },
+      { id: 'good2', createdAt: 'ts', outlines: [{ boxId: 1, width: 2, height: 3, cells: [1, 2, 11, 12, 21, 22] }] },
+      { id: 'bad2', createdAt: 'ts', outlines: [{ boxId: 1 }] },  // missing width/height/cells
     ];
     const raw = serializeHistory(history);
     const restored = deserializeHistory(raw);

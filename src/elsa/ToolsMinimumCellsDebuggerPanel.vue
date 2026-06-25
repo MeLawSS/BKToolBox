@@ -79,6 +79,15 @@ function cellClass(boxId) {
 
 function onCellPointerDown(row, col, event) {
   event.preventDefault();
+  const boxId = cellToBoxId(row, col, DEBUGGER_GRID_COLUMNS);
+  // Clicking an occupied cell selects that outline instead of starting a drag
+  if (occupiedCellSet.value.has(boxId)) {
+    const owner = outlines.value.find((o) => o.cells.includes(boxId));
+    if (owner) {
+      selectOutline(owner.id);
+      return;
+    }
+  }
   dragStartRow = row;
   dragStartCol = col;
   isDragging = true;

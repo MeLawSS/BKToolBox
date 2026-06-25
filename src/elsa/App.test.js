@@ -1274,6 +1274,9 @@ describe('Tools App', () => {
       expect(Array.isArray(history)).toBe(true);
       expect(history.length).toBeGreaterThanOrEqual(1);
       expect(history[0].outlines).toBeDefined();
+      expect(history[0].outlines[0].cells).toBeDefined();
+      expect(Array.isArray(history[0].outlines[0].cells)).toBe(true);
+      expect(history[0].outlines[0].cells.length).toBeGreaterThan(0);
       expect(history[0].result).toBeDefined();
     });
 
