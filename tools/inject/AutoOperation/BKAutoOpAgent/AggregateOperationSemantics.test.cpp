@@ -145,6 +145,11 @@ int main() {
         1,
         ResolveAutoAuctionFirstRoundFloorAmount(102)
     ) == 30000);
+    assert(ClampAutoAuctionFirstRoundBid(
+        35000,
+        1,
+        ResolveAutoAuctionFirstRoundFloorAmount(102)
+    ) == 35000);
 
     // First round: non-102 rooms still clamp to 17000.
     assert(ClampAutoAuctionFirstRoundBid(
