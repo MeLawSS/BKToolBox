@@ -111,8 +111,9 @@ function onPointerLeave() {
 }
 
 // ── Result helpers ──
-const hasResult = computed(() => result.value !== null);
+const hasResult = computed(() => result.value !== null && result.value !== undefined);
 const resultIsNull = computed(() => result.value === null);
+const neverCalculated = computed(() => result.value === undefined);
 
 // ── History helpers ──
 function historySummaryText(entry) {
@@ -191,58 +192,59 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
           </ul>
         </div>
 
-        <!-- Result -->
-        <div v-if="hasResult || resultIsNull" class="debugger-result">
+        <!-- Result: valid calculation result -->
+        <div v-if="hasResult" class="debugger-result">
           <h3>{{ t('tools.debugger.resultDetails') }}</h3>
 
-          <div v-if="resultIsNull && !hasResult" class="debugger-result-null">
-            {{ t('tools.debugger.nullResult') }}
-          </div>
+          <!-- Summary layer -->
+          <dl class="debugger-result-summary">
+            <div>
+              <dt>{{ t('tools.debugger.resultValid') }}</dt>
+              <dd>{{ result.valid ? t('tools.debugger.resultValid') : t('tools.debugger.resultInvalid') }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('tools.debugger.resultMinCells') }}</dt>
+              <dd>{{ result.minTotalCells }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('tools.debugger.resultKnownCells') }}</dt>
+              <dd>{{ result.knownOutlineCellCount }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('tools.debugger.resultUnknownBlockers') }}</dt>
+              <dd>{{ result.unknownBlockingCellCount }}</dd>
+            </div>
+          </dl>
 
-          <template v-if="hasResult">
-            <!-- Summary layer -->
-            <dl class="debugger-result-summary">
-              <div>
-                <dt>{{ t('tools.debugger.resultValid') }}</dt>
-                <dd>{{ result.valid ? t('tools.debugger.resultValid') : t('tools.debugger.resultInvalid') }}</dd>
-              </div>
-              <div>
-                <dt>{{ t('tools.debugger.resultMinCells') }}</dt>
-                <dd>{{ result.minTotalCells }}</dd>
-              </div>
-              <div>
-                <dt>{{ t('tools.debugger.resultKnownCells') }}</dt>
-                <dd>{{ result.knownOutlineCellCount }}</dd>
-              </div>
-              <div>
-                <dt>{{ t('tools.debugger.resultUnknownBlockers') }}</dt>
-                <dd>{{ result.unknownBlockingCellCount }}</dd>
-              </div>
-            </dl>
-
-            <!-- Detail layer -->
-            <details class="debugger-result-detail">
-              <summary>{{ t('tools.debugger.resultDetails') }}</summary>
-              <div class="debugger-detail-block">
-                <h4>{{ t('tools.debugger.resultOrder') }}</h4>
-                <code>{{ JSON.stringify(result.order) }}</code>
-              </div>
-              <div class="debugger-detail-block">
-                <h4>{{ t('tools.debugger.resultUnknownBlockersList') }}</h4>
-                <code>{{ JSON.stringify(result.unknownBlockingCells) }}</code>
-              </div>
-              <div class="debugger-detail-block">
-                <h4>{{ t('tools.debugger.resultHoles') }}</h4>
-                <code>{{ JSON.stringify(result.holeCells) }}</code>
-              </div>
-              <div class="debugger-detail-block">
-                <h4>{{ t('tools.debugger.resultOutlinePayload') }}</h4>
-                <code>{{ JSON.stringify(lastPayloadOutlines) }}</code>
-              </div>
-            </details>
-          </template>
+          <!-- Detail layer -->
+          <details class="debugger-result-detail">
+            <summary>{{ t('tools.debugger.resultDetails') }}</summary>
+            <div class="debugger-detail-block">
+              <h4>{{ t('tools.debugger.resultOrder') }}</h4>
+              <code>{{ JSON.stringify(result.order) }}</code>
+            </div>
+            <div class="debugger-detail-block">
+              <h4>{{ t('tools.debugger.resultUnknownBlockersList') }}</h4>
+              <code>{{ JSON.stringify(result.unknownBlockingCells) }}</code>
+            </div>
+            <div class="debugger-detail-block">
+              <h4>{{ t('tools.debugger.resultHoles') }}</h4>
+              <code>{{ JSON.stringify(result.holeCells) }}</code>
+            </div>
+            <div class="debugger-detail-block">
+              <h4>{{ t('tools.debugger.resultOutlinePayload') }}</h4>
+              <code>{{ JSON.stringify(lastPayloadOutlines) }}</code>
+            </div>
+          </details>
         </div>
 
+        <!-- Result: algorithm returned null -->
+        <div v-else-if="resultIsNull" class="debugger-result-null">
+          <h3>{{ t('tools.debugger.resultDetails') }}</h3>
+          <p>{{ t('tools.debugger.nullResult') }}</p>
+        </div>
+
+        <!-- Result: never calculated -->
         <div v-else class="debugger-no-result">
           <p>{{ t('tools.debugger.noResult') }}</p>
         </div>
@@ -291,7 +293,7 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 .debugger-head p {
   margin: 0;
   font-size: 13px;
-  color: var(--color-text-secondary, #666);
+  color: var(--muted);
 }
 
 .debugger-body {
@@ -306,7 +308,7 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
   flex-shrink: 0;
   overflow-y: auto;
   max-height: 100%;
-  border: 1px solid var(--color-border, #ccc);
+  border: 1px solid var(--line);
   border-radius: 4px;
 }
 
@@ -315,7 +317,7 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
   grid-template-columns: repeat(10, 24px);
   grid-template-rows: repeat(43, 24px);
   gap: 1px;
-  background: var(--color-border, #ccc);
+  background: var(--line);
   padding: 1px;
   touch-action: none;
   user-select: none;
@@ -329,28 +331,28 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 .debugger-cell {
   width: 24px;
   height: 24px;
-  background: var(--color-bg-cell-empty, #f0f0f0);
+  background: var(--surface-3);
   cursor: crosshair;
   border-radius: 1px;
   transition: background 0.05s;
 }
 
 .debugger-cell.is-occupied {
-  background: var(--color-accent, #4a90d9);
+  background: var(--primary);
   cursor: pointer;
 }
 
 .debugger-cell.is-occupied.is-selected {
-  outline: 2px solid var(--color-selected, #ff0);
+  outline: 2px solid var(--accent);
   outline-offset: -1px;
 }
 
 .debugger-cell.is-dragging {
-  background: var(--color-drag-preview, #8bc34a);
+  background: var(--primary-strong);
 }
 
 .debugger-cell.is-conflict {
-  background: var(--color-conflict, #e53935);
+  background: var(--danger);
 }
 
 /* ── Sidebar ── */
@@ -366,21 +368,21 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 .debugger-validation {
   margin: 0;
   padding: 6px 10px;
-  background: var(--color-warn-bg, #fff3cd);
-  border: 1px solid var(--color-warn-border, #ffc107);
+  background: var(--surface-2);
+  border: 1px solid var(--accent);
   border-radius: 4px;
   font-size: 13px;
-  color: var(--color-warn-text, #856404);
+  color: var(--accent);
 }
 
 .debugger-storage-error {
   margin: 0;
   padding: 6px 10px;
-  background: var(--color-err-bg, #fce4ec);
-  border: 1px solid var(--color-err-border, #e53935);
+  background: var(--surface-2);
+  border: 1px solid var(--danger);
   border-radius: 4px;
   font-size: 13px;
-  color: var(--color-err-text, #c62828);
+  color: var(--danger);
 }
 
 .debugger-actions {
@@ -391,7 +393,7 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 .debugger-empty {
   margin: 0;
   font-size: 13px;
-  color: var(--color-text-secondary, #888);
+  color: var(--muted);
 }
 
 .debugger-outline-list {
@@ -405,7 +407,7 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
   align-items: center;
   gap: 8px;
   padding: 4px 8px;
-  border: 1px solid var(--color-border, #ddd);
+  border: 1px solid var(--line);
   border-radius: 4px;
   margin-bottom: 4px;
   cursor: pointer;
@@ -413,8 +415,8 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 }
 
 .debugger-outline-item.is-selected {
-  border-color: var(--color-selected, #ff0);
-  background: var(--color-selected-bg, #fff9c4);
+  border-color: var(--accent);
+  background: var(--surface-3);
 }
 
 .debugger-outline-label {
@@ -423,22 +425,23 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 }
 
 .debugger-outline-dims {
-  color: var(--color-text-secondary, #666);
+  color: var(--muted);
   min-width: 50px;
 }
 
 .debugger-outline-cells {
-  color: var(--color-text-secondary, #888);
+  color: var(--muted);
   flex: 1;
 }
 
 .debugger-delete-btn {
   font-size: 12px;
   padding: 2px 6px;
-  color: var(--color-danger, #e53935);
+  color: var(--danger);
 }
 
 .debugger-result h3,
+.debugger-result-null h3,
 .debugger-outlines h3,
 .debugger-history h3 {
   margin: 0 0 6px 0;
@@ -454,7 +457,7 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 }
 
 .debugger-result-summary dt {
-  color: var(--color-text-secondary, #888);
+  color: var(--muted);
 }
 
 .debugger-result-summary dd {
@@ -462,9 +465,15 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
   font-weight: 600;
 }
 
-.debugger-result-null {
+.debugger-result-null h3 {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+}
+
+.debugger-result-null p {
+  margin: 0;
   font-size: 13px;
-  color: var(--color-warn-text, #856404);
+  color: var(--accent);
 }
 
 .debugger-result-detail {
@@ -479,13 +488,13 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 .debugger-detail-block h4 {
   margin: 0 0 2px 0;
   font-size: 12px;
-  color: var(--color-text-secondary, #888);
+  color: var(--muted);
 }
 
 .debugger-detail-block code {
   display: block;
   font-size: 11px;
-  background: var(--color-code-bg, #f5f5f5);
+  background: var(--surface-2);
   padding: 4px 6px;
   border-radius: 3px;
   overflow-x: auto;
@@ -505,7 +514,7 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
-  border: 1px solid var(--color-border, #ddd);
+  border: 1px solid var(--line);
   border-radius: 4px;
   margin-bottom: 4px;
   font-size: 12px;
@@ -517,7 +526,7 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 }
 
 .debugger-history-time {
-  color: var(--color-text-secondary, #888);
+  color: var(--muted);
   flex: 1;
 }
 
@@ -528,6 +537,6 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 
 .debugger-no-result {
   font-size: 13px;
-  color: var(--color-text-secondary, #888);
+  color: var(--muted);
 }
 </style>

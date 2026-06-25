@@ -1277,8 +1277,8 @@ describe('Tools App', () => {
       expect(history[0].result).toBeDefined();
     });
 
-    it('debugger history survives leave-tools cache clearing', () => {
-      // Pre-populate debugger history in storage
+    it('debugger history survives leave-tools cache clearing', async () => {
+      // Pre-populate both debugger history and a standard page-state key
       const entry = {
         id: 'test-entry',
         createdAt: new Date().toISOString(),
@@ -1289,9 +1289,18 @@ describe('Tools App', () => {
         summary: 'test',
       };
       localStorage.setItem(DEBUGGER_HISTORY_KEY, JSON.stringify([entry]));
+      localStorage.setItem(TOOLS_PAGE_STATE_KEY, JSON.stringify({
+        activeTabId: 'elsa',
+      }));
+
+      // Mount App so the clearToolsPageState handler is registered
+      const wrapper = mountDebuggerApp();
+      mountedWrappers.push(wrapper);
 
       // Dispatch leave-tools event (the same event TopBar dispatches)
       window.dispatchEvent(new CustomEvent('bidking:leave-tools'));
+      await flushPromises();
+      await nextTick();
 
       // Debugger history key should NOT be cleared
       const raw = localStorage.getItem(DEBUGGER_HISTORY_KEY);
@@ -1300,8 +1309,8 @@ describe('Tools App', () => {
       expect(history.length).toBe(1);
       expect(history[0].id).toBe('test-entry');
 
-      // Tools page state keys SHOULD be cleared
-      expect(localStorage.getItem('bidking-page-state:v2:elsa')).toBeNull();
+      // Standard tools page state keys SHOULD be cleared
+      expect(localStorage.getItem(TOOLS_PAGE_STATE_KEY)).toBeNull();
     });
 
     it('history entry can be restored into the matrix', async () => {

@@ -19,7 +19,7 @@ export function useMinimumCellsDebugger() {
   const outlines = ref([]);
   const selectedOutlineId = ref(null);
   const dragState = ref(null); // { startRow, startCol, currentRow, currentCol } | null
-  const result = ref(null);
+  const result = ref(undefined);
   const history = ref([]);
   const validationMessage = ref('');
   const storageError = ref('');
@@ -73,7 +73,7 @@ export function useMinimumCellsDebugger() {
     if (selectedOutlineId.value === id) {
       selectedOutlineId.value = null;
     }
-    result.value = null;
+    result.value = undefined;
     validationMessage.value = '';
   }
 
@@ -84,7 +84,7 @@ export function useMinimumCellsDebugger() {
   function clearMatrix() {
     outlines.value = [];
     selectedOutlineId.value = null;
-    result.value = null;
+    result.value = undefined;
     validationMessage.value = '';
     storageError.value = '';
   }
@@ -153,7 +153,7 @@ export function useMinimumCellsDebugger() {
       cells: [...o.cells],
     }));
     selectedOutlineId.value = null;
-    result.value = null;
+    result.value = undefined;
     validationMessage.value = '';
     storageError.value = '';
   }
