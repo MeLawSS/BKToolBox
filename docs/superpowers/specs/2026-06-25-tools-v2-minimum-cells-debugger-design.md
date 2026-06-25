@@ -44,10 +44,11 @@ Those values are bridged from [`lib/bidking-monitor-grid.js`](../../../lib/bidki
 
 ### Existing persistence pattern
 
-The `Tools` page already persists page-level state separately from panel-specific state. The new debugger should follow the same principle:
+The `Tools` page already persists page-level state separately from leave-Tools cache clearing. The new debugger should follow that split explicitly:
 
 - keep current `Tools` tab selection persistence unchanged
-- use its own local storage key for debugger cases and panel-specific state
+- keep durable debugger history separate from `TOOLS_PAGE_CACHE_KEYS`
+- do not blur durable replay history with transient panel draft state
 
 ## Chosen Approach
 
@@ -61,7 +62,7 @@ The panel will:
 - compute `width` and `height` from the dragged rectangle
 - convert all current outlines into the algorithm input shape
 - call `inferMinimumOccupiedCellsV2(...)` directly in the browser
-- persist each completed run into local storage with enough data to replay it exactly
+- persist each completed run into local storage with enough data to replay the exact current V2 payload
 
 This intentionally reuses only:
 
@@ -163,7 +164,15 @@ Each manually added collectible outline should be stored in a simple normalized 
 }
 ```
 
-`cells` is UI-derived convenience data for rendering, selection, and overlap detection. The algorithm input only needs `boxId`, `width`, and `height`.
+`cells` is not just UI metadata in the current codebase.
+
+Today, `inferMinimumOccupiedCellsV2(...)` still relies on `outline.cells` in fallback and debug-related paths inherited from the shared monitor-grid module, including:
+
+- `buildFallbackMinimum(...)`
+- `countKnownOutlineCells(...)`
+- `withDefaultPrefixOccupiedCells(...)`
+
+So in this round the debugger must treat `cells` as part of the effective algorithm payload, not as discardable presentation-only data. The matrix editor may derive `cells` from `{ boxId, width, height }`, but the actual object passed into the current V2 implementation must preserve `cells`.
 
 ### Persisted history entry shape
 
@@ -176,7 +185,7 @@ Each completed calculation should persist an entry shaped like:
   version: 1,
   grid: { rows: 43, columns: 10 },
   outlines: [
-    { boxId: 12, width: 2, height: 3 },
+    { boxId: 12, width: 2, height: 3, cells: [12, 13, 22, 23, 32, 33] },
   ],
   result: {
     valid: true,
@@ -193,7 +202,7 @@ Each completed calculation should persist an entry shaped like:
 
 Requirements:
 
-- persist the exact outline input used by the algorithm
+- persist the exact outline payload used by the current algorithm call, including `cells`
 - persist the complete returned result object, including auxiliary debug arrays
 - include a human-readable summary for quick scanning
 
@@ -248,10 +257,15 @@ When the user clicks `Calculate`:
 - validate that there is at least one outline
 - transform the current UI state into algorithm input:
   - `columns = 10`
-  - `outlines = [{ boxId, width, height }, ...]`
+  - `outlines = [{ boxId, width, height, cells }, ...]`
 - call `inferMinimumOccupiedCellsV2(...)`
 - show the result immediately
 - persist one history entry for that completed run
+
+Implementation note:
+
+- UI-only fields such as `id` may be stripped before calling the algorithm
+- derived `cells` must be retained in the payload passed to `inferMinimumOccupiedCellsV2(...)`
 
 If there are no outlines:
 
@@ -281,21 +295,39 @@ Also show:
 - `order`
 - `unknownBlockingCells`
 - `holeCells`
-- the exact outline input used for the run
+- the exact outline payload used for the run, including `cells`
 - whether the result was `null`
 
 The detail layer may be rendered as compact JSON blocks or structured lists. The important part is that the full V2 output remains visible without opening devtools.
 
 ## Persistence Strategy
 
-Use a dedicated local storage key, for example:
+Use a dedicated durable history key, for example:
 
-- `bidking-tools-min-cells-debugger:v1`
+- `bidking-tools-min-cells-debugger-history:v1`
 
 Persisted state should contain:
 
 - `history`
-- optionally the currently selected history entry id
+
+This key is for replay history only.
+
+It must:
+
+- survive `bidking:leave-tools`
+- not be added to `TOOLS_PAGE_CACHE_KEYS`
+- remain available after navigating away from `Tools` so “replay later” still works
+
+This round should **not** persist transient panel draft state such as:
+
+- current unsaved matrix
+- selected outline
+- current conflict/validation banner
+- currently displayed result that has not been intentionally saved as history
+
+Those values should reset with the ordinary page lifecycle instead of leaking across the existing leave-Tools cache boundary.
+
+If a later round adds transient debugger cache, that cache must use a separate key and be cleared alongside the other leave-Tools page caches.
 
 History behavior:
 
@@ -321,6 +353,24 @@ Each history entry should support:
   - immediately reruns the V2 algorithm
 
 This gives the user both a safe inspection path and a one-click rerun path.
+
+## Localization
+
+All new user-facing debugger strings must be added to the locale tables in [`src/shared/messages.js`](../../../src/shared/messages.js) for both:
+
+- `zh-CN`
+- `en-US`
+
+This includes at minimum:
+
+- the new tab label such as `tools.tabs.minCellsDebugger`
+- panel heading/subtitle copy
+- action buttons like calculate, clear, delete, restore, recalculate
+- validation and conflict messages
+- result field labels
+- history section labels and empty states
+
+Implementation is not complete if any debugger label falls back to the raw i18n key. The current `t(...)` helper falls back to the key string when a message is missing, so locale-table updates are part of the required feature scope, not optional polish.
 
 ## Error Handling
 
@@ -355,6 +405,8 @@ Update [`src/elsa/App.test.js`](../../../src/elsa/App.test.js) to cover:
 - creating a case and running calculation shows the V2 result
 - completed calculations are written to local storage
 - a saved history entry can be restored into the matrix
+- the persisted history key survives the existing `bidking:leave-tools` cache clearing path
+- debugger labels render translated text instead of raw message keys
 
 ### 3. Algorithm contract tests
 
@@ -395,5 +447,8 @@ Those failures are pre-existing for this worktree baseline and are not caused by
 - The current matrix converts into algorithm input and runs through `inferMinimumOccupiedCellsV2`.
 - The UI shows both summary fields and full debug output fields from the V2 result.
 - Each completed calculation is persisted locally with outlines, result payload, timestamp, and summary.
+- The persisted outline payload matches the current V2 algorithm contract, including `cells`.
 - The page shows calculation history and supports restoring or rerunning a saved case.
+- Durable debugger history survives leaving `Tools`, while transient draft state does not persist across the leave-Tools reset boundary.
+- All new debugger-facing strings exist in both locale tables and no raw i18n keys are visible in the UI.
 - Existing Elsa, Ethan, Ahmed, and solver tabs remain behaviorally unchanged.
