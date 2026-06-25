@@ -122,6 +122,8 @@ function historySummaryText(entry) {
     min: entry.result?.minTotalCells ?? 0,
   });
 }
+
+defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 </script>
 
 <template>

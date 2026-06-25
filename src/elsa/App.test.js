@@ -1159,4 +1159,203 @@ describe('Tools App', () => {
     expect(wrapper.find('.table-output').text()).toContain('done line');
     expect(wrapper.find('.table-output').text()).not.toContain('hidden line');
   });
+
+  describe('minimum cells debugger tab', () => {
+    const DEBUGGER_HISTORY_KEY = 'bidking-tools-min-cells-debugger-history:v1';
+
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    afterEach(() => {
+      localStorage.clear();
+    });
+
+    function mountDebuggerApp() {
+      return mount(App, {
+        attachTo: document.body,
+        global: {
+          stubs: {
+            TopBar: { template: '<header class="topbar-stub"></header>' },
+            ElsaHeroPanel: { template: '<div class="elsa-hero-stub">Elsa Panel</div>' },
+            EthanHeroPanel: { template: '<div class="ethan-hero-stub">Ethan Panel</div>' },
+            AhmedPanel: { template: '<div class="ahmed-stub">Ahmed Panel</div>' },
+            ToolsMinimumCellsDebuggerPanel: false,
+          },
+        },
+      });
+    }
+
+    it('renders the debugger tab button in the Tools tab list', () => {
+      const wrapper = mountDebuggerApp();
+      const buttons = wrapper.findAll('.tab-button');
+      const debuggerButton = buttons.find((btn) => btn.text().includes('Min Cells') || btn.text().includes('最小格数'));
+      expect(debuggerButton).toBeTruthy();
+      mountedWrappers.push(wrapper);
+    });
+
+    it('switches to the debugger tab and renders the matrix', async () => {
+      const wrapper = mountDebuggerApp();
+      mountedWrappers.push(wrapper);
+      const buttons = wrapper.findAll('.tab-button');
+      const tabButtons = buttons.filter((btn) => btn.text().includes('Min Cells') || btn.text().includes('最小格数'));
+      expect(tabButtons.length).toBeGreaterThan(0);
+      await tabButtons[0].trigger('click');
+      await nextTick();
+      // Matrix should be visible
+      expect(wrapper.find('.debugger-matrix').exists()).toBe(true);
+      // Cell count should be 43*10 = 430
+      expect(wrapper.findAll('.debugger-cell').length).toBe(430);
+    });
+
+    it('shows validation message when calculating with no outlines', async () => {
+      const wrapper = mountDebuggerApp();
+      mountedWrappers.push(wrapper);
+      const buttons = wrapper.findAll('.tab-button');
+      const tabButtons = buttons.filter((btn) => btn.text().includes('Min Cells') || btn.text().includes('最小格数'));
+      await tabButtons[0].trigger('click');
+      await nextTick();
+      // Click Calculate without adding outlines
+      const calculateBtn = wrapper.find('.debugger-actions .action-button');
+      await calculateBtn.trigger('click');
+      await nextTick();
+      // Validation message should appear
+      expect(wrapper.find('.debugger-validation').exists()).toBe(true);
+    });
+
+    it('adds an outline via drag simulation, calculates, and shows result', async () => {
+      const wrapper = mountDebuggerApp();
+      mountedWrappers.push(wrapper);
+      const buttons = wrapper.findAll('.tab-button');
+      const tabButtons = buttons.filter((btn) => btn.text().includes('Min Cells') || btn.text().includes('最小格数'));
+      await tabButtons[0].trigger('click');
+      await nextTick();
+
+      // Access the panel component's exposed composable methods to bypass
+      // happy-dom PointerEvent limitations. The panel exposes addOutlineFromDrag,
+      // calculate, outlines, result, and history via defineExpose.
+      const panel = wrapper.findComponent({ name: 'ToolsMinimumCellsDebuggerPanel' });
+      panel.vm.addOutlineFromDrag(0, 0, 1, 1);
+      await nextTick();
+
+      // An outline should be created (2×2 at boxId 1)
+      expect(wrapper.findAll('.debugger-outline-item').length).toBe(1);
+
+      // Calculate
+      const calculateBtn = wrapper.find('.debugger-actions .action-button');
+      await calculateBtn.trigger('click');
+      await nextTick();
+
+      // Result should be displayed
+      expect(wrapper.find('.debugger-result').exists()).toBe(true);
+    });
+
+    it('persists calculation to history in local storage', async () => {
+      const wrapper = mountDebuggerApp();
+      mountedWrappers.push(wrapper);
+      const buttons = wrapper.findAll('.tab-button');
+      const tabButtons = buttons.filter((btn) => btn.text().includes('Min Cells') || btn.text().includes('最小格数'));
+      await tabButtons[0].trigger('click');
+      await nextTick();
+
+      // Add outline and calculate
+      const panel = wrapper.findComponent({ name: 'ToolsMinimumCellsDebuggerPanel' });
+      panel.vm.addOutlineFromDrag(0, 0, 1, 1);
+      await nextTick();
+
+      const calculateBtn = wrapper.find('.debugger-actions .action-button');
+      await calculateBtn.trigger('click');
+      await nextTick();
+
+      // History should be written to localStorage
+      const raw = localStorage.getItem(DEBUGGER_HISTORY_KEY);
+      expect(raw).toBeTruthy();
+      const history = JSON.parse(raw);
+      expect(Array.isArray(history)).toBe(true);
+      expect(history.length).toBeGreaterThanOrEqual(1);
+      expect(history[0].outlines).toBeDefined();
+      expect(history[0].result).toBeDefined();
+    });
+
+    it('debugger history survives leave-tools cache clearing', () => {
+      // Pre-populate debugger history in storage
+      const entry = {
+        id: 'test-entry',
+        createdAt: new Date().toISOString(),
+        version: 1,
+        grid: { rows: 43, columns: 10 },
+        outlines: [],
+        result: null,
+        summary: 'test',
+      };
+      localStorage.setItem(DEBUGGER_HISTORY_KEY, JSON.stringify([entry]));
+
+      // Dispatch leave-tools event (the same event TopBar dispatches)
+      window.dispatchEvent(new CustomEvent('bidking:leave-tools'));
+
+      // Debugger history key should NOT be cleared
+      const raw = localStorage.getItem(DEBUGGER_HISTORY_KEY);
+      expect(raw).toBeTruthy();
+      const history = JSON.parse(raw);
+      expect(history.length).toBe(1);
+      expect(history[0].id).toBe('test-entry');
+
+      // Tools page state keys SHOULD be cleared
+      expect(localStorage.getItem('bidking-page-state:v2:elsa')).toBeNull();
+    });
+
+    it('history entry can be restored into the matrix', async () => {
+      // Pre-populate with a known history entry
+      const entry = {
+        id: 'hist-restore-test',
+        createdAt: new Date().toISOString(),
+        version: 1,
+        grid: { rows: 43, columns: 10 },
+        outlines: [
+          { boxId: 5, width: 2, height: 2, cells: [5, 6, 15, 16] },
+        ],
+        result: { valid: true, minTotalCells: 4, knownOutlineCellCount: 4, unknownBlockingCellCount: 0, unknownBlockingCells: [], order: [5], holeCells: [] },
+        summary: '1 items / 4 known cells / min 4',
+      };
+      localStorage.setItem(DEBUGGER_HISTORY_KEY, JSON.stringify([entry]));
+
+      const wrapper = mountDebuggerApp();
+      mountedWrappers.push(wrapper);
+      const buttons = wrapper.findAll('.tab-button');
+      const tabButtons = buttons.filter((btn) => btn.text().includes('Min Cells') || btn.text().includes('最小格数'));
+      await tabButtons[0].trigger('click');
+      await nextTick();
+
+      // Should see the history entry
+      const historyItems = wrapper.findAll('.debugger-history-item');
+      expect(historyItems.length).toBe(1);
+
+      // Click Restore
+      const restoreBtn = historyItems[0].find('.debugger-history-actions button:first-child');
+      await restoreBtn.trigger('click');
+      await nextTick();
+
+      // Outline should appear in the matrix
+      expect(wrapper.findAll('.debugger-outline-item').length).toBe(1);
+    });
+
+    it('debugger labels render translated text, not raw i18n keys', async () => {
+      const wrapper = mountDebuggerApp();
+      mountedWrappers.push(wrapper);
+      const buttons = wrapper.findAll('.tab-button');
+      const tabButtons = buttons.filter((btn) => btn.text().includes('Min Cells') || btn.text().includes('最小格数'));
+      await tabButtons[0].trigger('click');
+      await nextTick();
+
+      // The heading should not show the raw key
+      const heading = wrapper.find('.debugger-head h2');
+      expect(heading.text()).not.toBe('tools.debugger.title');
+      // The calculate button should show text, not a key
+      const calcBtn = wrapper.find('.debugger-actions .action-button');
+      expect(calcBtn.text()).not.toBe('tools.debugger.calculate');
+      // The empty-outlines message should show text, not a key
+      const emptyMsg = wrapper.find('.debugger-outlines .debugger-empty');
+      expect(emptyMsg.text()).not.toBe('tools.debugger.noOutlines');
+    });
+  });
 });
