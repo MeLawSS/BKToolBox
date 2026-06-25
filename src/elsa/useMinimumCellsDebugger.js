@@ -23,6 +23,7 @@ export function useMinimumCellsDebugger() {
   const history = ref([]);
   const validationMessage = ref('');
   const storageError = ref('');
+  const diskPersistenceError = ref('');
   const lastPayloadOutlines = ref([]);
 
   // ── Derived ──
@@ -87,6 +88,7 @@ export function useMinimumCellsDebugger() {
     result.value = undefined;
     validationMessage.value = '';
     storageError.value = '';
+    diskPersistenceError.value = '';
   }
 
   // ── Calculation ──
@@ -113,6 +115,7 @@ export function useMinimumCellsDebugger() {
     // Persist
     const entry = createHistoryEntry(outlines.value, algoResult);
     saveHistoryEntry(entry);
+    persistHistoryEntryToDisk(entry);
 
     validationMessage.value = '';
   }
@@ -143,6 +146,26 @@ export function useMinimumCellsDebugger() {
     }
   }
 
+  function persistHistoryEntryToDisk(entry) {
+    if (typeof fetch !== 'function') return;
+
+    fetch('/api/tools/min-cells-debugger/history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry }),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.error || `HTTP ${response.status}`);
+        }
+        diskPersistenceError.value = '';
+      })
+      .catch(() => {
+        diskPersistenceError.value = 'tools.debugger.diskPersistenceError';
+      });
+  }
+
   // ── Replay ──
   function restoreHistoryEntry(entry) {
     outlines.value = entry.outlines.map((o) => ({
@@ -156,6 +179,7 @@ export function useMinimumCellsDebugger() {
     result.value = undefined;
     validationMessage.value = '';
     storageError.value = '';
+    diskPersistenceError.value = '';
   }
 
   function recalculateHistoryEntry(entry) {
@@ -177,6 +201,7 @@ export function useMinimumCellsDebugger() {
     history,
     validationMessage,
     storageError,
+    diskPersistenceError,
     lastPayloadOutlines,
     occupiedCellSet,
     addOutlineFromDrag,

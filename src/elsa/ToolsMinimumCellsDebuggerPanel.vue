@@ -19,6 +19,7 @@ const {
   history,
   validationMessage,
   storageError,
+  diskPersistenceError,
   lastPayloadOutlines,
   occupiedCellSet,
   addOutlineFromDrag,
@@ -64,7 +65,7 @@ const dragHasConflict = computed(() => {
 });
 
 function cellClass(boxId) {
-  const classes = ['debugger-cell'];
+  const classes = ['monitor-board-cell', 'debugger-cell'];
   if (occupiedCellSet.value.has(boxId)) {
     classes.push('is-occupied');
     const owner = outlines.value.find((o) => o.cells.includes(boxId));
@@ -145,9 +146,9 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 
     <div class="debugger-body">
       <!-- Matrix -->
-      <div class="debugger-matrix-wrap">
+      <div class="debugger-matrix-wrap monitor-board-wrap">
         <div
-          class="debugger-matrix"
+          class="debugger-matrix monitor-board"
           :aria-label="t('tools.debugger.boardAria')"
           @pointerup="onPointerUp"
           @pointerleave="onPointerLeave"
@@ -165,7 +166,9 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
               :title="`Box ${cellToBoxId(row, col, DEBUGGER_GRID_COLUMNS)} (${row},${col})`"
               @pointerdown="onCellPointerDown(row, col, $event)"
               @pointerenter="onCellPointerEnter(row, col)"
-            />
+            >
+              {{ cellToBoxId(row, col, DEBUGGER_GRID_COLUMNS) }}
+            </div>
           </div>
         </div>
       </div>
@@ -175,6 +178,7 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
         <!-- Validation / error messages -->
         <p v-if="validationMessage" class="debugger-validation">{{ t(validationMessage) }}</p>
         <p v-if="storageError" class="debugger-storage-error">{{ t(storageError) }}</p>
+        <p v-if="diskPersistenceError" class="debugger-disk-error">{{ t(diskPersistenceError) }}</p>
 
         <!-- Action buttons -->
         <div class="debugger-actions">
@@ -315,19 +319,20 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 /* ── Matrix ── */
 .debugger-matrix-wrap {
   flex-shrink: 0;
-  overflow-y: auto;
+  overflow: auto;
   max-height: 100%;
-  border: 1px solid var(--line);
-  border-radius: 4px;
 }
 
 .debugger-matrix {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(10, 24px);
-  grid-template-rows: repeat(43, 24px);
-  gap: 1px;
-  background: var(--line);
-  padding: 1px;
+  grid-template-columns: repeat(10, 64px);
+  grid-template-rows: repeat(43, 64px);
+  width: max-content;
+  min-width: 560px;
+  border-top: 1px solid var(--line-soft);
+  border-left: 1px solid var(--line-soft);
+  background: var(--surface-2);
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -338,30 +343,40 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 }
 
 .debugger-cell {
-  width: 24px;
-  height: 24px;
-  background: var(--surface-3);
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-right: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface-2);
+  color: var(--faint);
   cursor: crosshair;
-  border-radius: 1px;
-  transition: background 0.05s;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transition: background 0.05s, color 0.05s, box-shadow 0.05s;
 }
 
 .debugger-cell.is-occupied {
-  background: var(--primary);
+  background: rgba(47, 143, 131, 0.22);
+  color: var(--text);
   cursor: pointer;
+  font-weight: 700;
 }
 
 .debugger-cell.is-occupied.is-selected {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .debugger-cell.is-dragging {
-  background: var(--primary-strong);
+  background: rgba(57, 168, 149, 0.18);
+  color: var(--text);
 }
 
 .debugger-cell.is-conflict {
-  background: var(--danger);
+  background: rgba(207, 95, 90, 0.18);
+  color: var(--text);
 }
 
 /* ── Sidebar ── */
@@ -384,7 +399,8 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
   color: var(--accent);
 }
 
-.debugger-storage-error {
+.debugger-storage-error,
+.debugger-disk-error {
   margin: 0;
   padding: 6px 10px;
   background: var(--surface-2);
@@ -547,5 +563,27 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 .debugger-no-result {
   font-size: 13px;
   color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .debugger-body {
+    flex-direction: column;
+  }
+
+  .debugger-matrix {
+    grid-template-columns: repeat(10, 56px);
+    grid-template-rows: repeat(43, 56px);
+    min-width: 0;
+  }
+
+  .debugger-cell {
+    width: 56px;
+    height: 56px;
+    font-size: 9px;
+  }
+
+  .debugger-sidebar {
+    min-width: 0;
+  }
 }
 </style>

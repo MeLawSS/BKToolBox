@@ -1203,9 +1203,12 @@ describe('Tools App', () => {
       await tabButtons[0].trigger('click');
       await nextTick();
       // Matrix should be visible
-      expect(wrapper.find('.debugger-matrix').exists()).toBe(true);
+      expect(wrapper.find('.monitor-board').exists()).toBe(true);
       // Cell count should be 43*10 = 430
-      expect(wrapper.findAll('.debugger-cell').length).toBe(430);
+      const cells = wrapper.findAll('.monitor-board-cell');
+      expect(cells.length).toBe(430);
+      expect(cells[0].text()).toBe('1');
+      expect(cells[429].text()).toBe('430');
     });
 
     it('shows validation message when calculating with no outlines', async () => {
@@ -1278,6 +1281,100 @@ describe('Tools App', () => {
       expect(Array.isArray(history[0].outlines[0].cells)).toBe(true);
       expect(history[0].outlines[0].cells.length).toBeGreaterThan(0);
       expect(history[0].result).toBeDefined();
+    });
+
+    it('posts completed debugger calculations to disk history after local persistence', async () => {
+      const fetchMock = vi.fn(async (url) => {
+        if (String(url) === '/api/tools/min-cells-debugger/history') {
+          return {
+            ok: true,
+            json: async () => ({
+              ok: true,
+              savedAt: '2026-06-25T06:00:01.234Z',
+              outputPath: 'C:\\Users\\alice\\Documents\\BKToolBox\\min-cells-debugger-history\\history.ndjson',
+            }),
+          };
+        }
+        if (String(url) === '/api/bidking-monitor/status') {
+          return { ok: true, json: async () => ({ state: 'idle', running: false, totalEvents: 0, lastError: null }) };
+        }
+        return {
+          ok: true,
+          json: async () => String(url).includes('/data/collectibles.json') ? realCollectibles : realAveragePrices,
+        };
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const wrapper = mountDebuggerApp();
+      mountedWrappers.push(wrapper);
+      const tabButtons = wrapper.findAll('.tab-button').filter((btn) => btn.text().includes('Min Cells') || btn.text().includes('最小格数'));
+      await tabButtons[0].trigger('click');
+      await nextTick();
+
+      const panel = wrapper.findComponent({ name: 'ToolsMinimumCellsDebuggerPanel' });
+      panel.vm.addOutlineFromDrag(0, 0, 1, 1);
+      await nextTick();
+
+      await wrapper.find('.debugger-actions .action-button').trigger('click');
+      await nextTick();
+      await flushPromises();
+
+      const raw = localStorage.getItem(DEBUGGER_HISTORY_KEY);
+      expect(raw).toBeTruthy();
+      const history = JSON.parse(raw);
+      expect(history).toHaveLength(1);
+
+      const historyPost = fetchMock.mock.calls.find(([url]) => url === '/api/tools/min-cells-debugger/history');
+      expect(historyPost).toBeTruthy();
+      expect(historyPost[1]).toMatchObject({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(JSON.parse(historyPost[1].body).entry).toMatchObject({
+        id: history[0].id,
+        grid: { rows: 43, columns: 10 },
+        outlines: history[0].outlines,
+      });
+    });
+
+    it('keeps local result and history when disk history persistence fails', async () => {
+      const fetchMock = vi.fn(async (url) => {
+        if (String(url) === '/api/tools/min-cells-debugger/history') {
+          return {
+            ok: false,
+            status: 500,
+            json: async () => ({ error: 'disk full' }),
+          };
+        }
+        if (String(url) === '/api/bidking-monitor/status') {
+          return { ok: true, json: async () => ({ state: 'idle', running: false, totalEvents: 0, lastError: null }) };
+        }
+        return {
+          ok: true,
+          json: async () => String(url).includes('/data/collectibles.json') ? realCollectibles : realAveragePrices,
+        };
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const wrapper = mountDebuggerApp();
+      mountedWrappers.push(wrapper);
+      const tabButtons = wrapper.findAll('.tab-button').filter((btn) => btn.text().includes('Min Cells') || btn.text().includes('最小格数'));
+      await tabButtons[0].trigger('click');
+      await nextTick();
+
+      const panel = wrapper.findComponent({ name: 'ToolsMinimumCellsDebuggerPanel' });
+      panel.vm.addOutlineFromDrag(0, 0, 1, 1);
+      await nextTick();
+
+      await wrapper.find('.debugger-actions .action-button').trigger('click');
+      await nextTick();
+      await flushPromises();
+      await nextTick();
+
+      expect(wrapper.find('.debugger-result').exists()).toBe(true);
+      expect(JSON.parse(localStorage.getItem(DEBUGGER_HISTORY_KEY))).toHaveLength(1);
+      expect(wrapper.find('.debugger-storage-error').exists()).toBe(false);
+      expect(wrapper.find('.debugger-disk-error').text()).toContain('文件');
     });
 
     it('debugger history survives leave-tools cache clearing', async () => {
