@@ -1243,6 +1243,10 @@ describe('Tools App', () => {
 
       // An outline should be created (2×2 at boxId 1)
       expect(wrapper.findAll('.debugger-outline-item').length).toBe(1);
+      expect(wrapper.find('[data-box-id="1"]').classes()).toEqual(expect.arrayContaining(['is-outline-top', 'is-outline-left']));
+      expect(wrapper.find('[data-box-id="2"]').classes()).toEqual(expect.arrayContaining(['is-outline-top', 'is-outline-right']));
+      expect(wrapper.find('[data-box-id="11"]').classes()).toEqual(expect.arrayContaining(['is-outline-bottom', 'is-outline-left']));
+      expect(wrapper.find('[data-box-id="12"]').classes()).toEqual(expect.arrayContaining(['is-outline-bottom', 'is-outline-right']));
 
       // Calculate
       const calculateBtn = wrapper.find('.debugger-actions .action-button');

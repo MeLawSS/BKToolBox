@@ -69,13 +69,28 @@ function cellClass(boxId) {
   if (occupiedCellSet.value.has(boxId)) {
     classes.push('is-occupied');
     const owner = outlines.value.find((o) => o.cells.includes(boxId));
-    if (owner && owner.id === selectedOutlineId.value) {
-      classes.push('is-selected');
+    if (owner) {
+      classes.push(...outlineEdgeClasses(owner, boxId));
+      if (owner.id === selectedOutlineId.value) {
+        classes.push('is-selected');
+      }
     }
   } else if (dragPreviewCells.value.has(boxId)) {
     classes.push(dragHasConflict.value ? 'is-conflict' : 'is-dragging');
   }
   return classes.join(' ');
+}
+
+function outlineEdgeClasses(outline, boxId) {
+  const offset = boxId - outline.boxId;
+  const rowOffset = Math.floor(offset / DEBUGGER_GRID_COLUMNS);
+  const colOffset = offset % DEBUGGER_GRID_COLUMNS;
+  const classes = [];
+  if (rowOffset === 0) classes.push('is-outline-top');
+  if (rowOffset === outline.height - 1) classes.push('is-outline-bottom');
+  if (colOffset === 0) classes.push('is-outline-left');
+  if (colOffset === outline.width - 1) classes.push('is-outline-right');
+  return classes;
 }
 
 function onCellPointerDown(row, col, event) {
@@ -343,6 +358,11 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
 }
 
 .debugger-cell {
+  --outline-top-shadow: 0 0 0 transparent;
+  --outline-right-shadow: 0 0 0 transparent;
+  --outline-bottom-shadow: 0 0 0 transparent;
+  --outline-left-shadow: 0 0 0 transparent;
+
   display: grid;
   place-items: center;
   width: 64px;
@@ -355,6 +375,11 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
   font-size: 10px;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+  box-shadow:
+    var(--outline-top-shadow),
+    var(--outline-right-shadow),
+    var(--outline-bottom-shadow),
+    var(--outline-left-shadow);
   transition: background 0.05s, color 0.05s, box-shadow 0.05s;
 }
 
@@ -365,8 +390,25 @@ defineExpose({ addOutlineFromDrag, calculate, outlines, result, history });
   font-weight: 700;
 }
 
+.debugger-cell.is-outline-top {
+  --outline-top-shadow: inset 0 2px 0 var(--accent);
+}
+
+.debugger-cell.is-outline-right {
+  --outline-right-shadow: inset -2px 0 0 var(--accent);
+}
+
+.debugger-cell.is-outline-bottom {
+  --outline-bottom-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.debugger-cell.is-outline-left {
+  --outline-left-shadow: inset 2px 0 0 var(--accent);
+}
+
 .debugger-cell.is-occupied.is-selected {
-  box-shadow: inset 0 0 0 2px var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
 }
 
 .debugger-cell.is-dragging {
