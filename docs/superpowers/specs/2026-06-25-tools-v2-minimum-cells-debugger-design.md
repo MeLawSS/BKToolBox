@@ -20,6 +20,7 @@ The tab must let the user:
 - Do not change the current Ethan monitor flow or live monitor SSE behavior.
 - Do not replace the existing solver tabs under `Tools`.
 - Do not auto-save unfinished draft matrices before a calculation is run.
+- Do not add keyboard-only matrix editing in this round.
 
 ## Current Context
 
@@ -79,10 +80,22 @@ It intentionally does **not** reuse Ethan's full monitor state machine, because 
 Update [`src/elsa/App.vue`](../../../src/elsa/App.vue) to add one more `panel` tab, for example:
 
 - `tabId: 'min-cells-debugger'`
+- `panelKey: 'min-cells-debugger-panel'`
 - `titleKey: 'tools.tabs.minCellsDebugger'`
 - `component: ToolsMinimumCellsDebuggerPanel`
 
 This keeps the tab inside the current `Tools` panel switcher rather than introducing a new route.
+
+Tab ordering must preserve current default behavior:
+
+- keep `Elsa` as the first/default `Tools` tab
+- insert the debugger after the existing `Elsa / Ethan / Ahmed` panel tabs
+- keep the existing solver tabs after the panel-tab block
+
+Because the debugger is not the default tab in this design, current lazy panel mounting is sufficient:
+
+- `activeTabIndex` should still resolve to `Elsa` by default
+- `renderedPanelTabs` does not need debugger pre-render bootstrap on initial load
 
 ### 2. Panel/UI component
 
@@ -164,7 +177,7 @@ Each manually added collectible outline should be stored in a simple normalized 
 }
 ```
 
-`cells` is not just UI metadata in the current codebase.
+`cells` is derived from `{ boxId, width, height, columns }`, but it is still required in the current V2 integration contract.
 
 Today, `inferMinimumOccupiedCellsV2(...)` still relies on `outline.cells` in fallback and debug-related paths inherited from the shared monitor-grid module, including:
 
@@ -172,7 +185,7 @@ Today, `inferMinimumOccupiedCellsV2(...)` still relies on `outline.cells` in fal
 - `countKnownOutlineCells(...)`
 - `withDefaultPrefixOccupiedCells(...)`
 
-So in this round the debugger must treat `cells` as part of the effective algorithm payload, not as discardable presentation-only data. The matrix editor may derive `cells` from `{ boxId, width, height }`, but the actual object passed into the current V2 implementation must preserve `cells`.
+The happy path inside `inferMinimumOccupiedCellsV2(...)` recomputes occupied shape cells from `boxId / width / height`, but fallback/debug bookkeeping still consumes `outline.cells`. So in this round the debugger must treat `cells` as part of the effective algorithm payload, not as discardable presentation-only data. The matrix editor may derive `cells` from `{ boxId, width, height }`, but the actual object passed into the current V2 implementation must preserve `cells`.
 
 ### Persisted history entry shape
 
@@ -239,6 +252,23 @@ The side list should show at least:
 - `boxId`
 - `width x height`
 - occupied cell count
+
+### 2a. Matrix rendering approach
+
+Use ordinary DOM rendering with CSS Grid in this round, not `<canvas>`.
+
+Requirements:
+
+- render a `10`-column CSS grid with one cell element per box
+- keep cell dimensions compact and fixed so drag math stays simple
+- place the board inside a scrollable panel region so `43` rows do not force the whole page to grow unbounded
+- visually distinguish at least:
+  - empty cells
+  - committed outline cells
+  - selected outline cells
+  - conflict-preview cells during an invalid drag
+
+The debugger is an operational workbench, not a decorative board. Small fixed cells plus scrollable containment are preferred over large responsive tiles.
 
 ### 3. Conflict handling during editing
 
@@ -335,6 +365,7 @@ History behavior:
 - newest entry first in the visible list
 - cap stored history at a fixed limit, recommended `100` entries
 - prune oldest entries when the cap is exceeded
+- do not deduplicate identical outline payloads in this round; each explicit calculation action creates its own history entry
 
 Rationale:
 
@@ -369,6 +400,7 @@ This includes at minimum:
 - validation and conflict messages
 - result field labels
 - history section labels and empty states
+- the history summary format string
 
 Implementation is not complete if any debugger label falls back to the raw i18n key. The current `t(...)` helper falls back to the key string when a message is missing, so locale-table updates are part of the required feature scope, not optional polish.
 
@@ -380,6 +412,18 @@ Implementation is not complete if any debugger label falls back to the raw i18n 
 - Local storage write failure: still show the current result, but surface that history was not saved.
 - `inferMinimumOccupiedCellsV2(...) === null`: render and persist `null` explicitly as a real outcome.
 - Valid/fallback result objects: render and persist the returned payload as-is without frontend reinterpretation.
+
+## Accessibility Boundary
+
+This round does not add full keyboard-driven matrix editing.
+
+Minimum accessibility expectations still apply to surrounding UI:
+
+- action controls remain native buttons
+- history actions remain keyboard-focusable
+- the matrix region should have an accessible label describing it as the V2 minimum-cells debug board
+
+If a future round adds keyboard cell navigation or rectangle creation, that should be specified separately instead of being implied here.
 
 ## Testing Strategy
 
