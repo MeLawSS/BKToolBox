@@ -82,11 +82,11 @@ export function generateRuntimeId() {
  * Build a human-readable summary string for a history entry.
  */
 export function buildResultSummary(outlines, result) {
-  if (!result) return '0 items / null result';
+  if (!result) return '0 / 0 / 0';
   const itemCount = outlines.length;
   const knownCells = result.knownOutlineCellCount ?? 0;
   const minCells = result.minTotalCells ?? 0;
-  return `${itemCount} items / ${knownCells} known cells / min ${minCells}`;
+  return `${itemCount} / ${knownCells} / ${minCells}`;
 }
 
 /**

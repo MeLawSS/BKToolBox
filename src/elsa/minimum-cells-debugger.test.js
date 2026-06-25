@@ -160,12 +160,12 @@ describe('generateRuntimeId', () => {
 
 describe('buildResultSummary', () => {
   it('handles null result', () => {
-    expect(buildResultSummary([], null)).toBe('0 items / null result');
+    expect(buildResultSummary([], null)).toBe('0 / 0 / 0');
   });
 
   it('formats a valid result', () => {
     const result = { valid: true, minTotalCells: 19, knownOutlineCellCount: 14, unknownBlockingCellCount: 5 };
-    expect(buildResultSummary([{ boxId: 1 }], result)).toBe('1 items / 14 known cells / min 19');
+    expect(buildResultSummary([{ boxId: 1 }], result)).toBe('1 / 14 / 19');
   });
 });
 
@@ -182,13 +182,13 @@ describe('createHistoryEntry', () => {
     expect(entry.outlines[0].cells).toEqual([12, 13, 22, 23, 32, 33]);
     expect(entry.result.valid).toBe(true);
     expect(typeof entry.createdAt).toBe('string');
-    expect(entry.summary).toContain('1 items');
+    expect(entry.summary).toBe('1 / 6 / 19');
   });
 
   it('handles null result', () => {
     const entry = createHistoryEntry([], null);
     expect(entry.result).toBeNull();
-    expect(entry.summary).toBe('0 items / null result');
+    expect(entry.summary).toBe('0 / 0 / 0');
   });
 
   it('copies cells arrays (does not share references)', () => {

@@ -23,6 +23,7 @@ export function useMinimumCellsDebugger() {
   const history = ref([]);
   const validationMessage = ref('');
   const storageError = ref('');
+  const lastPayloadOutlines = ref([]);
 
   // ── Derived ──
   function buildOccupiedCellSet(outlineList) {
@@ -49,7 +50,7 @@ export function useMinimumCellsDebugger() {
     const base = rectToOutline(topRow, leftCol, bottomRow, rightCol, DEBUGGER_GRID_COLUMNS);
 
     if (detectOverlap(base.cells, outlines.value)) {
-      validationMessage.value = 'debugger.conflict';
+      validationMessage.value = 'tools.debugger.conflict';
       return false;
     }
 
@@ -91,7 +92,7 @@ export function useMinimumCellsDebugger() {
   // ── Calculation ──
   function calculate() {
     if (outlines.value.length === 0) {
-      validationMessage.value = 'debugger.emptyMatrix';
+      validationMessage.value = 'tools.debugger.emptyMatrix';
       return;
     }
 
@@ -105,6 +106,7 @@ export function useMinimumCellsDebugger() {
       columns: DEBUGGER_GRID_COLUMNS,
     };
 
+    lastPayloadOutlines.value = payload.outlines;
     const algoResult = inferMinimumOccupiedCellsV2(payload);
     result.value = algoResult;
 
@@ -134,10 +136,10 @@ export function useMinimumCellsDebugger() {
         window.localStorage.setItem(HISTORY_STORAGE_KEY, raw);
         history.value = pruned;
       } else {
-        storageError.value = 'debugger.storageError';
+        storageError.value = 'tools.debugger.storageError';
       }
     } catch (_err) {
-      storageError.value = 'debugger.storageError';
+      storageError.value = 'tools.debugger.storageError';
     }
   }
 
@@ -175,6 +177,7 @@ export function useMinimumCellsDebugger() {
     history,
     validationMessage,
     storageError,
+    lastPayloadOutlines,
     occupiedCellSet,
     addOutlineFromDrag,
     deleteOutline,

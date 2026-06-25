@@ -8,7 +8,6 @@ import {
   cellToBoxId,
   normalizeRect,
   rectToOutline,
-  detectOverlap,
 } from './minimum-cells-debugger.js';
 
 const { t } = useI18n();
@@ -20,6 +19,7 @@ const {
   history,
   validationMessage,
   storageError,
+  lastPayloadOutlines,
   occupiedCellSet,
   addOutlineFromDrag,
   deleteOutline,
@@ -115,8 +115,12 @@ const hasResult = computed(() => result.value !== null);
 const resultIsNull = computed(() => result.value === null);
 
 // ── History helpers ──
-function formatHistorySummary(entry) {
-  return entry.summary || '';
+function historySummaryText(entry) {
+  return t('tools.debugger.historySummary', {
+    count: entry.outlines.length,
+    known: entry.result?.knownOutlineCellCount ?? 0,
+    min: entry.result?.minTotalCells ?? 0,
+  });
 }
 </script>
 
@@ -168,7 +172,7 @@ function formatHistorySummary(entry) {
 
         <!-- Outline list -->
         <div class="debugger-outlines">
-          <h3>{{ outlines.length }} outline(s)</h3>
+          <h3>{{ outlines.length }}</h3>
           <p v-if="outlines.length === 0" class="debugger-empty">{{ t('tools.debugger.noOutlines') }}</p>
           <ul v-else class="debugger-outline-list">
             <li
@@ -187,7 +191,7 @@ function formatHistorySummary(entry) {
 
         <!-- Result -->
         <div v-if="hasResult || resultIsNull" class="debugger-result">
-          <h3>Result</h3>
+          <h3>{{ t('tools.debugger.resultDetails') }}</h3>
 
           <div v-if="resultIsNull && !hasResult" class="debugger-result-null">
             {{ t('tools.debugger.nullResult') }}
@@ -198,7 +202,7 @@ function formatHistorySummary(entry) {
             <dl class="debugger-result-summary">
               <div>
                 <dt>{{ t('tools.debugger.resultValid') }}</dt>
-                <dd>{{ result.valid ? '✓' : '✗' }}</dd>
+                <dd>{{ result.valid ? t('tools.debugger.resultValid') : t('tools.debugger.resultInvalid') }}</dd>
               </div>
               <div>
                 <dt>{{ t('tools.debugger.resultMinCells') }}</dt>
@@ -229,6 +233,10 @@ function formatHistorySummary(entry) {
                 <h4>{{ t('tools.debugger.resultHoles') }}</h4>
                 <code>{{ JSON.stringify(result.holeCells) }}</code>
               </div>
+              <div class="debugger-detail-block">
+                <h4>{{ t('tools.debugger.resultOutlinePayload') }}</h4>
+                <code>{{ JSON.stringify(lastPayloadOutlines) }}</code>
+              </div>
             </details>
           </template>
         </div>
@@ -247,7 +255,7 @@ function formatHistorySummary(entry) {
               :key="entry.id"
               class="debugger-history-item"
             >
-              <span class="debugger-history-summary">{{ entry.summary }}</span>
+              <span class="debugger-history-summary">{{ historySummaryText(entry) }}</span>
               <span class="debugger-history-time">{{ new Date(entry.createdAt).toLocaleString() }}</span>
               <div class="debugger-history-actions">
                 <button class="ghost-button" type="button" @click="restoreHistoryEntry(entry)">{{ t('tools.debugger.restore') }}</button>
