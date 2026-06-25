@@ -812,6 +812,7 @@ export const messages = {
         port: '端口',
         batchSeconds: '抓包批次秒数',
         outputDir: '输出目录',
+        useInferenceV2: '启用 V2 占用推断',
       },
       placeholders: {
         gameRoot: '如 D:\\SteamLibrary\\steamapps\\common\\BidKing',
@@ -1689,6 +1690,7 @@ export const messages = {
         port: 'Port',
         batchSeconds: 'Batch seconds',
         outputDir: 'Output directory',
+        useInferenceV2: 'Use V2 occupied-cell inference',
       },
       placeholders: {
         gameRoot: 'e.g. D:\\SteamLibrary\\steamapps\\common\\BidKing',

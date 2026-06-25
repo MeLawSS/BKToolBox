@@ -278,7 +278,8 @@ function createApp(deps = {}) {
                 batchSeconds: body.batchSeconds,
                 gameRoot: String(body.gameRoot || ''),
                 tablesDir: String(body.tablesDir || ''),
-                outputDir: String(body.outputDir || '')
+                outputDir: String(body.outputDir || ''),
+                useInferenceV2: body.useInferenceV2 === true || body.useInferenceV2 === 'true',
             };
             if (body.captureBackend) monitorOptions.captureBackend = String(body.captureBackend);
             if (body.dumpcapPath) monitorOptions.dumpcapPath = String(body.dumpcapPath);

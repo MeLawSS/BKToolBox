@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import TopBar from '../shared/TopBar.vue';
 import { useI18n } from '../shared/i18n.js';
-import { useMonitorSwitch } from '../shared/useMonitorSwitch.js';
+import { loadMonitorSettings, saveMonitorSettings, useMonitorSwitch } from '../shared/useMonitorSwitch.js';
 
 const DEFAULT_REMOTE = '';
 const DEFAULT_PORT = 10000;
@@ -11,6 +11,7 @@ const MAX_EVENTS = 500;
 
 const { t } = useI18n();
 const monitor = useMonitorSwitch();
+const savedMonitorSettings = loadMonitorSettings();
 
 const form = reactive({
   remoteAddress: DEFAULT_REMOTE,
@@ -18,6 +19,7 @@ const form = reactive({
   batchSeconds: DEFAULT_BATCH_SECONDS,
   gameRoot: '',
   outputDir: '',
+  useInferenceV2: savedMonitorSettings.useInferenceV2,
 });
 const status = monitor.status;
 const driverStatus = ref({ state: 'unknown', installed: false, usable: false });
@@ -139,6 +141,10 @@ function uninstallDriver() {
   return runDriverAction('uninstall');
 }
 
+function persistMonitorSettings() {
+  saveMonitorSettings({ useInferenceV2: Boolean(form.useInferenceV2) });
+}
+
 function buildMonitorStartPayload() {
   return {
     remoteAddress: form.remoteAddress.trim(),
@@ -146,6 +152,7 @@ function buildMonitorStartPayload() {
     batchSeconds: Number(form.batchSeconds),
     gameRoot: form.gameRoot.trim(),
     outputDir: form.outputDir.trim(),
+    useInferenceV2: Boolean(form.useInferenceV2),
   };
 }
 
@@ -454,6 +461,10 @@ onBeforeUnmount(() => {
         <label>
           <span>{{ t('monitor.fields.outputDir') }}</span>
           <input v-model="form.outputDir" type="text" :placeholder="t('monitor.placeholders.outputDir')">
+        </label>
+        <label class="check-pill monitor-switch-field">
+          <input id="monitor-use-inference-v2" v-model="form.useInferenceV2" type="checkbox" @change="persistMonitorSettings">
+          {{ t('monitor.fields.useInferenceV2') }}
         </label>
         <div class="actions">
           <button id="monitor-start" class="primary-button" type="submit" :disabled="status.running">

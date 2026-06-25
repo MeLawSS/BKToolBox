@@ -350,6 +350,7 @@ describe('server routes', () => {
       gameRoot: 'D:\\SteamLibrary\\steamapps\\common\\BidKing',
       tablesDir: '',
       outputDir: '',
+      useInferenceV2: false,
     });
 
     await request(app)
@@ -419,6 +420,22 @@ describe('server routes', () => {
 
     expect(monitor.start).toHaveBeenCalledWith(expect.objectContaining({
       outputDir: 'D:\\BKToolBoxLogs',
+    }));
+  });
+
+  it('passes the explicit inference algorithm flag from the start request', async () => {
+    const monitor = new FakeMonitor();
+    const app = createTestApp(vi.fn(), monitor);
+
+    await request(app)
+      .post('/api/bidking-monitor/start')
+      .send({
+        useInferenceV2: true,
+      })
+      .expect(200);
+
+    expect(monitor.start).toHaveBeenCalledWith(expect.objectContaining({
+      useInferenceV2: true,
     }));
   });
 

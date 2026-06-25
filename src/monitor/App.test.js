@@ -135,6 +135,7 @@ describe('Monitor App', () => {
         batchSeconds: 2,
         gameRoot: 'D:\\SteamLibrary\\steamapps\\common\\BidKing',
         outputDir: '',
+        useInferenceV2: false,
       }),
     }));
     expect(wrapper.find('[data-testid="monitor-state"]').text()).toContain('抓包中');
@@ -157,9 +158,32 @@ describe('Monitor App', () => {
         batchSeconds: 2,
         gameRoot: 'D:\\SteamLibrary\\steamapps\\common\\BidKing',
         outputDir: '',
+        useInferenceV2: false,
       }),
     }));
     expect(wrapper.find('[data-testid="monitor-state"]').text()).toContain('抓包中');
+  });
+
+  it('persists and sends the inference V2 toggle when enabled', async () => {
+    const wrapper = await mountApp();
+
+    await wrapper.find('#monitor-use-inference-v2').setValue(true);
+    await wrapper.find('#monitor-start').trigger('click');
+    await nextTick();
+
+    expect(JSON.parse(window.localStorage.getItem('bidking-monitor-settings:v1'))).toMatchObject({
+      useInferenceV2: true,
+    });
+    expect(fetch).toHaveBeenCalledWith('/api/bidking-monitor/start', expect.objectContaining({
+      body: JSON.stringify({
+        remoteAddress: '',
+        port: 10000,
+        batchSeconds: 2,
+        gameRoot: '',
+        outputDir: '',
+        useInferenceV2: true,
+      }),
+    }));
   });
 
   it('uses generic information monitor copy', async () => {

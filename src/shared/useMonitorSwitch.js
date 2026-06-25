@@ -1,6 +1,8 @@
 import { computed, ref } from 'vue';
 import { useI18n } from './i18n.js';
 
+const MONITOR_SETTINGS_STORAGE_KEY = 'bidking-monitor-settings:v1';
+
 function createDefaultStatus() {
   return {
     state: 'idle',
@@ -20,6 +22,34 @@ let refreshPromise = null;
 let startPromise = null;
 let stopPromise = null;
 let startOptionsResolver = null;
+
+function getMonitorSettingsStorage(storage = undefined) {
+  if (storage) return storage;
+  return typeof window !== 'undefined' ? window.localStorage : null;
+}
+
+export function loadMonitorSettings(storage = getMonitorSettingsStorage()) {
+  if (!storage) return { useInferenceV2: false };
+  try {
+    const parsed = JSON.parse(storage.getItem(MONITOR_SETTINGS_STORAGE_KEY) || '{}');
+    return {
+      useInferenceV2: parsed?.useInferenceV2 === true,
+    };
+  } catch (_error) {
+    return { useInferenceV2: false };
+  }
+}
+
+export function saveMonitorSettings(nextPatch = {}, storage = getMonitorSettingsStorage()) {
+  const nextSettings = {
+    ...loadMonitorSettings(storage),
+    ...(nextPatch && typeof nextPatch === 'object' ? nextPatch : {}),
+  };
+  if (storage) {
+    storage.setItem(MONITOR_SETTINGS_STORAGE_KEY, JSON.stringify(nextSettings));
+  }
+  return nextSettings;
+}
 
 function getErrorMessage(error) {
   return error?.message || String(error);
@@ -70,12 +100,19 @@ function refreshStatus() {
 function startMonitor(options = {}) {
   if (startPromise) return startPromise;
 
+  const requestOptions = {
+    ...(options && typeof options === 'object' ? options : {}),
+  };
+  if (requestOptions.useInferenceV2 === undefined) {
+    requestOptions.useInferenceV2 = loadMonitorSettings().useInferenceV2;
+  }
+
   errorText.value = '';
   isBusy.value = true;
   startPromise = fetch('/api/bidking-monitor/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(options),
+    body: JSON.stringify(requestOptions),
   })
     .then(async (response) => {
       if (!response.ok) {

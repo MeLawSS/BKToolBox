@@ -186,4 +186,36 @@ describe('useMonitorSwitch', () => {
       running: false,
     });
   });
+
+  it('merges the persisted inference flag into monitor start payloads', async () => {
+    window.localStorage.setItem('bidking-monitor-settings:v1', JSON.stringify({
+      useInferenceV2: true,
+    }));
+    const startRequest = createDeferred();
+    const fetch = vi.fn(async (url, options = {}) => {
+      if (String(url) === '/api/bidking-monitor/start') {
+        expect(JSON.parse(options.body)).toMatchObject({
+          remoteAddress: '127.0.0.1',
+          port: 10000,
+          useInferenceV2: true,
+        });
+        return startRequest.promise;
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    const monitor = useMonitorSwitch();
+    const start = monitor.startMonitor({ remoteAddress: '127.0.0.1', port: 10000 });
+
+    startRequest.resolve(createJsonResponse({
+      state: 'capturing',
+      running: true,
+      totalEvents: 0,
+      lastError: null,
+    }));
+    await start;
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
 });
