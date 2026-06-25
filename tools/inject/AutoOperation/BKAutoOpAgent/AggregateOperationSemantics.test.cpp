@@ -248,17 +248,59 @@ int main() {
 
     // ---- Expected-price confirm gate ----------------------------------------
 
-    // Current-round bid path: round 1 uses RoundUnit, round N uses RoundUnit(Clone)[N-2]
-    assert(GetOpponentCurrentRoundBidPath(1, 1) ==
-        "Gaming/PlayerContainer/Player_1/containers/RoundUnit/priceTxt");
-    assert(GetOpponentCurrentRoundBidPath(2, 1) ==
-        "Gaming/PlayerContainer/Player_2/containers/RoundUnit/priceTxt");
-    assert(GetOpponentCurrentRoundBidPath(1, 2) ==
-        "Gaming/PlayerContainer/Player_1/containers/RoundUnit(Clone)[0]/priceTxt");
-    assert(GetOpponentCurrentRoundBidPath(2, 3) ==
-        "Gaming/PlayerContainer/Player_2/containers/RoundUnit(Clone)[1]/priceTxt");
-    assert(GetOpponentCurrentRoundBidPath(1, 5) ==
-        "Gaming/PlayerContainer/Player_1/containers/RoundUnit(Clone)[3]/priceTxt");
+    // Current-round opponent-bid signal: live UI exposes Player_N/bided.
+    // priceTxt is populated later as round history, so the confirm gate must
+    // key off this marker path instead of current-round price text.
+    assert(GetOpponentCurrentRoundBidSignalPath(1) ==
+        "Gaming/PlayerContainer/Player_1/bided");
+    assert(GetOpponentCurrentRoundBidSignalPath(2) ==
+        "Gaming/PlayerContainer/Player_2/bided");
+    assert(GetOpponentCurrentRoundBidSignalPath(4) ==
+        "Gaming/PlayerContainer/Player_4/bided");
+
+    {
+        bool entrySignals[4] = { false, false, false, false };
+        bool currentSignals[4] = { false, false, false, false };
+        assert(!DidAnyNewCurrentRoundBidSignalAppear(entrySignals, currentSignals, 4));
+
+        currentSignals[1] = true;
+        assert(DidAnyNewCurrentRoundBidSignalAppear(entrySignals, currentSignals, 4));
+
+        entrySignals[1] = true;
+        assert(!DidAnyNewCurrentRoundBidSignalAppear(entrySignals, currentSignals, 4));
+
+        currentSignals[3] = true;
+        assert(DidAnyNewCurrentRoundBidSignalAppear(entrySignals, currentSignals, 4));
+    }
+    {
+        bool entrySignals[2] = { false, false };
+        bool currentSignals[2] = { false, false };
+        assert(CountActiveCurrentRoundBidSignals(entrySignals, 2) == 0);
+        assert(!DidCurrentRoundBidSignalCountIncrease(entrySignals, currentSignals, 2));
+
+        currentSignals[0] = true;
+        assert(CountActiveCurrentRoundBidSignals(currentSignals, 2) == 1);
+        assert(DidCurrentRoundBidSignalCountIncrease(entrySignals, currentSignals, 2));
+
+        entrySignals[0] = true;
+        assert(!DidCurrentRoundBidSignalCountIncrease(entrySignals, currentSignals, 2));
+
+        currentSignals[0] = false;
+        currentSignals[1] = true;
+        assert(!DidCurrentRoundBidSignalCountIncrease(entrySignals, currentSignals, 2));
+
+        currentSignals[0] = true;
+        assert(DidCurrentRoundBidSignalCountIncrease(entrySignals, currentSignals, 2));
+    }
+    // Current 1v1 runtime invariant: self bided stays off before final confirm,
+    // so exactly one active marker in the pre-confirm window means the opponent
+    // has already bid.
+    assert(!IsExpectedPriceConfirmGateOpponentBidSignalReady(0));
+    assert(IsExpectedPriceConfirmGateOpponentBidSignalReady(1));
+    assert(!IsExpectedPriceConfirmGateOpponentBidSignalReady(2));
+    assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(0));
+    assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(1));
+    assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(2));
 
     // Three-state result: all distinct
     assert(CONFIRM_GATE_READY_OPPONENT_BID  != CONFIRM_GATE_READY_TIME_FALLBACK);
@@ -273,6 +315,28 @@ int main() {
     // CONFIRM_GATE_NOT_READY is not a ready state (soft exit ≠ success)
     assert(CONFIRM_GATE_NOT_READY != CONFIRM_GATE_READY_OPPONENT_BID);
     assert(CONFIRM_GATE_NOT_READY != CONFIRM_GATE_READY_TIME_FALLBACK);
+
+    // Confirm-click delay: only opponent-bid release waits an extra 1s.
+    assert(GetExpectedPriceConfirmGateOpponentBidConfirmDelayMs() == 1000);
+    assert(ShouldDelayExpectedPriceConfirmAfterGate(CONFIRM_GATE_READY_OPPONENT_BID));
+    assert(!ShouldDelayExpectedPriceConfirmAfterGate(CONFIRM_GATE_READY_TIME_FALLBACK));
+    assert(!ShouldDelayExpectedPriceConfirmAfterGate(CONFIRM_GATE_NOT_READY));
+    assert(ShouldRecoverExpectedPriceBidDialogAfterGate(
+        CONFIRM_GATE_READY_OPPONENT_BID,
+        false
+    ));
+    assert(!ShouldRecoverExpectedPriceBidDialogAfterGate(
+        CONFIRM_GATE_READY_OPPONENT_BID,
+        true
+    ));
+    assert(!ShouldRecoverExpectedPriceBidDialogAfterGate(
+        CONFIRM_GATE_READY_TIME_FALLBACK,
+        false
+    ));
+    assert(DoesExpectedPriceBidInputMatch("25575", 25575));
+    assert(DoesExpectedPriceBidInputMatch("25,575", 25575));
+    assert(!DoesExpectedPriceBidInputMatch("", 25575));
+    assert(!DoesExpectedPriceBidInputMatch("25574", 25575));
 
     // Poll interval
     assert(GetExpectedPriceConfirmGatePollIntervalMs() == 100);

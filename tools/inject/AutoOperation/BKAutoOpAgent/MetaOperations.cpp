@@ -1692,6 +1692,13 @@ static bool ReadExactNodeTransform(Il2CppObject* anchor, const char* path, Il2Cp
     return true;
 }
 
+static bool HasExactActiveNode(Il2CppObject* anchor, const char* path) {
+    if (!anchor || !path || !path[0]) return false;
+    std::vector<UiNodeSnapshot> matches;
+    ResolveUiNodeMatches(anchor, path, UI_PATH_EXACT, 1, &matches);
+    return !matches.empty() && matches[0].transform && matches[0].active;
+}
+
 static bool IsRoundUnitRowName(const std::string& name) {
     return name == "RoundUnit" || name.compare(0, strlen("RoundUnit("), "RoundUnit(") == 0;
 }
@@ -1784,27 +1791,119 @@ static bool TryReadOpponentPreviousRoundBid(
     return true;
 }
 
-static bool TryReadOpponentCurrentRoundBid(
+static void ReadCurrentRoundBidSignals(
     Il2CppObject* battleTransform,
-    int opponentSlot,
-    int roundNumber,
-    int* outBid
+    bool* outSignals,
+    int slotCount
 ) {
-    if (outBid) *outBid = 0;
-    if (!battleTransform || opponentSlot <= 0 || roundNumber <= 0 || !outBid) return false;
-    const std::string path = GetOpponentCurrentRoundBidPath(opponentSlot, roundNumber);
-    std::string priceText;
-    if (!ReadExactNodeText(battleTransform, path.c_str(), &priceText) || priceText.empty()) return false;
-    return TryParsePriceText(priceText, outBid) && *outBid > 0;
+    if (!outSignals || slotCount <= 0) return;
+    for (int i = 0; i < slotCount; ++i) {
+        outSignals[i] = false;
+    }
+    if (!battleTransform) return;
+
+    for (int i = 0; i < slotCount; ++i) {
+        const std::string path = GetOpponentCurrentRoundBidSignalPath(i + 1);
+        outSignals[i] = HasExactActiveNode(battleTransform, path.c_str());
+    }
+}
+
+static bool TryReadActiveBidDialogInputNode(
+    Il2CppObject* battleTransform,
+    UiNodeSnapshot* outNode
+) {
+    if (!battleTransform || !outNode) return false;
+    std::vector<UiNodeSnapshot> inputMatches;
+    ResolveUiNodeMatches(
+        battleTransform,
+        "InputDevice/Panel1/InputField (TMP)",
+        UI_PATH_EXACT,
+        1,
+        &inputMatches
+    );
+    if (inputMatches.empty() || !inputMatches[0].active) {
+        return false;
+    }
+    *outNode = inputMatches[0];
+    return true;
+}
+
+static bool TryEnsureExpectedPriceBidDialogAmount(
+    Il2CppObject* battleTransform,
+    int expectedAmount,
+    int roundNumber
+) {
+    if (!battleTransform || expectedAmount <= 0) return false;
+
+    UiNodeSnapshot inputNode;
+    if (!TryReadActiveBidDialogInputNode(battleTransform, &inputNode)) {
+        Logf(
+            "AutoAuction round=%d expected-price confirm input missing before verify",
+            roundNumber
+        );
+        return false;
+    }
+
+    std::string currentText;
+    if (ReadNodeTextValue(inputNode.components, &currentText) &&
+        DoesExpectedPriceBidInputMatch(currentText, expectedAmount)) {
+        return true;
+    }
+
+    Logf(
+        "AutoAuction round=%d expected-price confirm input mismatch before confirm: expected=%d actual=%s",
+        roundNumber,
+        expectedAmount,
+        currentText.empty() ? "(empty)" : currentText.c_str()
+    );
+
+    char amountStr[32];
+    snprintf(amountStr, sizeof(amountStr), "%d", expectedAmount);
+    std::string componentName;
+    if (!PerformSetInputText(inputNode, amountStr, false, &componentName)) {
+        Logf(
+            "AutoAuction round=%d expected-price confirm input rewrite failed",
+            roundNumber
+        );
+        return false;
+    }
+
+    UiNodeSnapshot rewrittenInputNode;
+    if (!TryReadActiveBidDialogInputNode(battleTransform, &rewrittenInputNode)) {
+        Logf(
+            "AutoAuction round=%d expected-price confirm input missing after rewrite",
+            roundNumber
+        );
+        return false;
+    }
+
+    std::string rewrittenText;
+    if (!ReadNodeTextValue(rewrittenInputNode.components, &rewrittenText) ||
+        !DoesExpectedPriceBidInputMatch(rewrittenText, expectedAmount)) {
+        Logf(
+            "AutoAuction round=%d expected-price confirm input rewrite mismatch: expected=%d actual=%s",
+            roundNumber,
+            expectedAmount,
+            rewrittenText.empty() ? "(empty)" : rewrittenText.c_str()
+        );
+        return false;
+    }
+
+    Logf(
+        "AutoAuction round=%d expected-price confirm input rewrite succeeded amount=%d",
+        roundNumber,
+        expectedAmount
+    );
+    return true;
 }
 
 struct ConfirmGateWaitResult {
     ConfirmGateResult         result           = CONFIRM_GATE_NOT_READY;
     ConfirmGateSoftExitReason softExitReason   = CONFIRM_GATE_SOFT_EXIT_NONE;
-    int                       opponentRoundBid = 0;
     bool hardExitAuthcode    = false;
     bool hardExitInterrupted = false;
     bool hardExitAuctionEnded = false;
+    bool readyWhileDialogLost = false;
 };
 
 // Polls every 100ms inside the bid dialog (after amount is written, before confirm click).
@@ -1820,7 +1919,14 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
     const std::string& opponentNameForLog
 ) {
     static const int kPollMs = GetExpectedPriceConfirmGatePollIntervalMs();
+    static const int kBidSignalSlotCount = 2;
     ConfirmGateWaitResult ret;
+    bool entryBidSignals[kBidSignalSlotCount] = { false, false };
+    int entryBidSignalCount = 0;
+    // The current 1v1 battle UI does not light the local player's own bided
+    // marker until the final confirm succeeds, so the pre-confirm gate can
+    // rely on aggregate signal count instead of a slot-specific read here.
+    (void)opponentSlot;
 
     // battleTransform is used ONLY for the entry-log snapshot;
     // the polling loop re-detects screen state on every iteration.
@@ -1828,6 +1934,15 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
         std::string roundText;
         int secsAtEntry = 9999;
         ReadBidState(battleTransform, &roundText, &secsAtEntry);
+        ReadCurrentRoundBidSignals(
+            battleTransform,
+            entryBidSignals,
+            kBidSignalSlotCount
+        );
+        entryBidSignalCount = CountActiveCurrentRoundBidSignals(
+            entryBidSignals,
+            kBidSignalSlotCount
+        );
         Logf(
             "AutoAuction expected-price confirm gate: entering round=%d secs=%d amount=%d opponent=%s",
             gateEntryRoundNumber,
@@ -1835,6 +1950,17 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
             amountForLog,
             opponentNameForLog.empty() ? "(unresolved)" : opponentNameForLog.c_str()
         );
+    }
+
+    const bool shouldWaitForBidSignalTransition =
+        ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(entryBidSignalCount);
+    if (IsExpectedPriceConfirmGateOpponentBidSignalReady(entryBidSignalCount)) {
+        ret.result = CONFIRM_GATE_READY_OPPONENT_BID;
+        Logf(
+            "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided entry_count=%d",
+            entryBidSignalCount
+        );
+        return ret;
     }
 
     for (;;) {
@@ -1867,6 +1993,19 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
         std::string currentRound;
         int currentSecs = 9999;
         ReadBidState(sc.battleMainTransform, &currentRound, &currentSecs);
+        bool currentBidSignals[kBidSignalSlotCount] = { false, false };
+        ReadCurrentRoundBidSignals(
+            sc.battleMainTransform,
+            currentBidSignals,
+            kBidSignalSlotCount
+        );
+        const int currentBidSignalCount = CountActiveCurrentRoundBidSignals(
+            currentBidSignals,
+            kBidSignalSlotCount
+        );
+        const bool opponentBidReadyByCurrentSignalState =
+            shouldWaitForBidSignalTransition &&
+            IsExpectedPriceConfirmGateOpponentBidSignalReady(currentBidSignalCount);
 
         if (!currentRound.empty() && currentRound != gateEntryRoundText) {
             ret.softExitReason = CONFIRM_GATE_SOFT_EXIT_ROUND_CHANGED;
@@ -1875,6 +2014,16 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
         }
 
         if (!HasActiveBidInputDialog(sc.battleMainTransform)) {
+            if (opponentBidReadyByCurrentSignalState) {
+                ret.result = CONFIRM_GATE_READY_OPPONENT_BID;
+                ret.readyWhileDialogLost = true;
+                Logf(
+                    "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided count=%d->%d dialog=lost",
+                    entryBidSignalCount,
+                    currentBidSignalCount
+                );
+                return ret;
+            }
             ret.softExitReason = CONFIRM_GATE_SOFT_EXIT_DIALOG_LOST;
             Logf("AutoAuction expected-price confirm gate: interrupted reason=dialog_lost (dialog gone)");
             return ret;
@@ -1889,18 +2038,14 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
             return ret;
         }
 
-        if (opponentSlot > 0) {
-            int opponentBid = 0;
-            if (TryReadOpponentCurrentRoundBid(
-                    sc.battleMainTransform, opponentSlot, gateEntryRoundNumber, &opponentBid)) {
-                ret.result = CONFIRM_GATE_READY_OPPONENT_BID;
-                ret.opponentRoundBid = opponentBid;
-                Logf(
-                    "AutoAuction expected-price confirm gate: ready reason=opponent_bid opponentRoundBid=%d",
-                    opponentBid
-                );
-                return ret;
-            }
+        if (opponentBidReadyByCurrentSignalState) {
+            ret.result = CONFIRM_GATE_READY_OPPONENT_BID;
+            Logf(
+                "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided count=%d->%d",
+                entryBidSignalCount,
+                currentBidSignalCount
+            );
+            return ret;
         }
 
         if (!SleepInterruptibly(kPollMs)) {
@@ -2515,8 +2660,9 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                             }
                         }
                         // Expected-price confirm gate: wait until opponent bids or secs <= 2
+                        ConfirmGateWaitResult gateResult;
                         if (useExpectedPrice) {
-                            ConfirmGateWaitResult gateResult = WaitForExpectedPriceConfirmGate(
+                            gateResult = WaitForExpectedPriceConfirmGate(
                                 s2.battleMainTransform,
                                 capOpponentSlot,
                                 round,
@@ -2537,9 +2683,118 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                                 gateResult.result == CONFIRM_GATE_NOT_READY) {
                                 continue;
                             }
+                            if (ShouldDelayExpectedPriceConfirmAfterGate(gateResult.result)) {
+                                // Under the current 1v1 runtime, the round does not advance
+                                // before our own final confirm. If the dialog disappears in
+                                // this window, the recovery path below is treating it as a
+                                // transient same-round UI loss rather than a new-round state.
+                                Logf(
+                                    "AutoAuction expected-price confirm gate: delaying confirm by %dms after opponent bid",
+                                    GetExpectedPriceConfirmGateOpponentBidConfirmDelayMs()
+                                );
+                                if (!SleepInterruptibly(
+                                        GetExpectedPriceConfirmGateOpponentBidConfirmDelayMs())) {
+                                    stopIfRequested();
+                                    return;
+                                }
+                            }
+                        }
+                        ScreenState confirmSc = DetectScreenState();
+                        if (IsAutoAuctionVerificationScreen(confirmSc.screen)) {
+                            Logf("AutoAuction interrupted: AuthCode_Main detected after expected-price gate release");
+                            sendAuthCodeRequired();
+                            return;
+                        }
+                        if (strcmp(confirmSc.screen, "auction_in_progress") != 0 ||
+                            !confirmSc.battleMainTransform) {
+                            Logf(
+                                "AutoAuction round=%d confirm gate release lost battle screen before confirm",
+                                roundsEncountered
+                            );
+                            continue;
+                        }
+                        bool hasActiveBidDialog = HasActiveBidInputDialog(confirmSc.battleMainTransform);
+                        if (useExpectedPrice &&
+                            ShouldRecoverExpectedPriceBidDialogAfterGate(
+                                gateResult.result,
+                                hasActiveBidDialog
+                            )) {
+                            Logf(
+                                "AutoAuction round=%d expected-price confirm recovering bid dialog after opponent bid",
+                                roundsEncountered
+                            );
+                            std::string reopenErr;
+                            if (!ClickNode(
+                                    confirmSc.battleMainTransform,
+                                    "Gaming/chujia",
+                                    0,
+                                    &reopenErr)) {
+                                Logf(
+                                    "AutoAuction round=%d expected-price confirm bid dialog reopen failed: %s",
+                                    roundsEncountered,
+                                    reopenErr.c_str()
+                                );
+                                continue;
+                            }
+                            PollWaitResult reopenWr = WaitForNodeReady(
+                                "Battle_Main",
+                                "InputDevice/Panel1/InputField (TMP)",
+                                1500,
+                                100
+                            );
+                            if (reopenWr.result == POLL_AUTHCODE) {
+                                Logf("AutoAuction interrupted: AuthCode_Main detected during expected-price bid dialog recovery");
+                                sendAuthCodeRequired();
+                                return;
+                            }
+                            if (reopenWr.result == POLL_INTERRUPTED) {
+                                stopIfRequested();
+                                return;
+                            }
+                            if (reopenWr.result == POLL_TIMEOUT) {
+                                Logf(
+                                    "AutoAuction round=%d expected-price confirm bid dialog recovery timed out",
+                                    roundsEncountered
+                                );
+                                continue;
+                            }
+                            confirmSc = DetectScreenState();
+                            if (IsAutoAuctionVerificationScreen(confirmSc.screen)) {
+                                Logf("AutoAuction interrupted: AuthCode_Main detected after expected-price bid dialog recovery");
+                                sendAuthCodeRequired();
+                                return;
+                            }
+                            if (strcmp(confirmSc.screen, "auction_in_progress") != 0 ||
+                                !confirmSc.battleMainTransform) {
+                                Logf(
+                                    "AutoAuction round=%d expected-price confirm lost battle screen after bid dialog recovery",
+                                    roundsEncountered
+                                );
+                                continue;
+                            }
+                            hasActiveBidDialog = HasActiveBidInputDialog(confirmSc.battleMainTransform);
+                        }
+                        if (!hasActiveBidDialog) {
+                            Logf(
+                                "AutoAuction round=%d confirm gate release lost bid dialog before confirm",
+                                roundsEncountered
+                            );
+                            continue;
+                        }
+                        if (useExpectedPrice &&
+                            !TryEnsureExpectedPriceBidDialogAmount(
+                                confirmSc.battleMainTransform,
+                                finalAmount,
+                                roundsEncountered
+                            )) {
+                            Logf(
+                                "AutoAuction round=%d expected-price confirm aborted: input verification failed",
+                                roundsEncountered
+                            );
+                            continue;
                         }
                         bool primaryConfirmClicked = ClickNode(
-                            s2.battleMainTransform,
+                            confirmSc.battleMainTransform,
                             "InputDevice/Panel1/chujia",
                             0,
                             &clickErr
@@ -2547,7 +2802,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                         if (primaryConfirmClicked) {
                             // Authcode-aware confirmation: polls authcode every 100ms cycle
                             AuthCodeAwareBidConfirmResult wrapper =
-                                WaitForBidConfirmationSettledWithAuthCode(s2.battleMainTransform);
+                                WaitForBidConfirmationSettledWithAuthCode(confirmSc.battleMainTransform);
                             if (wrapper.authcodeDetected) {
                                 Logf("AutoAuction interrupted: AuthCode_Main detected during bid confirmation settle");
                                 sendAuthCodeRequired();

@@ -348,22 +348,107 @@ enum ConfirmGateSoftExitReason {
     CONFIRM_GATE_SOFT_EXIT_DIALOG_LOST   = 2
 };
 
-// Returns the UI path to the current-round price cell for the given player slot
-// and script-side round counter (1-based, matches roundsEncountered in CmdAutoAuction).
-// round == 1  → RoundUnit/priceTxt
-// round >= 2  → RoundUnit(Clone)[round-2]/priceTxt
-inline std::string GetOpponentCurrentRoundBidPath(int slot, int round) {
+// Returns the live UI signal path indicating that the given player has already
+// placed a bid in the current round. This is separate from RoundUnit/priceTxt,
+// which is populated later as round history rather than live bid state.
+inline std::string GetOpponentCurrentRoundBidSignalPath(int slot) {
     char path[256];
-    if (round <= 1) {
-        snprintf(path, sizeof(path),
-            "Gaming/PlayerContainer/Player_%d/containers/RoundUnit/priceTxt",
-            slot);
-    } else {
-        snprintf(path, sizeof(path),
-            "Gaming/PlayerContainer/Player_%d/containers/RoundUnit(Clone)[%d]/priceTxt",
-            slot, round - 2);
-    }
+    snprintf(path, sizeof(path),
+        "Gaming/PlayerContainer/Player_%d/bided",
+        slot);
     return std::string(path);
+}
+
+inline bool DidAnyNewCurrentRoundBidSignalAppear(
+    const bool* entrySignals,
+    const bool* currentSignals,
+    int slotCount
+) {
+    if (!entrySignals || !currentSignals || slotCount <= 0) {
+        return false;
+    }
+
+    for (int i = 0; i < slotCount; ++i) {
+        if (!entrySignals[i] && currentSignals[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+inline int CountActiveCurrentRoundBidSignals(const bool* signals, int slotCount) {
+    if (!signals || slotCount <= 0) {
+        return 0;
+    }
+    int count = 0;
+    for (int i = 0; i < slotCount; ++i) {
+        if (signals[i]) {
+            count++;
+        }
+    }
+    return count;
+}
+
+inline bool DidCurrentRoundBidSignalCountIncrease(
+    const bool* entrySignals,
+    const bool* currentSignals,
+    int slotCount
+) {
+    return CountActiveCurrentRoundBidSignals(currentSignals, slotCount) >
+        CountActiveCurrentRoundBidSignals(entrySignals, slotCount);
+}
+
+// Current 1v1 runtime invariant: the local player's own bided marker does not
+// light before the final confirm succeeds. In this pre-confirm window, exactly
+// one active marker therefore means the opponent has already bid.
+inline bool IsExpectedPriceConfirmGateOpponentBidSignalReady(int activeBidSignalCount) {
+    return activeBidSignalCount == 1;
+}
+
+inline bool ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(int entryBidSignalCount) {
+    return entryBidSignalCount == 0;
+}
+
+inline int GetExpectedPriceConfirmGateOpponentBidConfirmDelayMs() { return 1000; }
+
+inline bool ShouldDelayExpectedPriceConfirmAfterGate(ConfirmGateResult result) {
+    return result == CONFIRM_GATE_READY_OPPONENT_BID;
+}
+
+inline bool ShouldRecoverExpectedPriceBidDialogAfterGate(
+    ConfirmGateResult result,
+    bool hasActiveBidDialog
+) {
+    return result == CONFIRM_GATE_READY_OPPONENT_BID && !hasActiveBidDialog;
+}
+
+inline bool DoesExpectedPriceBidInputMatch(const std::string& inputText, int expectedAmount) {
+    if (expectedAmount <= 0 || inputText.empty()) {
+        return false;
+    }
+
+    int parsedAmount = 0;
+    for (size_t i = 0; i < inputText.size(); ) {
+        const unsigned char ch = static_cast<unsigned char>(inputText[i]);
+        if (ch >= '0' && ch <= '9') {
+            parsedAmount = parsedAmount * 10 + (ch - '0');
+            ++i;
+            continue;
+        }
+        if (ch == ',' || ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
+            ++i;
+            continue;
+        }
+        if (i + 2 < inputText.size() &&
+            static_cast<unsigned char>(inputText[i]) == 0xEF &&
+            static_cast<unsigned char>(inputText[i + 1]) == 0xBC &&
+            static_cast<unsigned char>(inputText[i + 2]) == 0x8C) {
+            i += 3;
+            continue;
+        }
+        return false;
+    }
+    return parsedAmount == expectedAmount;
 }
 
 inline int GetExpectedPriceConfirmGatePollIntervalMs() { return 100; }

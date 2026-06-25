@@ -8,6 +8,19 @@
 
 **Tech Stack:** C++11, Win32 API (DWORD, GetTickCount, Sleep), cross-compiled with `x86_64-w64-mingw32-g++`. Unit tests compile with Linux `g++` inside WSL.
 
+## Current Repo State Note
+
+This plan describes the original `priceTxt`-based design that was later replaced in the working tree.
+
+Current on-disk implementation differs in four important ways:
+
+- The gate now watches `Gaming/PlayerContainer/Player_N/bided` as the live current-round bid signal instead of `RoundUnit/priceTxt`.
+- `priceTxt` remains useful for previous-round / history reads, but not for the confirm gate's live release condition.
+- After `ready_by_opponent_bid`, the current implementation waits an extra `1000ms`, may recover the bid dialog if it transiently disappears, and re-verifies / rewrites the bid amount before final confirm.
+- The current 1v1 runtime assumptions are: the local player's own `bided` marker does not light before final confirm, and the round does not advance before local confirm; if the UI really cuts to a new round, the old confirm dialog disappears with it.
+
+Read this note before following any literal `priceTxt`-based step below.
+
 ## Global Constraints
 
 - All `g++` / `build.sh` invocations must run inside WSL — not native Windows PowerShell.
@@ -25,7 +38,7 @@
 - Modify: `tools/inject/AutoOperation/BKAutoOpAgent/AggregateOperationSemantics.test.cpp`
 
 **Interfaces:**
-- Produces: `ConfirmGateResult` enum, `ConfirmGateSoftExitReason` enum, `GetOpponentCurrentRoundBidPath(int slot, int round) → std::string`, `GetExpectedPriceConfirmGatePollIntervalMs() → int`
+- Produces: `ConfirmGateResult` enum, `ConfirmGateSoftExitReason` enum, `GetOpponentCurrentRoundBidSignalPath(int slot) → std::string`, `GetExpectedPriceConfirmGatePollIntervalMs() → int`
 
 ---
 
