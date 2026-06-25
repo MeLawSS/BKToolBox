@@ -20,6 +20,7 @@
 #include "WarehouseLayoutMatch.h"
 #include "WarehouseLayoutSource.h"
 #include "MetaOperations.h"
+#include "InvokeSingletonMethodResult.h"
 
 // ==========================================================================
 // IL2CPP types and globals (filled in Task 5)
@@ -146,7 +147,7 @@ Il2CppClass* FindClass(const char* name) {
     if (!g_domain) return nullptr;
     size_t count;
     const Il2CppAssembly** asms = g_domain_get_assemblies(g_domain, &count);
-    const char* ns[] = { "", "BidKing", "Game", "Main", nullptr };
+    const char* ns[] = { "", "BidKing", "Game", "Main", "YooAsset", "UnityEngine", nullptr };
     for (size_t ai = 0; ai < count; ai++) {
         Il2CppImage* img = g_assembly_get_image(asms[ai]);
         if (!img) continue;
@@ -1745,13 +1746,12 @@ static bool TrySerializeFieldValue(
         return true;
     }
 
-    Il2CppObject* refObj = *(Il2CppObject**)base;
-    if (!refObj) {
-        *outJson = "{\"resultKind\":\"null\"}";
-        return true;
-    }
-
     if (fieldTypeName == "System.String") {
+        Il2CppObject* refObj = *(Il2CppObject**)base;
+        if (!refObj) {
+            *outJson = "{\"resultKind\":\"null\"}";
+            return true;
+        }
         std::string textValue;
         if (!Il2CppStringToUtf8(refObj, &textValue)) return false;
         *outJson = "{\"resultKind\":\"string\",\"stringValue\":\"";
@@ -1760,16 +1760,15 @@ static bool TrySerializeFieldValue(
         return true;
     }
 
-    *outJson = "{\"resultKind\":\"object\",\"resultClass\":\"";
-    *outJson += EscapeJsonString(GetQualifiedTypeName(refObj));
-    *outJson += "\"";
-    std::string objectName;
-    if (GetObjectNameUtf8(refObj, &objectName) && !objectName.empty()) {
-        *outJson += ",\"objectName\":\"";
-        *outJson += EscapeJsonString(objectName);
-        *outJson += "\"";
+    const uintptr_t rawValue = *(const uintptr_t*)base;
+    if (!rawValue) {
+        *outJson = "{\"resultKind\":\"null\"}";
+        return true;
     }
-    *outJson += "}";
+
+    char buf[128];
+    snprintf(buf, sizeof(buf), "{\"resultKind\":\"opaque\",\"rawValue\":%llu}", (unsigned long long)rawValue);
+    *outJson = buf;
     return true;
 }
 
@@ -1868,6 +1867,46 @@ static bool TrySerializeInvokeResult(Il2CppObject* resultObj, std::string* outJs
         return true;
     }
 
+    if (strcmp(resultClass, "TextAsset") == 0) {
+        std::string textValue;
+        const char* const textGetterNames[] = { "get_text", nullptr };
+        if (InvokeStringGetterByNames(resultObj, textGetterNames, &textValue)) {
+            *outJson = "{\\\"resultKind\\\":\\\"textAsset\\\",\\\"resultClass\\\":\\\"";
+            *outJson += EscapeJsonString(GetQualifiedTypeName(resultObj));
+            *outJson += "\\\",\\\"stringValue\\\":\\\"";
+            *outJson += EscapeJsonString(textValue);
+            *outJson += "\\\"}";
+            return true;
+        }
+    }
+
+    if (strcmp(resultClass, "RawFileHandle") == 0) {
+        std::string textValue;
+        const char* const textGetterNames[] = { "GetRawFileText", nullptr };
+        if (InvokeStringGetterByNames(resultObj, textGetterNames, &textValue)) {
+            *outJson = "{\\\"resultKind\\\":\\\"rawFile\\\",\\\"stringValue\\\":\\\"";
+            *outJson += EscapeJsonString(textValue);
+            *outJson += "\\\"}";
+            return true;
+        }
+    }
+
+    if (strcmp(resultClass, "AssetHandle") == 0) {
+        const char* const waitNames[] = { "WaitForAsyncComplete", nullptr };
+        InvokeNoArgMethodByNames(resultObj, waitNames);
+        const char* const assetGetterNames[] = { "GetAssetObject", "get_AssetObject", nullptr };
+        Il2CppObject* assetObject = InvokeObjectGetterByNames(resultObj, assetGetterNames);
+        if (assetObject) {
+            std::string assetJson;
+            if (TrySerializeInvokeResult(assetObject, &assetJson)) {
+                *outJson = "{\\\"resultKind\\\":\\\"assetHandle\\\",\\\"assetObject\\\":";
+                *outJson += assetJson;
+                *outJson += "}";
+                return true;
+            }
+        }
+    }
+
     *outJson = "{\"resultKind\":\"object\",\"resultClass\":\"";
     *outJson += EscapeJsonString(GetQualifiedTypeName(resultObj));
     *outJson += "\"";
@@ -1879,6 +1918,36 @@ static bool TrySerializeInvokeResult(Il2CppObject* resultObj, std::string* outJs
     }
     *outJson += "}";
     return true;
+}
+
+static bool TryExtractTextResult(Il2CppObject* resultObj, std::string* outText) {
+    if (!resultObj || !outText) return false;
+    outText->clear();
+
+    const char* resultClass = ObjClassName(resultObj);
+    if (strcmp(resultClass, "String") == 0) {
+        return Il2CppStringToUtf8(resultObj, outText);
+    }
+
+    if (strcmp(resultClass, "TextAsset") == 0) {
+        const char* const textGetterNames[] = { "get_text", nullptr };
+        return InvokeStringGetterByNames(resultObj, textGetterNames, outText);
+    }
+
+    if (strcmp(resultClass, "RawFileHandle") == 0) {
+        const char* const textGetterNames[] = { "GetRawFileText", nullptr };
+        return InvokeStringGetterByNames(resultObj, textGetterNames, outText);
+    }
+
+    if (strcmp(resultClass, "AssetHandle") == 0) {
+        const char* const waitNames[] = { "WaitForAsyncComplete", nullptr };
+        InvokeNoArgMethodByNames(resultObj, waitNames);
+        const char* const assetGetterNames[] = { "GetAssetObject", "get_AssetObject", nullptr };
+        Il2CppObject* assetObject = InvokeObjectGetterByNames(resultObj, assetGetterNames);
+        return assetObject ? TryExtractTextResult(assetObject, outText) : false;
+    }
+
+    return false;
 }
 
 static void InspectUiNodeComponents(Il2CppObject* transform, UiComponentRefs* refs) {
@@ -3688,6 +3757,271 @@ static void CmdDescribeClassMethodSignatures(AgentConn* c, const char* id, const
     SendResponse(c, id, true, result.c_str());
 }
 
+static void CmdDescribeSingletonFields(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char className[160] = {};
+    char error[128] = {};
+    bool includeBase = false;
+    if (!ReadRequiredStringArg(json, "className", className, sizeof(className), "missing className", "invalid className", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+    JsonGetBool(json, "includeBase", &includeBase);
+
+    if (!g_object_get_class || !g_class_get_fields || !g_field_get_name || !g_field_get_type || !g_field_get_flags || !g_type_get_name) {
+        SendResponse(c, id, false, "field reflection unavailable");
+        return;
+    }
+
+    Il2CppClass* klass = FindClass(className);
+    if (!klass) {
+        SendResponse(c, id, false, "class not found");
+        return;
+    }
+
+    Il2CppObject* instance = GetSingleton(klass);
+
+    std::string result = "{\"className\":\"";
+    result += EscapeJsonString(className);
+    result += "\",\"instanceClassName\":\"";
+    result += EscapeJsonString(GetQualifiedTypeName(instance));
+    result += "\",\"fields\":[";
+
+    bool firstField = true;
+    for (Il2CppClass* current = g_object_get_class(instance); current != nullptr; current = includeBase && g_class_get_parent ? g_class_get_parent(current) : nullptr) {
+        void* iter = nullptr;
+        Il2CppFieldInfo* field = nullptr;
+        while ((field = g_class_get_fields(current, &iter)) != nullptr) {
+            const char* fieldName = g_field_get_name(field);
+            if (!fieldName || !fieldName[0]) continue;
+            const uint32_t flags = g_field_get_flags(field);
+            if ((flags & 0x0010u) != 0) continue;
+            std::string fieldTypeName = GetTypeNameFromMethodParam(g_field_get_type(field));
+            std::string fieldValueJson;
+            if (!TrySerializeFieldValue(instance, field, fieldTypeName, &fieldValueJson)) {
+                fieldValueJson = "{\"resultKind\":\"unavailable\"}";
+            }
+
+            if (!firstField) result += ",";
+            firstField = false;
+            result += "{\"declaringClass\":\"";
+            result += EscapeJsonString(g_class_get_name ? g_class_get_name(current) : "unknown");
+            result += "\",\"name\":\"";
+            result += EscapeJsonString(fieldName);
+            result += "\",\"fieldType\":\"";
+            result += EscapeJsonString(fieldTypeName);
+            result += "\",\"flags\":";
+            result += std::to_string((unsigned long long)flags);
+            result += ",\"value\":";
+            result += fieldValueJson;
+            result += "}";
+        }
+        if (!includeBase) break;
+    }
+
+    result += "]}";
+    SendResponse(c, id, true, result.c_str());
+}
+
+static void CmdInvokeSingletonMethod(AgentConn* c, const char* id, const char* json) {
+    if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
+
+    char className[160] = {};
+    char methodName[160] = {};
+    char stringArg[512] = {};
+    char typeClassName[160] = {};
+    char outputPath[MAX_PATH] = {};
+    char error[128] = {};
+    if (!ReadRequiredStringArg(json, "className", className, sizeof(className), "missing className", "invalid className", error, sizeof(error)) ||
+        !ReadRequiredStringArg(json, "methodName", methodName, sizeof(methodName), "missing methodName", "invalid methodName", error, sizeof(error))) {
+        SendResponse(c, id, false, error);
+        return;
+    }
+
+    bool hasStringArg = false;
+    if (!JsonGetStringBounded(json, "stringArg", stringArg, sizeof(stringArg), &hasStringArg)) {
+        if (hasStringArg) {
+            SendResponse(c, id, false, "invalid stringArg");
+            return;
+        }
+        hasStringArg = false;
+    }
+    bool hasIntArg = JsonFieldExists(json, "intArg");
+    bool hasTypeClassName = false;
+    if (!JsonGetStringBounded(json, "typeClassName", typeClassName, sizeof(typeClassName), &hasTypeClassName)) {
+        if (hasTypeClassName) {
+            SendResponse(c, id, false, "invalid typeClassName");
+            return;
+        }
+        hasTypeClassName = false;
+    }
+    if (hasStringArg && hasIntArg) {
+        SendResponse(c, id, false, "multiple args not supported");
+        return;
+    }
+    if (hasTypeClassName && hasIntArg) {
+        SendResponse(c, id, false, "multiple args not supported");
+        return;
+    }
+    if (hasTypeClassName && !hasStringArg) {
+        SendResponse(c, id, false, "typeClassName requires stringArg");
+        return;
+    }
+    bool hasOutputPath = false;
+    if (!JsonGetStringBounded(json, "outputPath", outputPath, sizeof(outputPath), &hasOutputPath)) {
+        if (hasOutputPath) {
+            SendResponse(c, id, false, "invalid outputPath");
+            return;
+        }
+        hasOutputPath = false;
+    }
+
+    int intArg = 0;
+    if (hasIntArg) {
+        intArg = JsonGetInt(json, "intArg");
+        if (intArg == INT_MIN) {
+            SendResponse(c, id, false, "invalid intArg");
+            return;
+        }
+    }
+
+    int timeoutMs = 5000;
+    if (!ReadBoundedIntArg(json, "timeoutMs", 5000, 100, 30000, &timeoutMs, "invalid timeoutMs")) {
+        SendResponse(c, id, false, "invalid timeoutMs");
+        return;
+    }
+
+    Il2CppClass* klass = FindClass(className);
+    if (!klass) {
+        SendResponse(c, id, false, "class not found");
+        return;
+    }
+
+    Il2CppObject* instance = GetSingleton(klass);
+
+    const char* names[] = { methodName, nullptr };
+    const Il2CppMethod* method = nullptr;
+    void* args[] = { nullptr, nullptr };
+    Il2CppObject* stringObject = nullptr;
+    Il2CppObject* typeObject = nullptr;
+    int32_t intArgValue = (int32_t)intArg;
+    if (hasStringArg && hasTypeClassName) {
+        if (!g_string_new) {
+            SendResponse(c, id, false, "string invoke unavailable");
+            return;
+        }
+        const char* paramTypes[] = { "System.String", "System.Type", nullptr };
+        method = FindMethodBySignature(klass, names, paramTypes, 2);
+        if (!method) {
+            SendResponse(c, id, false, "method not found");
+            return;
+        }
+        Il2CppClass* typeClass = FindClass(typeClassName);
+        if (!typeClass) {
+            SendResponse(c, id, false, "type class not found");
+            return;
+        }
+        stringObject = g_string_new(stringArg);
+        if (!stringObject) {
+            SendResponse(c, id, false, "string arg allocation failed");
+            return;
+        }
+        typeObject = GetTypeObjectForClass(typeClass);
+        if (!typeObject) {
+            SendResponse(c, id, false, "type object unavailable");
+            return;
+        }
+        args[0] = stringObject;
+        args[1] = typeObject;
+    } else if (hasStringArg) {
+        if (!g_string_new) {
+            SendResponse(c, id, false, "string invoke unavailable");
+            return;
+        }
+        const char* paramTypes[] = { "System.String", nullptr };
+        method = FindMethodBySignature(klass, names, paramTypes, 1);
+        if (!method) {
+            SendResponse(c, id, false, "method not found");
+            return;
+        }
+        stringObject = g_string_new(stringArg);
+        if (!stringObject) {
+            SendResponse(c, id, false, "string arg allocation failed");
+            return;
+        }
+        args[0] = stringObject;
+    } else if (hasIntArg) {
+        const char* paramTypes[] = { "System.Int32", nullptr };
+        method = FindMethodBySignature(klass, names, paramTypes, 1);
+        if (!method) {
+            SendResponse(c, id, false, "method not found");
+            return;
+        }
+        args[0] = &intArgValue;
+    } else {
+        method = FindMethodByNames(klass, names, 0);
+        if (!method) {
+            SendResponse(c, id, false, "method not found");
+            return;
+        }
+    }
+
+    Il2CppObject* rawResult = SafeInvoke(method, instance, (hasStringArg || hasIntArg || hasTypeClassName) ? args : nullptr);
+    char taskError[128] = {};
+    Il2CppObject* invokeResultObject = rawResult
+        ? AwaitTaskResultObject(rawResult, timeoutMs, methodName, taskError, sizeof(taskError))
+        : nullptr;
+    if (taskError[0]) {
+        SendResponse(c, id, false, taskError);
+        return;
+    }
+
+    if (hasOutputPath) {
+        std::string textResult;
+        if (!TryExtractTextResult(invokeResultObject, &textResult)) {
+            SendResponse(c, id, false, "text result unavailable");
+            return;
+        }
+        FILE* fp = fopen(outputPath, "wb");
+        if (!fp) {
+            SendResponse(c, id, false, "failed to open outputPath");
+            return;
+        }
+        size_t written = fwrite(textResult.data(), 1, textResult.size(), fp);
+        fclose(fp);
+        if (written != textResult.size()) {
+            SendResponse(c, id, false, "failed to write outputPath");
+            return;
+        }
+
+        std::string result = "{\"className\":\"";
+        result += EscapeJsonString(className);
+        result += "\",\"methodName\":\"";
+        result += EscapeJsonString(methodName);
+        result += "\",\"outputPath\":\"";
+        result += EscapeJsonString(outputPath);
+        result += "\",\"outputBytes\":";
+        result += std::to_string((unsigned long long)written);
+        result += "}";
+        SendResponse(c, id, true, result.c_str());
+        return;
+    }
+
+    std::string invokeResultJson;
+    if (!TrySerializeInvokeResult(invokeResultObject, &invokeResultJson)) {
+        SendResponse(c, id, false, "result serialization failed");
+        return;
+    }
+
+    char result[BK_BUF_SIZE];
+    if (!BuildInvokeSingletonMethodResultJson(className, methodName, invokeResultJson.c_str(), result, sizeof(result))) {
+        SendResponse(c, id, false, "invoke result too large");
+        return;
+    }
+    SendResponse(c, id, true, result);
+}
+
 static void CmdCallNodeComponentMethod(AgentConn* c, const char* id, const char* json) {
     if (!g_il2cppReady) { SendResponse(c, id, false, "il2cpp not ready"); return; }
 
@@ -4725,7 +5059,9 @@ static const CmdEntry kCommands[] = {
     { "DescribeNodeComponentMethodSignatures", CmdDescribeNodeComponentMethodSignatures },
     { "DescribeNodeComponentFields", CmdDescribeNodeComponentFields },
     { "DescribeClassMethodSignatures", CmdDescribeClassMethodSignatures },
+    { "DescribeSingletonFields", CmdDescribeSingletonFields },
     { "CallNodeComponentMethod", CmdCallNodeComponentMethod },
+    { "InvokeSingletonMethod", CmdInvokeSingletonMethod },
     { "InvokeNodeComponentMethod", CmdInvokeNodeComponentMethod },
     { "WaitForVisiblePanel", CmdWaitForVisiblePanel },
     { "WaitForNode",      CmdWaitForNode      },

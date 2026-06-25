@@ -7694,5 +7694,356 @@
       "height": 2,
       "key": "2x2"
     }
+  },
+  {
+    "itemCid": 1916001,
+    "name": "光影随行全息墙",
+    "quality": "红",
+    "type": "家居日用",
+    "price": 519800,
+    "image": "/assets/bidking/icons/icon_1916001.png",
+    "size": {
+      "width": 5,
+      "height": 4,
+      "key": "5x4"
+    }
+  },
+  {
+    "itemCid": 1916002,
+    "name": "磁悬浮云床",
+    "quality": "红",
+    "type": "家居日用",
+    "price": 1012000,
+    "image": "/assets/bidking/icons/icon_1916002.png",
+    "size": {
+      "width": 5,
+      "height": 4,
+      "key": "5x4"
+    }
+  },
+  {
+    "itemCid": 1916003,
+    "name": "仿生机械宠物",
+    "quality": "红",
+    "type": "家居日用",
+    "price": 458000,
+    "image": "/assets/bidking/icons/icon_1916003.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1916004,
+    "name": "废土风储物箱",
+    "quality": "红",
+    "type": "家居日用",
+    "price": 216000,
+    "image": "/assets/bidking/icons/icon_1916004.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1916005,
+    "name": "纳米修复剂",
+    "quality": "红",
+    "type": "医疗用品",
+    "price": 1041000,
+    "image": "/assets/bidking/icons/icon_1916005.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1916006,
+    "name": "强化义体适配液",
+    "quality": "红",
+    "type": "医疗用品",
+    "price": 457000,
+    "image": "/assets/bidking/icons/icon_1916006.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1916007,
+    "name": "基因稳定剂",
+    "quality": "红",
+    "type": "医疗用品",
+    "price": 316800,
+    "image": "/assets/bidking/icons/icon_1916007.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1916009,
+    "name": "纳米流体战衣",
+    "quality": "红",
+    "type": "时尚潮流",
+    "price": 516500,
+    "image": "/assets/bidking/icons/icon_1916009.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1916010,
+    "name": "赛博之眼",
+    "quality": "红",
+    "type": "时尚潮流",
+    "price": 610800,
+    "image": "/assets/bidking/icons/icon_1916010.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1916012,
+    "name": "[响尾蛇]热能战斧",
+    "quality": "红",
+    "type": "武器装备",
+    "price": 479000,
+    "image": "/assets/bidking/icons/icon_1916012.png",
+    "size": {
+      "width": 3,
+      "height": 3,
+      "key": "3x3"
+    }
+  },
+  {
+    "itemCid": 1916014,
+    "name": "[暴雨]微型导弹舱",
+    "quality": "红",
+    "type": "武器装备",
+    "price": 499500,
+    "image": "/assets/bidking/icons/icon_1916014.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1916016,
+    "name": "钛记忆合金",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 332666,
+    "image": "/assets/bidking/icons/icon_1916016.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1916017,
+    "name": "[血珀]智能尘埃",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 96500,
+    "image": "/assets/bidking/icons/icon_1916017.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1916018,
+    "name": "零点能矿石",
+    "quality": "红",
+    "type": "矿物珠宝",
+    "price": 461500,
+    "image": "/assets/bidking/icons/icon_1916018.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1916019,
+    "name": "初代[铁卫]机器人残骸",
+    "quality": "红",
+    "type": "文玩古董",
+    "price": 513500,
+    "image": "/assets/bidking/icons/icon_1916019.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1916023,
+    "name": "[深渊]全息投影桌游",
+    "quality": "红",
+    "type": "数码电子",
+    "price": 611800,
+    "image": "/assets/bidking/icons/icon_1916023.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1916025,
+    "name": "超级格斗芯片",
+    "quality": "红",
+    "type": "数码电子",
+    "price": 158550,
+    "image": "/assets/bidking/icons/icon_1916025.png",
+    "size": {
+      "width": 1,
+      "height": 1,
+      "key": "1x1"
+    }
+  },
+  {
+    "itemCid": 1916026,
+    "name": "AI偶像[幻音]全息演唱会通行证",
+    "quality": "红",
+    "type": "数码电子",
+    "price": 107300,
+    "image": "/assets/bidking/icons/icon_1916026.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1916027,
+    "name": "磁悬浮滑板",
+    "quality": "红",
+    "type": "交通工具",
+    "price": 326700,
+    "image": "/assets/bidking/icons/icon_1916027.png",
+    "size": {
+      "width": 3,
+      "height": 1,
+      "key": "3x1"
+    }
+  },
+  {
+    "itemCid": 1916028,
+    "name": "微型冷核聚变电池",
+    "quality": "红",
+    "type": "交通工具",
+    "price": 1046000,
+    "image": "/assets/bidking/icons/icon_1916028.png",
+    "size": {
+      "width": 4,
+      "height": 4,
+      "key": "4x4"
+    }
+  },
+  {
+    "itemCid": 1916029,
+    "name": "反重力引擎（原型机）",
+    "quality": "红",
+    "type": "交通工具",
+    "price": 995000,
+    "image": "/assets/bidking/icons/icon_1916029.png",
+    "size": {
+      "width": 4,
+      "height": 3,
+      "key": "4x3"
+    }
+  },
+  {
+    "itemCid": 1916030,
+    "name": "氦-3燃料罐",
+    "quality": "红",
+    "type": "交通工具",
+    "price": 313200,
+    "image": "/assets/bidking/icons/icon_1916030.png",
+    "size": {
+      "width": 2,
+      "height": 3,
+      "key": "2x3"
+    }
+  },
+  {
+    "itemCid": 1916031,
+    "name": "[天使之泪]纯净水",
+    "quality": "红",
+    "type": "食品烹饪",
+    "price": 380765,
+    "image": "/assets/bidking/icons/icon_1916031.png",
+    "size": {
+      "width": 1,
+      "height": 2,
+      "key": "1x2"
+    }
+  },
+  {
+    "itemCid": 1916032,
+    "name": "[极光]合成酒",
+    "quality": "红",
+    "type": "食品烹饪",
+    "price": 1314400,
+    "image": "/assets/bidking/icons/icon_1916032.png",
+    "size": {
+      "width": 2,
+      "height": 2,
+      "key": "2x2"
+    }
+  },
+  {
+    "itemCid": 1916036,
+    "name": "[赛博佛陀]数字经书",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 474500,
+    "image": "/assets/bidking/icons/icon_1916036.png",
+    "size": {
+      "width": 3,
+      "height": 2,
+      "key": "3x2"
+    }
+  },
+  {
+    "itemCid": 1916037,
+    "name": "《机甲构造演化图谱》复刻版",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 1059000,
+    "image": "/assets/bidking/icons/icon_1916037.png",
+    "size": {
+      "width": 6,
+      "height": 1,
+      "key": "6x1"
+    }
+  },
+  {
+    "itemCid": 1916038,
+    "name": "[残阳]大师涂鸦墙（全息投影）",
+    "quality": "红",
+    "type": "书籍绘画",
+    "price": 843200,
+    "image": "/assets/bidking/icons/icon_1916038.png",
+    "size": {
+      "width": 5,
+      "height": 4,
+      "key": "5x4"
+    }
   }
 ]

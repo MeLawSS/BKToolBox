@@ -36,8 +36,16 @@ function parseTable(text) {
 }
 
 function decodeBase64Table(filePath) {
-    const encoded = fs.readFileSync(filePath, 'utf8').trim();
-    return parseTable(Buffer.from(encoded, 'base64').toString('utf8'));
+    const content = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '').trim();
+    if (!content) {
+        return [];
+    }
+
+    if (content.includes('\t')) {
+        return parseTable(content);
+    }
+
+    return parseTable(Buffer.from(content, 'base64').toString('utf8'));
 }
 
 function parseIdList(value) {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRequire } from 'module';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
@@ -93,7 +95,15 @@ describe('extract-bidking-collectibles helpers', () => {
     });
 
     it('extracts the latest collectibles added by the current game tables', () => {
-        const tablesDir = path.join(process.cwd(), 'Archive', 'BidKing', 'BidKing_Data', 'StreamingAssets', 'Tables');
+        const candidateDirs = [
+            path.join(process.cwd(), 'Archive', 'BidKing', 'BidKing_Data', 'StreamingAssets', 'Tables'),
+            path.join(process.cwd(), 'tmp', 'collectibles-extract', 'tables')
+        ];
+        const tablesDir = candidateDirs.find((dir) => (
+            fs.existsSync(path.join(dir, 'Item.txt')) &&
+            fs.existsSync(path.join(dir, 'Item_Type.txt'))
+        ));
+        expect(tablesDir).toBeTruthy();
         const collectibles = extractCollectibles(tablesDir);
         const itemCids = new Set(collectibles.map((item) => Number(item.itemCid)));
 
@@ -102,5 +112,45 @@ describe('extract-bidking-collectibles helpers', () => {
         expect(itemCids.has(1036007)).toBe(true);
         expect(itemCids.has(1036008)).toBe(true);
         expect(itemCids.has(1076007)).toBe(true);
+    });
+
+    it('extracts collectibles from raw TSV tables without base64 wrapping', () => {
+        const tablesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bk-collectibles-raw-'));
+        const typeRows = Array.from({ length: 10 }, (_, index) => {
+            const id = 101 + index;
+            return `${id}\tItem\tType ${id}`;
+        }).join('\n');
+        const row = [];
+        row[0] = '1011001';
+        row[1] = '数据线';
+        row[6] = '[101,107]';
+        row[7] = '11';
+        row[8] = '1';
+        row[9] = '160';
+        row[24] = 'icon_1011001';
+        const itemRows = `${row.join('\t')}\n`;
+
+        try {
+            fs.writeFileSync(path.join(tablesDir, 'Item_Type.txt'), `${typeRows}\n`);
+            fs.writeFileSync(path.join(tablesDir, 'Item.txt'), itemRows);
+
+            expect(extractCollectibles(tablesDir)).toEqual([
+                {
+                    itemCid: 1011001,
+                    name: '数据线',
+                    quality: '白',
+                    type: 'Type 101',
+                    price: 160,
+                    image: '/assets/bidking/icons/icon_1011001.png',
+                    size: {
+                        width: 1,
+                        height: 1,
+                        key: '1x1'
+                    }
+                }
+            ]);
+        } finally {
+            fs.rmSync(tablesDir, { recursive: true, force: true });
+        }
     });
 });

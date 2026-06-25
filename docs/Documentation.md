@@ -4,6 +4,7 @@
 
 - 本文件记录 current-state 事实、命令、路径和约束
 - `docs/Prompt.md`、`docs/Plan.md`、`docs/Implement.md`、`docs/ARCHITECTURE.md` 与本文件一起构成当前项目记忆
+- `docs/BIDKING_COLLECTIBLES_EXTRACTION.md` 是当前从游戏本体提取 `collectibles.json` 的权威流程
 - `docs/superpowers/plans/*.md` 和 `docs/superpowers/specs/*.md` 是带日期的历史归档，不承担 current-state 职责
 
 ## 当前状态
@@ -233,6 +234,7 @@
 ### 数据与监控
 
 - `npm run extract:collectibles`
+- 最新游戏本体藏品提取流程：`docs/BIDKING_COLLECTIBLES_EXTRACTION.md`
 - `npm run prepare:dumpcap`
 - `npm run watch:game-log -- --game-root "<path>"`
 

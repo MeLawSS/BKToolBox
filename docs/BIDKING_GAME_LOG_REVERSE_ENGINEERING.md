@@ -210,7 +210,7 @@ ASCII 为 `ryrs`。按该 key XOR 后可用 .NET 元数据工具读取：
 | `totalHitBoxIndex` | `6` |
 | `hitBoxList` | `C4吸塑炸药`、`氙气大灯`、`车载充气泵`、`高浓缩磁暴瘫痪手雷` |
 
-监控脚本会结合 `StreamingAssets/Tables/Item.txt` 和 `Item_Type.txt` 把 `itemCid` / `itemType` / `itemQuility` 映射为藏品名、类型名、品质名、价格和尺寸。该映射只用于输出展示，不改变 `.playback` 原始解析结果。
+监控脚本会结合一份已提取的 `Item.txt` / `Item_Type.txt` 表目录，把 `itemCid` / `itemType` / `itemQuility` 映射为藏品名、类型名、品质名、价格和尺寸。最新版游戏不再可靠提供 `StreamingAssets/Tables/*.txt` 直读路径；当前权威提取流程见 `docs/BIDKING_COLLECTIBLES_EXTRACTION.md`。该映射只用于输出展示，不改变 `.playback` 原始解析结果。
 
 ## 当前监控实现与脚本
 
@@ -270,7 +270,7 @@ npm run watch:game-log -- --game-root "D:\SteamLibrary\steamapps\common\BidKing"
 
 ```bash
 node scripts/parse-bidking-tcp-pcap.mjs /tmp/bidking-capture/tcp-live-20260523-1558.pcapng \
-  --tables-dir Archive/BidKing/BidKing_Data/StreamingAssets/Tables
+  --tables-dir tmp/collectibles-extract/tables
 ```
 
 脚本行为：
