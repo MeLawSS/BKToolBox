@@ -184,11 +184,12 @@ describe('Tools App', () => {
       '/Price',
       '/Inject',
     ]);
-    expect(wrapper.findAll('.tab-button')).toHaveLength(12);
-    expect(wrapper.findAll('.tab-button').slice(0, 3).map((button) => button.text())).toEqual([
+    expect(wrapper.findAll('.tab-button')).toHaveLength(13);
+    expect(wrapper.findAll('.tab-button').slice(0, 4).map((button) => button.text())).toEqual([
       'Elsa · 期望价值',
       'Ethan · 期望价值',
       'Ahmed · 组合计算器',
+      'V2 最小格数 · 调试器',
     ]);
     expect(wrapper.findAll('.tab-button').map(button => button.text())).toContain('红色 · 平均格数');
     expect(wrapper.findAll('.tab-button').map(button => button.text())).toContain('紫色 · 总价格');
@@ -207,7 +208,7 @@ describe('Tools App', () => {
   it('renders the default Elsa panel tab without using the solver /run flow', async () => {
     const wrapper = await mountApp();
 
-    expect(wrapper.findAll('.tab-button')).toHaveLength(12);
+    expect(wrapper.findAll('.tab-button')).toHaveLength(13);
     expect(wrapper.findAll('.tab-button').map((button) => button.text())).toContain('Elsa · 期望价值');
 
     expect(wrapper.find('#elsa-cells-white').exists()).toBe(true);
@@ -220,7 +221,7 @@ describe('Tools App', () => {
   it('keeps the three purple solver tabs grouped together in the tab list', async () => {
     const wrapper = await mountApp();
 
-    expect(wrapper.findAll('.tab-button').slice(3).map((button) => button.text())).toEqual([
+    expect(wrapper.findAll('.tab-button').slice(4).map((button) => button.text())).toEqual([
       '金色 · 平均价格',
       '金色 · 总价格',
       '金色 · 平均格数',
@@ -312,7 +313,7 @@ describe('Tools App', () => {
     expect(wrapper.findAll('.monitor-outline')).toHaveLength(1);
     expect(wrapper.find('#elsa-cells-orange').attributes('placeholder')).toBe('6');
 
-    await selectTab(wrapper, 3);
+    await selectTab(wrapper, 4);
     expect(wrapper.find('.action-button').exists()).toBe(true);
 
     await selectTab(wrapper, 0);
@@ -332,7 +333,7 @@ describe('Tools App', () => {
     await wrapper.get('#total-count').setValue('9');
     await nextTick();
 
-    await selectTab(wrapper, 3);
+    await selectTab(wrapper, 4);
     await wrapper.findAll('.form-grid input')[0].setValue('7800');
     await wrapper.findAll('.form-grid input')[1].setValue('2');
     await nextTick();
@@ -409,7 +410,7 @@ describe('Tools App', () => {
     const wrapper = await mountApp();
     const tabs = wrapper.findAll('.tab-button');
 
-    await tabs[11].trigger('click');
+    await tabs[12].trigger('click');
     await nextTick();
 
     const inputs = wrapper.findAll('.form-grid input');
@@ -426,7 +427,7 @@ describe('Tools App', () => {
     const wrapper = await mountApp();
     const tabs = wrapper.findAll('.tab-button');
 
-    await tabs[11].trigger('click');
+    await tabs[12].trigger('click');
     await nextTick();
 
     const inputs = wrapper.findAll('.form-grid input');
@@ -444,7 +445,7 @@ describe('Tools App', () => {
     const wrapper = await mountApp();
     const tabs = wrapper.findAll('.tab-button');
 
-    await tabs[7].trigger('click');
+    await tabs[8].trigger('click');
     await nextTick();
 
     const inputs = wrapper.findAll('.form-grid input');
@@ -462,7 +463,7 @@ describe('Tools App', () => {
     const wrapper = await mountApp();
     const tabs = wrapper.findAll('.tab-button');
 
-    await tabs[8].trigger('click');
+    await tabs[9].trigger('click');
     await nextTick();
 
     const inputs = wrapper.findAll('.form-grid input');
@@ -478,7 +479,7 @@ describe('Tools App', () => {
     const wrapper = await mountApp();
     const tabs = wrapper.findAll('.tab-button');
 
-    await tabs[7].trigger('click');
+    await tabs[8].trigger('click');
     await nextTick();
 
     const inputs = wrapper.findAll('.form-grid input');
@@ -511,7 +512,7 @@ describe('Tools App', () => {
     vi.stubGlobal('Worker', FakeToolsOutputWorker);
 
     const wrapper = await mountApp();
-    await selectTab(wrapper, 3);
+    await selectTab(wrapper, 4);
     await fillVisibleInputs(wrapper, ['27197.45']);
     await wrapper.find('.action-button').trigger('click');
     await flushPromises();
@@ -528,7 +529,7 @@ describe('Tools App', () => {
     vi.stubGlobal('Worker', FakeToolsOutputWorker);
 
     const wrapper = await mountApp();
-    await selectTab(wrapper, 3);
+    await selectTab(wrapper, 4);
     await fillVisibleInputs(wrapper, ['7800', '2']);
     await wrapper.find('.action-button').trigger('click');
     await flushPromises();
@@ -568,7 +569,7 @@ describe('Tools App', () => {
     vi.stubGlobal('Worker', FakeToolsOutputWorker);
 
     const wrapper = await mountApp();
-    await selectTab(wrapper, 3);
+    await selectTab(wrapper, 4);
     await fillVisibleInputs(wrapper, ['7800', '2']);
     await wrapper.find('.action-button').trigger('click');
     await flushPromises();
@@ -645,7 +646,7 @@ describe('Tools App', () => {
     vi.stubGlobal('Worker', FakeToolsOutputWorker);
 
     const wrapper = await mountApp();
-    await selectTab(wrapper, 3);
+    await selectTab(wrapper, 4);
     await fillVisibleInputs(wrapper, ['7800', '1']);
     await wrapper.find('.action-button').trigger('click');
     await flushPromises();
@@ -692,7 +693,7 @@ describe('Tools App', () => {
 
     expect(wrapper.find('.table-output').text()).not.toContain('[stale-rerun]');
 
-    await selectTab(wrapper, 4);
+    await selectTab(wrapper, 5);
     await fillVisibleInputs(wrapper, ['15600']);
     await wrapper.find('.action-button').trigger('click');
     await flushPromises();
@@ -723,7 +724,7 @@ describe('Tools App', () => {
     vi.stubGlobal('Worker', FakeToolsOutputWorker);
 
     const wrapper = await mountApp();
-    await selectTab(wrapper, 3);
+    await selectTab(wrapper, 4);
     await fillVisibleInputs(wrapper, ['7800', '1']);
     await wrapper.find('.action-button').trigger('click');
     await flushPromises();
@@ -752,7 +753,7 @@ describe('Tools App', () => {
     vi.stubGlobal('Worker', FakeToolsOutputWorker);
 
     const wrapper = await mountApp();
-    await selectTab(wrapper, 3);
+    await selectTab(wrapper, 4);
     await fillVisibleInputs(wrapper, ['7800', '1']);
     await wrapper.find('.action-button').trigger('click');
     await flushPromises();
@@ -798,7 +799,7 @@ describe('Tools App', () => {
     vi.stubGlobal('Worker', BrokenWorker);
 
     const wrapper = await mountApp();
-    await selectTab(wrapper, 3);
+    await selectTab(wrapper, 4);
     await fillVisibleInputs(wrapper, ['7800', '1']);
 
     await expect(wrapper.find('.action-button').trigger('click')).resolves.toBeUndefined();
@@ -869,7 +870,7 @@ describe('Tools App', () => {
     const wrapper = await mountApp();
     const tabs = wrapper.findAll('.tab-button');
 
-    await tabs[9].trigger('click');
+    await tabs[10].trigger('click');
     await nextTick();
 
     expect(wrapper.find('.elsa-head p').text()).toBe('红色 · 平均格数');
@@ -886,7 +887,7 @@ describe('Tools App', () => {
 
   it('starts EventSource runs and renders streamed output', async () => {
     const wrapper = await mountApp();
-    await selectTab(wrapper, 3);
+    await selectTab(wrapper, 4);
     const inputs = wrapper.findAll('.form-grid input');
 
     await inputs[0].setValue('7800');
@@ -917,7 +918,7 @@ describe('Tools App', () => {
 
   it('renders gold average price results as a table', async () => {
     const wrapper = await mountApp();
-    await selectTab(wrapper, 3);
+    await selectTab(wrapper, 4);
     const inputs = wrapper.findAll('.form-grid input');
 
     await inputs[0].setValue('7800');
@@ -951,7 +952,7 @@ describe('Tools App', () => {
 
   it('sorts gold average price table results by numeric columns', async () => {
     const wrapper = await mountApp();
-    await selectTab(wrapper, 3);
+    await selectTab(wrapper, 4);
     const inputs = wrapper.findAll('.form-grid input');
 
     await inputs[0].setValue('7800');
@@ -1022,7 +1023,7 @@ describe('Tools App', () => {
 
   it('keeps table status outside the result table and hides empty count lines', async () => {
     const wrapper = await mountApp();
-    await selectTab(wrapper, 3);
+    await selectTab(wrapper, 4);
     const inputs = wrapper.findAll('.form-grid input');
 
     await inputs[0].setValue('7800');
@@ -1062,12 +1063,12 @@ describe('Tools App', () => {
     expect(document.documentElement.lang).toBe('en-US');
     expect(wrapper.find('h1').text()).toBe('Tools Calculator');
     expect(wrapper.find('.elsa-head p').text()).toBe('Elsa · Expected Value');
-    await selectTab(wrapper, 3);
+    await selectTab(wrapper, 4);
     expect(wrapper.find('.elsa-head p').text()).toBe('Gold · Average Price');
     expect(wrapper.find('.action-button').text()).toBe('Calculate');
     expect(wrapper.find('.ghost-button').text()).toBe('Stop');
 
-    await selectTab(wrapper, 10);
+    await selectTab(wrapper, 11);
     expect(wrapper.find('.elsa-head p').text()).toBe('Category · Average Price');
     expect(wrapper.find('.form-grid select option').text()).toBe('Household');
 
@@ -1095,14 +1096,14 @@ describe('Tools App', () => {
   });
 
   for (const tableCase of [
-    { index: 4, title: '金色 · 总价格', values: ['15600'] },
-    { index: 5, title: '金色 · 平均格数', values: ['3.5', '2'] },
-    { index: 6, title: '紫色 · 平均格数', values: ['3.5', '2'] },
-    { index: 7, title: '紫色 · 平均价格', values: ['7800', '2'] },
-    { index: 8, title: '紫色 · 总价格', values: ['10380'] },
-    { index: 9, title: '红色 · 平均格数', values: ['3.5', '2'] },
-    { index: 10, title: '类目 · 平均价格', values: ['7800', '2'] },
-    { index: 11, title: 'X件 · 平均价格', values: ['2', '7800'] },
+    { index: 5, title: '金色 · 总价格', values: ['15600'] },
+    { index: 6, title: '金色 · 平均格数', values: ['3.5', '2'] },
+    { index: 7, title: '紫色 · 平均格数', values: ['3.5', '2'] },
+    { index: 8, title: '紫色 · 平均价格', values: ['7800', '2'] },
+    { index: 9, title: '紫色 · 总价格', values: ['10380'] },
+    { index: 10, title: '红色 · 平均格数', values: ['3.5', '2'] },
+    { index: 11, title: '类目 · 平均价格', values: ['7800', '2'] },
+    { index: 12, title: 'X件 · 平均价格', values: ['2', '7800'] },
   ]) {
     it(`renders ${tableCase.title} results with the shared table layout`, async () => {
       const wrapper = await mountApp();

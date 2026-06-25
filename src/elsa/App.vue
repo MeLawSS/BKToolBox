@@ -4,6 +4,7 @@ import TopBar from '../shared/TopBar.vue';
 import ElsaHeroPanel from './ElsaHeroPanel.vue';
 import EthanHeroPanel from '../ethan/EthanHeroPanel.vue';
 import AhmedPanel from '../ahmed/AhmedPanel.vue';
+import ToolsMinimumCellsDebuggerPanel from './ToolsMinimumCellsDebuggerPanel.vue';
 import {
   applySolverOutputMessage,
   buildSolverOutputSnapshot,
@@ -178,6 +179,13 @@ const tabs = [
     tabId: 'ahmed',
     panelKey: 'ahmed-panel',
     component: AhmedPanel,
+  },
+  {
+    kind: 'panel',
+    titleKey: 'tools.tabs.minCellsDebugger',
+    tabId: 'min-cells-debugger',
+    panelKey: 'min-cells-debugger-panel',
+    component: ToolsMinimumCellsDebuggerPanel,
   },
   ...solverTabs.map((tab) => ({ kind: 'solver', ...tab })),
 ];
