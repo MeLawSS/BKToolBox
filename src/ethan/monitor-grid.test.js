@@ -9,6 +9,19 @@ import {
   setInferenceAlgorithmV2,
 } from './monitor-grid.js';
 
+function rectangleOutline(boxId, width, height, columns = 10) {
+  return {
+    boxId,
+    width,
+    height,
+    cells: Array.from({ length: height }, (_, row) => Array.from(
+      { length: width },
+      (_, column) => boxId + row * columns + column,
+    )).flat(),
+    label: `${width}x${height}`,
+  };
+}
+
 function skillEvent(overrides = {}) {
   return {
     key: 'event-1',
@@ -428,7 +441,7 @@ describe('Ethan monitor grid helpers', () => {
 });
 
 describe('V2 inference algorithm', () => {
-  it('matches V1 on the placement-sequence-with-holes case', () => {
+  it('keeps prefix holes empty when the known outlines already enforce the placement order', () => {
     const result = inferMinimumOccupiedCellsV2({
       outlines: [
         { boxId: 1, row: 1, column: 1, width: 1, height: 1, cells: [1], label: '1x1' },
@@ -441,14 +454,15 @@ describe('V2 inference algorithm', () => {
     });
 
     expect(result.valid).toBe(true);
-    expect(result.minTotalCells).toBe(30);
+    expect(result.minTotalCells).toBe(20);
     expect(result.knownOutlineCellCount).toBe(20);
-    expect(result.unknownBlockingCellCount).toBe(10);
+    expect(result.unknownBlockingCellCount).toBe(0);
+    expect(result.unknownBlockingCells).toEqual([]);
     expect(result.order).toEqual([1, 2, 4, 5, 21, 26]);
-    expect(result.holeCells).toEqual([]);
+    expect(result.holeCells).toEqual([7, 8, 9, 10, 11, 14, 17, 18, 19, 20]);
   });
 
-  it('matches V1 on the single-outline case', () => {
+  it('leaves legal non-start gaps empty on the single-outline case', () => {
     const result = inferMinimumOccupiedCellsV2({
       outlines: [{
         boxId: 19,
@@ -462,9 +476,10 @@ describe('V2 inference algorithm', () => {
     });
 
     expect(result.valid).toBe(true);
-    expect(result.minTotalCells).toBe(22);
+    expect(result.minTotalCells).toBe(21);
     expect(result.knownOutlineCellCount).toBe(4);
-    expect(result.unknownBlockingCellCount).toBe(18);
+    expect(result.unknownBlockingCellCount).toBe(17);
+    expect(result.unknownBlockingCells).not.toContain(10);
     expect(result.unknownBlockingCells).not.toContain(21);
   });
 
@@ -512,6 +527,45 @@ describe('V2 inference algorithm', () => {
     expect(result.minTotalCells).toBeGreaterThanOrEqual(60);
     expect(result.minTotalCells).toBeLessThanOrEqual(62);
     expect(result.order).toEqual([2, 4, 6, 8, 11, 13, 17, 19, 28, 35, 41, 53]);
+  });
+
+  it('does not fill row-overflow cells that cannot be legal earlier starts', () => {
+    const result = inferMinimumOccupiedCellsV2({
+      outlines: [
+        { boxId: 5, width: 1, height: 5, cells: [5, 15, 25, 35, 45], label: '1x5' },
+        { boxId: 11, width: 3, height: 1, cells: [11, 12, 13], label: '3x1' },
+      ],
+    });
+
+    expect(result.valid).toBe(true);
+    expect(result.minTotalCells).toBe(15);
+    expect(result.knownOutlineCellCount).toBe(8);
+    expect(result.unknownBlockingCellCount).toBe(7);
+    expect(result.unknownBlockingCells).toEqual([1, 2, 3, 4, 6, 7, 8]);
+    expect(result.unknownBlockingCells).not.toContain(9);
+    expect(result.unknownBlockingCells).not.toContain(10);
+    expect(result.order).toEqual([5, 11]);
+  });
+
+  it('keeps screenshot-derived anchor gaps empty when earlier outlines already block the anchor', () => {
+    const outlines = [
+      [1, 1, 1], [2, 1, 1], [3, 1, 1], [4, 1, 1], [5, 1, 1],
+      [6, 3, 3], [9, 1, 1], [10, 1, 1], [11, 2, 1], [13, 1, 1],
+      [14, 1, 1], [15, 1, 1], [19, 2, 2], [21, 1, 1], [22, 1, 1],
+      [23, 1, 1], [24, 1, 1], [25, 1, 2], [31, 4, 1], [36, 1, 1],
+      [37, 1, 1], [38, 2, 2], [40, 1, 1], [41, 1, 2], [42, 1, 1],
+      [43, 1, 1], [44, 1, 1], [45, 2, 2], [47, 1, 1], [52, 2, 2],
+      [57, 2, 3],
+    ].map(([boxId, width, height]) => rectangleOutline(boxId, width, height));
+
+    const result = inferMinimumOccupiedCellsV2({ outlines });
+
+    expect(result.valid).toBe(true);
+    expect(result.minTotalCells).toBe(62);
+    expect(result.knownOutlineCellCount).toBe(62);
+    expect(result.unknownBlockingCellCount).toBe(0);
+    expect(result.unknownBlockingCells).toEqual([]);
+    expect(result.holeCells).toEqual([50, 54, 59, 60, 61, 64, 65, 66, 69, 70, 71, 72, 73, 74, 75, 76]);
   });
 
   it('returns null for empty outlines', () => {
