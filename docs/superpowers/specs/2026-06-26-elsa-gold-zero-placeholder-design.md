@@ -1,5 +1,7 @@
 # Elsa Gold Zero Placeholder Design
 
+Note: the user-facing term "gold" (`金`) maps to the internal group key `orange` throughout this spec.
+
 ## Goal
 
 When the Elsa expected-value page receives a realtime monitor aggregate event proving that the gold/orange group's average occupied cells is `0`, the page should automatically:
@@ -30,7 +32,8 @@ The current system already supports:
 - orange average-cells aggregate facts via `group.averageCellsKnown`
 - orange total-cells aggregate facts via `group.totalCellsKnown`
 - placeholder-only monitor autofill behavior
-- zero-total placeholder cases for adjacent scenarios such as Ethan orange `totalHitBoxIndex = 0` and Ethan purple zero-count aggregate inference
+- direct zero-total facts from protocol payloads such as Ethan orange `totalHitBoxIndex = 0`
+- inferred zero-total facts such as Ethan purple zero-count aggregate inference
 
 This means the missing behavior is not UI wiring. The missing behavior is a narrow fact-level inference:
 
@@ -38,6 +41,8 @@ This means the missing behavior is not UI wiring. The missing behavior is a narr
 - then the system should also treat orange total cells as known `0`
 
 The closest implementation template is the existing `buildZeroCountTotalCellsFact()` helper in `lib/bidking-monitor-facts.js`: keep the inference in the fact-building layer and let downstream state/UI remain unchanged.
+
+That helper is a precedent for layer placement, not for exact insertion shape. The purple rule lives inside `buildAggregateFact()` because it still produces at most one aggregate fact. The gold rule deliberately differs: it should keep `buildAggregateFact()` as a single-fact helper and append one extra inferred fact in `buildBidKingMonitorFacts()` after the direct orange average fact has already been produced.
 
 ## Design Summary
 
@@ -63,6 +68,8 @@ All downstream layers remain unchanged. The existing monitor store and placehold
 - `#elsa-cells-orange` placeholder = `0`
 
 while keeping both actual input values empty unless the user types into them.
+
+The profile scope is intentionally different from the purple zero-count rule. Purple zero-count inference is Ethan-only because its trigger is tied to a specific protocol pattern (`skillCid 203 + hitItemIndex === 0`) that is currently only trusted for Ethan. Gold zero-average inference is profile-agnostic because once a valid orange `group.averageCellsKnown` fact already exists, numeric average `0` implies total cells `0` regardless of hero.
 
 ## Alternatives Considered
 
@@ -106,7 +113,7 @@ The architecture stays:
 1. monitor event enters `buildBidKingMonitorFacts()`
 2. aggregate parsing resolves an orange average-cells fact
 3. `buildBidKingMonitorFacts()` keeps `buildAggregateFact()` unchanged as a single-fact helper
-4. after `buildAggregateFact()` returns a valid orange `group.averageCellsKnown` fact with numeric value `0`, `buildBidKingMonitorFacts()` appends one extra orange total-cells fact with value `0`
+4. immediately after the existing `buildAggregateFact()` call path inside `buildBidKingMonitorFacts()`, if the returned fact is `group.averageCellsKnown` for `orange` with numeric value `0`, `buildBidKingMonitorFacts()` appends one extra orange total-cells fact with value `0`
 5. monitor store applies both facts to state
 6. shared hero-estimator placeholder logic renders both placeholders as `0`
 
@@ -137,6 +144,36 @@ The fact builder should:
 This should be implemented as an additive rule. It must not remove or replace the average fact.
 
 Implementation detail: keep `buildAggregateFact()` returning a single fact or `null`. The safer change is to add the zero-total inference in `buildBidKingMonitorFacts()` after the existing `aggregateFact` has been computed and pushed, rather than refactoring `buildAggregateFact()` to return arrays.
+
+Concrete insertion sketch in `buildBidKingMonitorFacts()`:
+
+```js
+const aggregateFact = buildAggregateFact(event, source, resolvedProfile);
+if (aggregateFact) {
+  facts.push(aggregateFact);
+
+  if (
+    aggregateFact.type === 'group.averageCellsKnown' &&
+    aggregateFact.group === 'orange' &&
+    Number(aggregateFact.value) === 0
+  ) {
+    facts.push({
+      type: 'group.totalCellsKnown',
+      key: `${source.key}:group.totalCellsKnown:orange`,
+      gameUid: event.gameUid ? String(event.gameUid) : null,
+      group: 'orange',
+      value: 0,
+      source,
+    });
+  }
+}
+```
+
+This makes the insertion point unambiguous:
+
+- do not refactor `buildAggregateFact()` to return arrays
+- do not add the rule in the monitor store
+- do not add Elsa-only UI branching
 
 ### State application
 
@@ -209,20 +246,31 @@ Update `src/hero-estimator/HeroEstimatorPanel.test.js` with an Elsa monitor regr
 - `#elsa-cells-orange` has placeholder `0`
 - both inputs still have empty string values
 
+## Documentation Update
+
+Update `docs/Documentation.md` to record the new current-state behavior:
+
+- when monitor facts resolve orange average cells to `0`, `lib/bidking-monitor-facts.js` also emits `group.totalCellsKnown = 0`
+- Elsa therefore shows both gold average-cells and gold total-cells placeholders as `0`
+- the behavior remains placeholder-only and does not overwrite explicit input values
+
 ## Verification
 
-At implementation time, the minimum targeted verification should include:
+At implementation time, targeted verification should include:
 
 ```powershell
 npx vitest run lib/bidking-monitor-facts.test.mjs src/hero-estimator/HeroEstimatorPanel.test.js
+git diff --check
 ```
 
-If broader repo validation is desired after implementation, it can follow the normal project chain:
+Broader repo verification is also required:
 
 ```powershell
 npm test
 npm run build:pages
 ```
+
+`package.json` does not currently define dedicated `lint` or `typecheck` scripts, so the required broader verification for this repo is `npm test` plus `npm run build:pages` rather than nonexistent lint/typecheck commands.
 
 ## Acceptance Criteria
 
@@ -234,3 +282,5 @@ The work is complete when all of the following are true:
 - neither field's explicit value is auto-written
 - the new fact-level regression tests pass
 - the new Elsa placeholder regression test passes
+- `docs/Documentation.md` records the new orange zero-average -> zero-total placeholder behavior
+- `git diff --check`, `npm test`, and `npm run build:pages` pass during implementation verification
