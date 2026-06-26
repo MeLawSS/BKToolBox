@@ -49,6 +49,7 @@
 - `Price`
   - 展示长期最低价历史、`>= 2x` opportunities、Collections 藏品价格历史和仓库价格视图
   - 在桌面模式下支持刷新单个藏品交易所价格、读取主仓持有快照，并通过 `useWarehouseAutoSeller` 按序自动批量上架仓库藏品
+  - 当自动售卖完成或失败时（桌面环境下，需要 `bidkingDesktop` 桥接），`useWarehouseAutoSeller` 会通过 `window.bidkingDesktop.showNotification` 发送 Windows 桌面通知；通知失败不会阻塞售卖流程
 - `Inject`
   - 已改为 workspace shell：左侧按 `基础 / 交易` 分组切换 panel，右侧只显示一个激活 panel
   - 基础 panel 为 `展示柜收益 / Agent 状态 / 控制器 / 元操作`，交易 panel 为 `仓库统计 / 批量移仓 / 延迟价格查询 / 收藏价格采集`
