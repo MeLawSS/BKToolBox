@@ -2703,6 +2703,7 @@ describe('auto-seller', () => {
       _autoSellerUnmount();
       _autoSellerUnmount = null;
     }
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
