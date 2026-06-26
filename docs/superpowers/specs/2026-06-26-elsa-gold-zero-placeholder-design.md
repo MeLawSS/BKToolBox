@@ -155,7 +155,7 @@ if (aggregateFact) {
   if (
     aggregateFact.type === 'group.averageCellsKnown' &&
     aggregateFact.group === 'orange' &&
-    Number(aggregateFact.value) === 0
+    aggregateFact.value === 0
   ) {
     facts.push({
       type: 'group.totalCellsKnown',
@@ -234,7 +234,8 @@ Update `lib/bidking-monitor-facts.test.mjs` with:
 - a positive case proving an orange average-cells aggregate event with `allHitItemAvgBoxIndex: 0` emits both:
   - `group.averageCellsKnown` for `orange` with value `0`
   - `group.totalCellsKnown` for `orange` with value `0`
-- a profile-scope case proving the same orange zero-average inference is not Ethan-only and also appears when `buildBidKingMonitorFacts()` runs under `ELSA_MONITOR_PROFILE`
+- the first positive case can rely on the default `buildBidKingMonitorFacts()` profile parameter, so it already covers the Ethan/default path
+- a separate profile-scope case should prove the same orange zero-average inference is not Ethan-only and also appears when `buildBidKingMonitorFacts()` runs under `ELSA_MONITOR_PROFILE`
 - a negative case proving orange average-cells `> 0` does not emit an extra zero total-cells fact
 - a negative case proving purple/red average-cells `0` does not gain the same inference in this round
 
