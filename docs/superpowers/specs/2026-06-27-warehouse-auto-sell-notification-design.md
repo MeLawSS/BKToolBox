@@ -7,7 +7,7 @@ When the warehouse auto-seller completes successfully or fails, show a Windows d
 ## Non-Goals
 
 - Do not modify `electron/services/desktop-notification.js` or the IPC layer
-- Do not add i18n translation for notification text (use Chinese, consistent with Elsa auto-auction notifications)
+- Do not add i18n translation for notification wrapper text (use Chinese, consistent with Elsa auto-auction notifications). Note: `lastError.value` may already contain i18n-translated strings from App.vue's `errors` config, so failure notification bodies can mix Chinese prefixes with English error messages when the UI is set to English — this is an acceptable, intentionally un-fixed bilingual edge case.
 - Do not add public notification configuration options to the composable
 
 ## Current Context
@@ -152,24 +152,36 @@ Mock `window.bidkingDesktop.showNotification` as a `vi.fn().mockResolvedValue({ 
 - First argument is `'BKToolBox'`
 - Second argument contains `'自动售卖完成'` and the success count and skipped count
 
-### 2. Failure notification — item processing error
+### 2. Failure notification — _handleNonRecoverableSkip snapshot failure
 
-Cause a failure (e.g., mock `GetItemTradeInfo` to return `{ ok: false }`). Assert:
-- `showNotification` was called with `'BKToolBox'` and a body containing `'自动售卖失败'` and the error message
+Mock `refreshWarehouseSnapshot` to return `{ ok: false, error: 'Warehouse refresh failed' }`. This causes `_handleNonRecoverableSkip` (triggered by e.g. a `GetItemTradeInfo` failure) to fail its internal snapshot and return `'failed'` to `start()`. Assert:
+- `showNotification` was called with `'BKToolBox'` and a body containing `'自动售卖失败'` and `'Warehouse refresh failed'`
 
 ### 3. Failure notification — initial snapshot failure
 
-Mock `refreshWarehouseSnapshot` to return `{ ok: false, error: 'Warehouse refresh failed' }`. Assert:
+Mock `refreshWarehouseSnapshot` to return `{ ok: false, error: 'Warehouse refresh failed' }` on the very first call. Assert:
 - `showNotification` was called with `'BKToolBox'` and a body containing `'自动售卖失败'` and `'Warehouse refresh failed'`
 
 ### 4. Failure notification — snapshot-after-success failure
 
-Mock `refreshWarehouseSnapshot` to succeed on the first call (allowing at least one item to sell) then fail on a subsequent call. Assert:
+Mock `refreshWarehouseSnapshot` to succeed on the initial call (allowing at least one item to sell) then fail on a subsequent call. Assert:
 - `showNotification` was called with `'BKToolBox'` and a body containing `'自动售卖失败'` and the snapshot error
 
-### 5. Non-desktop environment
+### 5. Notification failure does not block auto-seller — `{ ok: false }`
 
-Set `window.bidkingDesktop = undefined`. Run auto-seller to completion. Assert:
+Mock `showNotification` to return `{ ok: false, shown: false }`. Run auto-seller to completion. Assert:
+- `phase.value === 'completed'` or `'failed'` (depending on test setup) — i.e. auto-seller completed normally
+- No exception thrown
+
+### 6. Notification failure does not block auto-seller — thrown error
+
+Mock `showNotification` to throw `new Error('notification crashed')`. Run auto-seller to completion. Assert:
+- `phase.value === 'completed'` or `'failed'` — auto-seller completed normally
+- No exception propagated
+
+### 7. Non-desktop environment (showNotification absent)
+
+Install `window.bidkingDesktop = { runAutoOperationCommand: vi.fn(...) }` with no `showNotification` property. Run auto-seller through to completion. Assert:
 - No exception thrown
 - `phase.value === 'completed'`
 
