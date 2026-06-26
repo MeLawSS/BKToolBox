@@ -363,6 +363,39 @@ inline std::string GetOpponentCurrentRoundBidSignalPath(int slot) {
     return std::string(path);
 }
 
+// Returns the path of the selectBg node that is active only on the local
+// player's slot (green left-side highlight visible in both live and replay).
+inline std::string GetSelfSlotIndicatorPath(int slot) {
+    char path[256];
+    snprintf(path, sizeof(path),
+        "Gaming/PlayerContainer/Player_%d/selectBg",
+        slot);
+    return std::string(path);
+}
+
+// Returns true (and sets *outSelfSlot to the 1-based slot index) when exactly
+// one slot in selectBgActive[0..slotCount-1] is true. Returns false if zero
+// or more than one slot is active (ambiguous or UI not ready).
+inline bool TryResolveSelfSlotFromSelectBg(
+    const bool* selectBgActive,
+    int slotCount,
+    int* outSelfSlot
+) {
+    if (!selectBgActive || slotCount <= 0 || !outSelfSlot) return false;
+    *outSelfSlot = 0;
+    int found = 0;
+    int foundSlot = 0;
+    for (int i = 0; i < slotCount; ++i) {
+        if (selectBgActive[i]) {
+            found++;
+            foundSlot = i + 1;
+        }
+    }
+    if (found != 1) return false;
+    *outSelfSlot = foundSlot;
+    return true;
+}
+
 inline bool DidAnyNewCurrentRoundBidSignalAppear(
     const bool* entrySignals,
     const bool* currentSignals,

@@ -1821,6 +1821,23 @@ static void ReadCurrentRoundBidSignals(
     }
 }
 
+static void ReadSelectBgActiveStates(
+    Il2CppObject* battleTransform,
+    bool* outActive,
+    int slotCount
+) {
+    if (!outActive || slotCount <= 0) return;
+    for (int i = 0; i < slotCount; ++i) {
+        outActive[i] = false;
+    }
+    if (!battleTransform) return;
+
+    for (int i = 0; i < slotCount; ++i) {
+        const std::string path = GetSelfSlotIndicatorPath(i + 1);
+        outActive[i] = HasExactActiveNode(battleTransform, path.c_str());
+    }
+}
+
 static bool TryReadActiveBidDialogInputNode(
     Il2CppObject* battleTransform,
     UiNodeSnapshot* outNode
@@ -2535,6 +2552,21 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     }
                 }
 
+                // Phase 1: resolve opponent slot.
+                // Prefer selectBg-based detection: the local player's slot has
+                // selectBg active regardless of whether real names are shown
+                // (in live gameplay only 巅峰收藏家X is displayed).
+                {
+                    bool selectBgActive[2] = { false, false };
+                    ReadSelectBgActiveStates(s.battleMainTransform, selectBgActive, 2);
+                    int selfSlot = 0;
+                    if (TryResolveSelfSlotFromSelectBg(selectBgActive, 2, &selfSlot)) {
+                        capOpponentSlot = (selfSlot == 1) ? 2 : 1;
+                    }
+                }
+
+                // Phase 2: read player names (needed for logging and as fallback
+                // when selectBg detection is unavailable).
                 std::string player1Name;
                 std::string player2Name;
                 const bool hasPlayer1Name = TryReadVisiblePlayerName(s.battleMainTransform, 1, &player1Name) &&
@@ -2542,48 +2574,51 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                 const bool hasPlayer2Name = TryReadVisiblePlayerName(s.battleMainTransform, 2, &player2Name) &&
                     !player2Name.empty();
 
-                if (!hasPlayer1Name && !hasPlayer2Name) {
-                    fallbackReason = "player_names_missing";
-                } else {
-                    if (!TryResolveOpponentSlot(
+                if (capOpponentSlot == 0) {
+                    // selectBg detection failed; fall back to name-based resolution.
+                    if (!hasPlayer1Name && !hasPlayer2Name) {
+                        fallbackReason = "player_names_missing";
+                    } else if (!TryResolveOpponentSlot(
                         selfName,
                         hasPlayer1Name ? player1Name : std::string(),
                         hasPlayer2Name ? player2Name : std::string(),
                         &capOpponentSlot
                     )) {
                         fallbackReason = "opponent_slot_ambiguous";
+                    }
+                }
+
+                if (capOpponentSlot != 0) {
+                    capOpponentName = capOpponentSlot == 1 ? player1Name : player2Name;
+                    int opponentPreviousBid = 0;
+                    if (!TryReadOpponentPreviousRoundBid(
+                        s.battleMainTransform,
+                        capOpponentSlot,
+                        roundsEncountered,
+                        &opponentPreviousBid,
+                        &fallbackReason
+                    )) {
+                        // fallbackReason already set by helper
                     } else {
-                        capOpponentName = capOpponentSlot == 1 ? player1Name : player2Name;
-                        int opponentPreviousBid = 0;
-                        if (!TryReadOpponentPreviousRoundBid(
-                            s.battleMainTransform,
-                            capOpponentSlot,
-                            roundsEncountered,
-                            &opponentPreviousBid,
-                            &fallbackReason
-                        )) {
-                            // fallbackReason already set by helper
+                        double multiplier = 0.0;
+                        if (!TryGetOpponentCapMultiplier(roundsEncountered, &multiplier)) {
+                            fallbackReason = "current_round_out_of_scope";
                         } else {
-                            double multiplier = 0.0;
-                            if (!TryGetOpponentCapMultiplier(roundsEncountered, &multiplier)) {
-                                fallbackReason = "current_round_out_of_scope";
+                            const int opponentCap = (int)floor(opponentPreviousBid * multiplier);
+                            if (opponentCap <= 0) {
+                                fallbackReason = "opponent_cap_non_positive";
                             } else {
-                                const int opponentCap = (int)floor(opponentPreviousBid * multiplier);
-                                if (opponentCap <= 0) {
-                                    fallbackReason = "opponent_cap_non_positive";
-                                } else {
-                                    amount = ComputeOpponentCappedBid(originalBid, opponentPreviousBid, multiplier);
-                                    Logf(
-                                        "AutoAuction round=%d opponent=%s prevBid=%d multiplier=%.2f originalBid=%d cappedBid=%d finalBid=%d",
-                                        roundsEncountered,
-                                        capOpponentName.c_str(),
-                                        opponentPreviousBid,
-                                        multiplier,
-                                        originalBid,
-                                        opponentCap,
-                                        amount
-                                    );
-                                }
+                                amount = ComputeOpponentCappedBid(originalBid, opponentPreviousBid, multiplier);
+                                Logf(
+                                    "AutoAuction round=%d opponent=%s prevBid=%d multiplier=%.2f originalBid=%d cappedBid=%d finalBid=%d",
+                                    roundsEncountered,
+                                    capOpponentName.c_str(),
+                                    opponentPreviousBid,
+                                    multiplier,
+                                    originalBid,
+                                    opponentCap,
+                                    amount
+                                );
                             }
                         }
                     }

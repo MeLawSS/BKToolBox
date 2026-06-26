@@ -426,5 +426,40 @@ int main() {
     // Poll interval
     assert(GetExpectedPriceConfirmGatePollIntervalMs() == 100);
 
+    // GetSelfSlotIndicatorPath
+    assert(GetSelfSlotIndicatorPath(1) == "Gaming/PlayerContainer/Player_1/selectBg");
+    assert(GetSelfSlotIndicatorPath(2) == "Gaming/PlayerContainer/Player_2/selectBg");
+    assert(GetSelfSlotIndicatorPath(4) == "Gaming/PlayerContainer/Player_4/selectBg");
+
+    // TryResolveSelfSlotFromSelectBg — 2-player
+    {
+        int selfSlot = 0;
+        bool active[2] = { true, false };
+        assert(TryResolveSelfSlotFromSelectBg(active, 2, &selfSlot) && selfSlot == 1);
+    }
+    {
+        int selfSlot = 0;
+        bool active[2] = { false, true };
+        assert(TryResolveSelfSlotFromSelectBg(active, 2, &selfSlot) && selfSlot == 2);
+    }
+    {
+        int selfSlot = 0;
+        bool active[2] = { false, false };
+        assert(!TryResolveSelfSlotFromSelectBg(active, 2, &selfSlot));
+    }
+    {
+        int selfSlot = 0;
+        bool active[2] = { true, true };
+        assert(!TryResolveSelfSlotFromSelectBg(active, 2, &selfSlot));
+    }
+    // 4-player
+    {
+        int selfSlot = 0;
+        bool active[4] = { false, false, true, false };
+        assert(TryResolveSelfSlotFromSelectBg(active, 4, &selfSlot) && selfSlot == 3);
+    }
+    // null / zero guard
+    assert(!TryResolveSelfSlotFromSelectBg(nullptr, 2, nullptr));
+
     return 0;
 }
