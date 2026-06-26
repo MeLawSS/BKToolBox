@@ -152,6 +152,7 @@
 - `Tools` 页面自身现在保存 tab/筛选/solver 输出状态到 `bidking-page-state:v2:elsa`；恢复时会按旧 tab 顺序把 legacy `bidking-page-state:v1:elsa` 数组状态迁移到新的 `tabId` keyed 结构，避免 hero tabs 插入后把老用户状态错位恢复到错误工具
 - `Tools` 通过 `?tab=elsa|ethan|ahmed` 驱动初始 hero tab 选择，并在切换 hero tab 时同步更新 URL
 - 当 monitor 聚合事件能确定 `purple` 组且只给出 `hitItemIndex: 0`、未给 `totalHitBoxIndex` 时，`lib/bidking-monitor-facts.js` 会补发 `group.totalCellsKnown = 0`；`src/hero-estimator/useHeroEstimatorPanel.js` 因此会把 `#cells-purple` 的 placeholder 显示为 `0`，但不会替用户写入显式 input value。
+- 当 monitor 聚合事件解析出 `orange` 组 `group.averageCellsKnown = 0` 时，`lib/bidking-monitor-facts.js` 会补发 `group.totalCellsKnown = 0`；Elsa 因此会把 `#elsa-avg-orange` 和 `#elsa-cells-orange` 的 placeholder 都显示为 `0`，但不会替用户写入显式 input value。
 
 ## 监控与抓包事实
 
