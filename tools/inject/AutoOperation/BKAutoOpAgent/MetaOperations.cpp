@@ -2552,68 +2552,89 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     }
                 }
 
-                // Phase 1: resolve opponent slot.
-                // Prefer selectBg-based detection: the local player's slot has
-                // selectBg active regardless of whether real names are shown
-                // (in live gameplay only 巅峰收藏家X is displayed).
+                // Phase 1: resolve self slot via selectBg so all remaining slots
+                // are treated as opponents. Active selectBg marks the local player
+                // regardless of whether real names are shown.
+                static const int kCapSlotCount = 4;
+                int selfSlot = 0;
                 {
-                    bool selectBgActive[2] = { false, false };
-                    ReadSelectBgActiveStates(s.battleMainTransform, selectBgActive, 2);
-                    int selfSlot = 0;
-                    if (TryResolveSelfSlotFromSelectBg(selectBgActive, 2, &selfSlot)) {
-                        capOpponentSlot = (selfSlot == 1) ? 2 : 1;
-                    }
+                    bool selectBgActive[kCapSlotCount] = {};
+                    ReadSelectBgActiveStates(s.battleMainTransform, selectBgActive, kCapSlotCount);
+                    TryResolveSelfSlotFromSelectBg(selectBgActive, kCapSlotCount, &selfSlot);
                 }
 
                 // Phase 2: read player names (needed for logging and as fallback
                 // when selectBg detection is unavailable).
-                std::string player1Name;
-                std::string player2Name;
-                const bool hasPlayer1Name = TryReadVisiblePlayerName(s.battleMainTransform, 1, &player1Name) &&
-                    !player1Name.empty();
-                const bool hasPlayer2Name = TryReadVisiblePlayerName(s.battleMainTransform, 2, &player2Name) &&
-                    !player2Name.empty();
+                std::string playerNames[kCapSlotCount];
+                for (int i = 0; i < kCapSlotCount; ++i) {
+                    TryReadVisiblePlayerName(s.battleMainTransform, i + 1, &playerNames[i]);
+                }
+                const bool hasPlayer1Name = !playerNames[0].empty();
+                const bool hasPlayer2Name = !playerNames[1].empty();
 
-                if (capOpponentSlot == 0) {
-                    // selectBg detection failed; fall back to name-based resolution.
+                if (selfSlot == 0) {
+                    // selectBg detection failed; resolve opponent slot by name then
+                    // invert. Only reliable in 2-player rooms.
                     if (!hasPlayer1Name && !hasPlayer2Name) {
                         fallbackReason = "player_names_missing";
-                    } else if (!TryResolveOpponentSlot(
-                        selfName,
-                        hasPlayer1Name ? player1Name : std::string(),
-                        hasPlayer2Name ? player2Name : std::string(),
-                        &capOpponentSlot
-                    )) {
-                        fallbackReason = "opponent_slot_ambiguous";
+                    } else {
+                        int opponentSlotFromNames = 0;
+                        if (!TryResolveOpponentSlot(
+                            selfName,
+                            hasPlayer1Name ? playerNames[0] : std::string(),
+                            hasPlayer2Name ? playerNames[1] : std::string(),
+                            &opponentSlotFromNames
+                        )) {
+                            fallbackReason = "opponent_slot_ambiguous";
+                        } else {
+                            selfSlot = (opponentSlotFromNames == 1) ? 2 : 1;
+                        }
                     }
                 }
 
-                if (capOpponentSlot != 0) {
-                    capOpponentName = capOpponentSlot == 1 ? player1Name : player2Name;
-                    int opponentPreviousBid = 0;
-                    if (!TryReadOpponentPreviousRoundBid(
-                        s.battleMainTransform,
-                        capOpponentSlot,
-                        roundsEncountered,
-                        &opponentPreviousBid,
-                        &fallbackReason
-                    )) {
-                        // fallbackReason already set by helper
+                if (selfSlot != 0) {
+                    // Among all non-self slots, pick the one with the highest
+                    // previous-round bid as the cap reference.
+                    int bestBid = 0;
+                    int bestSlot = 0;
+                    std::string lastReadReason;
+                    for (int slot = 1; slot <= kCapSlotCount; ++slot) {
+                        if (slot == selfSlot) continue;
+                        int bid = 0;
+                        std::string readReason;
+                        if (TryReadOpponentPreviousRoundBid(
+                            s.battleMainTransform,
+                            slot,
+                            roundsEncountered,
+                            &bid,
+                            &readReason
+                        ) && bid > bestBid) {
+                            bestBid = bid;
+                            bestSlot = slot;
+                        } else if (!readReason.empty()) {
+                            lastReadReason = readReason;
+                        }
+                    }
+
+                    if (bestSlot == 0) {
+                        fallbackReason = lastReadReason.empty() ? "no_opponent_bid_found" : lastReadReason;
                     } else {
+                        capOpponentSlot = bestSlot;
+                        capOpponentName = playerNames[capOpponentSlot - 1];
                         double multiplier = 0.0;
                         if (!TryGetOpponentCapMultiplier(roundsEncountered, &multiplier)) {
                             fallbackReason = "current_round_out_of_scope";
                         } else {
-                            const int opponentCap = (int)floor(opponentPreviousBid * multiplier);
+                            const int opponentCap = (int)floor(bestBid * multiplier);
                             if (opponentCap <= 0) {
                                 fallbackReason = "opponent_cap_non_positive";
                             } else {
-                                amount = ComputeOpponentCappedBid(originalBid, opponentPreviousBid, multiplier);
+                                amount = ComputeOpponentCappedBid(originalBid, bestBid, multiplier);
                                 Logf(
                                     "AutoAuction round=%d opponent=%s prevBid=%d multiplier=%.2f originalBid=%d cappedBid=%d finalBid=%d",
                                     roundsEncountered,
                                     capOpponentName.c_str(),
-                                    opponentPreviousBid,
+                                    bestBid,
                                     multiplier,
                                     originalBid,
                                     opponentCap,
