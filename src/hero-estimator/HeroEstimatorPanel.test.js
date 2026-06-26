@@ -13,6 +13,7 @@ import {
   calculateEstimationResult,
   createStreamRun,
   finishStreamRun,
+  runPriceMatchPhase,
 } from '../ethan/estimation-worker-core.js';
 
 const require = createRequire(import.meta.url);
@@ -141,11 +142,29 @@ class FakeEstimationWorker {
               },
             });
           });
+          runPriceMatchPhase({
+            result,
+            state: result.state ?? message.state,
+            collectibleItemsByGroup: message.collectibleItemsByGroup,
+            predictionGroupKeys: message.predictionGroupKeys,
+            profile: message.profile,
+            runId: message.runId,
+            postMessage: (msg) => this.onmessage?.({ data: msg }),
+          });
           this.onmessage?.({ data: { type: 'done', runId: message.runId } });
           return;
         }
 
         this.onmessage?.({ data: { type: 'result', runId: message.runId, result } });
+        runPriceMatchPhase({
+          result,
+          state: result.state ?? message.state,
+          collectibleItemsByGroup: message.collectibleItemsByGroup,
+          predictionGroupKeys: message.predictionGroupKeys,
+          profile: message.profile,
+          runId: message.runId,
+          postMessage: (msg) => this.onmessage?.({ data: msg }),
+        });
         this.onmessage?.({ data: { type: 'done', runId: message.runId } });
       } catch (error) {
         this.onerror?.(error);
@@ -1899,7 +1918,7 @@ describe('HeroEstimatorPanel', () => {
     expect(elsaAutoBidKnownQualityKeys.value).toEqual(['orange']);
   });
 
-  it('applies price-match-update delta to direct result row and summary', async () => {
+  it('starts direct exact price matches from the overridden total and still applies later deltas', async () => {
     vi.stubGlobal('Worker', FakeEstimationWorker);
 
     const wrapper = mount(HeroEstimatorPanel, {
@@ -1917,15 +1936,14 @@ describe('HeroEstimatorPanel', () => {
     await wrapper.find('#estimate-form').trigger('submit');
     await settleWorkerStream();
 
-    // Formula: 7 × perCellExpected.purple (2482) = 17374
-    expect(wrapper.find('#total-estimate').text()).toBe('17,374');
+    expect(wrapper.find('#total-estimate').text()).toBe('20,400');
 
     const worker = getLatestEstimationWorker();
     const runId = FakeEstimationWorker.messages.at(-1)?.runId;
     worker.onmessage({ data: { type: 'price-match-update', runId, groupKey: 'purple', rowIndex: null, delta: 1000 } });
     await nextTick();
 
-    expect(wrapper.find('#total-estimate').text()).toBe('18,374');
+    expect(wrapper.find('#total-estimate').text()).toBe('21,400');
   });
 
   it('applies price-match-update delta to prediction row and updates summary when rowIndex is 0', async () => {

@@ -1024,6 +1024,30 @@ export function useHeroEstimatorPanel(profile) {
       return;
     }
 
+    if (result.type === 'combined') {
+      const configs = getPredictionConfigs(result.groupKeys ?? []);
+      tableRows.value = [];
+      summary.total = null;
+      summary.low = null;
+      summary.high = null;
+      lastState.value = result.state;
+      metaText.value = t(heroKey('meta.combinedAvgList'), {
+        labels: configs.map((config) => t(config.labelKey)).join('、'),
+        count: result.rows.length,
+      });
+      metaStatus.value = '';
+      for (const row of result.rows) {
+        renderWorkerRow({
+          mode: 'combined',
+          item: row.item,
+          matchedGroupKeys: row.matchedGroupKeys,
+          groupKeys: result.groupKeys,
+        });
+      }
+      saveState();
+      return;
+    }
+
     if (result.type === 'direct') {
       renderResults(result.state, result.prediction, result.groupRows.map((row) => {
         const groupKey = getGroupKeyForWorkerRow(row);
@@ -1057,9 +1081,13 @@ export function useHeroEstimatorPanel(profile) {
       row.high += delta;
       if (rowIndex === 0) {
         summary.total += delta;
-        summary.low += delta;
-        summary.high += delta;
       }
+      summary.low = tableRows.value.reduce((nextLow, entry) =>
+        nextLow === null ? entry.low : Math.min(nextLow, entry.low)
+      , null);
+      summary.high = tableRows.value.reduce((nextHigh, entry) =>
+        nextHigh === null ? entry.high : Math.max(nextHigh, entry.high)
+      , null);
     }
   }
 
@@ -1139,7 +1167,13 @@ export function useHeroEstimatorPanel(profile) {
         maxRemaining: row.companion.maxRemaining,
         totalCount: totalCountText,
       }),
-      tags: [t(heroKey('status.groupPriceMatchTag'), { label: t(config.labelKey) })],
+      tags: [
+        t(heroKey('status.groupPriceMatchTag'), { label: t(config.labelKey) }),
+        t(heroKey('status.groupPredictionLabel'), {
+          label: t(getPredictionConfig(row.companion.groupKey)?.labelKey ?? row.companion.groupKey),
+        }),
+      ],
+      predictionGroupKeys: [config.groupKey, row.companion.groupKey],
     };
   }
 
@@ -1310,6 +1344,24 @@ export function useHeroEstimatorPanel(profile) {
       group.priceAverage !== null;
   }
 
+  function getPriceOnlyCompanionGroupKeys(state, config) {
+    const configIndex = predictionConfigs.indexOf(config);
+    if (configIndex <= 0) return [];
+
+    return predictionConfigs
+      .slice(0, configIndex)
+      .filter((entry) => {
+        const explicitInput = groupInputs[entry.groupKey];
+        const explicitAvg = String(explicitInput?.avg ?? '').trim();
+        const explicitCells = String(explicitInput?.cells ?? '').trim();
+        if (!explicitAvg || !explicitCells) return false;
+
+        const group = state.groups[entry.groupKey];
+        return group?.avg !== null && group.cells !== null;
+      })
+      .map((entry) => entry.groupKey);
+  }
+
   function closePriceSearchAtLimit(source, runId, config) {
     if (priceSearchRunId !== runId || priceSearchSource !== source) return;
     source.close();
@@ -1424,6 +1476,7 @@ export function useHeroEstimatorPanel(profile) {
     priceSearchRunId = runId;
     const worker = ensureEstimationWorker(runId);
     if (!worker) return false;
+    const companionGroupKeys = getPriceOnlyCompanionGroupKeys(state, config);
     lastState.value = state;
     tableRows.value = [];
     summary.total = null;
@@ -1449,6 +1502,7 @@ export function useHeroEstimatorPanel(profile) {
       profile,
       collectibleItemsByGroup: collectibleItemsByGroup.value,
       predictionConfigs,
+      companionGroupKeys,
       limit: PREDICTION_OUTPUT_LIMIT,
       minCellSpacing: PRICE_COMBO_MIN_CELL_SPACING,
     }));

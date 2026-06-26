@@ -138,7 +138,7 @@ class FakeWorker {
         });
         runPriceMatchPhase({
           result,
-          state: message.state,
+          state: result.state ?? message.state,
           collectibleItemsByGroup: message.collectibleItemsByGroup,
           predictionGroupKeys: message.predictionGroupKeys,
           profile: message.profile,
@@ -149,7 +149,7 @@ class FakeWorker {
         this.onmessage?.({ data: { type: 'result', runId, result } });
         runPriceMatchPhase({
           result,
-          state: message.state,
+          state: result.state ?? message.state,
           collectibleItemsByGroup: message.collectibleItemsByGroup,
           predictionGroupKeys: message.predictionGroupKeys,
           profile: message.profile,
@@ -1768,7 +1768,7 @@ describe('Ethan App', () => {
     expect(runSources).toHaveLength(2);
   });
 
-  it('cancels pending average-price match tagging as soon as any monitor event arrives', async () => {
+  it('keeps exact average-price match tagging after unrelated monitor events arrive', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('EventSource', FakeEventSource);
     mockDataFetch({ collectibles: realCollectibles });
@@ -1790,7 +1790,7 @@ describe('Ethan App', () => {
     await nextTick();
 
     expect(wrapper.find('#result-body').text()).toContain('方案 1');
-    expect(wrapper.find('#result-body').text()).not.toContain('均价匹配');
+    expect(wrapper.find('#result-body').text()).toContain('均价匹配');
 
     monitorSource.emitEvent('event', {
       key: 'noop-during-average-match',
@@ -1803,7 +1803,7 @@ describe('Ethan App', () => {
     vi.runOnlyPendingTimers();
     await nextTick();
 
-    expect(wrapper.find('#result-body').text()).not.toContain('均价匹配');
+    expect(wrapper.find('#result-body').text()).toContain('均价匹配');
   });
 
   it('terminates an active estimation worker and restarts it with monitor-updated inputs', async () => {

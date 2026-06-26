@@ -103,7 +103,7 @@ self.onmessage = (event) => {
       });
       runPriceMatchPhase({
         result,
-        state: message.state,
+        state: result.state ?? message.state,
         collectibleItemsByGroup: message.collectibleItemsByGroup,
         predictionGroupKeys: message.predictionGroupKeys,
         profile: message.profile,
@@ -117,7 +117,7 @@ self.onmessage = (event) => {
     self.postMessage({ type: 'result', runId, result });
     runPriceMatchPhase({
       result,
-      state: message.state,
+      state: result.state ?? message.state,
       collectibleItemsByGroup: message.collectibleItemsByGroup,
       predictionGroupKeys: message.predictionGroupKeys,
       profile: message.profile,

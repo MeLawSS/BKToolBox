@@ -105,11 +105,14 @@ export function calculateEstimationResult({
 } = {}) {
   const resolvedGroups = groups ?? profile?.groups ?? ESTIMATION_GROUPS;
   const resolvedProfile = profile ?? undefined;
+  const skippedAveragePriceMatchGroupKeys = predictionGroupKeys.filter((groupKey) =>
+    state.groups[groupKey]?.cells === null
+  );
   const averagePriceMatch = applyAveragePriceCellMatchOverridesForWorker(
     state,
     collectibleItemsByGroup,
     resolvedGroups,
-    predictionGroupKeys
+    skippedAveragePriceMatchGroupKeys
   );
   if (averagePriceMatch.missingMatches.length > 0) {
     return {
@@ -210,23 +213,30 @@ export function calculateEstimationResult({
   };
 }
 
-function getPredictionCompanion(state, config, candidate, predictionConfigs) {
+function getPredictionCompanion(state, config, candidate, predictionConfigs, companionGroupKeys = []) {
   if (state.totalCells === null) return null;
 
+  const companionGroupKeySet = new Set(companionGroupKeys);
   const configIndex = predictionConfigs.findIndex((entry) => entry.groupKey === config.groupKey);
   const companionConfig = predictionConfigs
     .slice(0, Math.max(0, configIndex))
     .findLast((entry) => {
       const group = state.groups[entry.groupKey];
-      return group?.avg !== null && group.cells === null;
+      return group?.avg !== null && (
+        group.cells === null ||
+        companionGroupKeySet.has(entry.groupKey)
+      );
     });
   if (!companionConfig) return null;
 
   const group = state.groups[companionConfig.groupKey];
-  const maxCompanionCells = state.totalCells - state.knownCells - candidate.cells;
+  const companionKnownCells = group?.cells ?? 0;
+  const maxCompanionCells = state.totalCells - (state.knownCells - companionKnownCells) - candidate.cells;
   if (maxCompanionCells <= 0) return null;
 
-  const candidates = getPossibleCellsFromAverage(group.avg, maxCompanionCells);
+  const minCompanionCells = group.cells ?? 0;
+  const candidates = getPossibleCellsFromAverage(group.avg, maxCompanionCells)
+    .filter((entry) => entry.cells >= minCompanionCells);
   return candidates.length ? { config: companionConfig, candidates } : null;
 }
 
@@ -321,9 +331,17 @@ function buildTotalPriceStreamRow(state, config, candidate, groups, profile) {
   };
 }
 
-function buildPriceOnlyStreamRow(state, config, candidate, groups, profile, predictionConfigs) {
+function buildPriceOnlyStreamRow(
+  state,
+  config,
+  candidate,
+  groups,
+  profile,
+  predictionConfigs,
+  companionGroupKeys = [],
+) {
   const nextState = cloneStateWithGroupCells(state, config.groupKey, candidate, groups, profile);
-  const companion = getPredictionCompanion(state, config, candidate, predictionConfigs);
+  const companion = getPredictionCompanion(state, config, candidate, predictionConfigs, companionGroupKeys);
   if (!companion) {
     const prediction = estimateTotalByStage(nextState, groups, profile);
     return {
@@ -387,6 +405,7 @@ export function createStreamRun({
   profile = null,
   collectibleItemsByGroup = {},
   predictionConfigs = [],
+  companionGroupKeys = [],
   limit = DEFAULT_ESTIMATION_OUTPUT_LIMIT,
   minCellSpacing = DEFAULT_PRICE_COMBO_MIN_CELL_SPACING,
 } = {}) {
@@ -399,6 +418,7 @@ export function createStreamRun({
     profile,
     collectibleItemsByGroup,
     predictionConfigs,
+    companionGroupKeys,
     limit,
     minCellSpacing,
     rows: [],
@@ -425,6 +445,7 @@ function appendParsedPriceOnlyCandidate(streamRun, parsed) {
     streamRun.groups,
     streamRun.profile,
     streamRun.predictionConfigs,
+    streamRun.companionGroupKeys,
   );
   streamRun.rows.push(row);
   return row;
@@ -483,7 +504,16 @@ export function appendStreamRunSource(streamRun, text) {
     start = index + 1;
     if (streamRun.rows.length >= streamRun.limit) break;
   }
-  streamRun.pendingText = input.slice(start);
+  const pendingText = input.slice(start);
+  if (pendingText && streamRun.rows.length < streamRun.limit) {
+    const pendingRow = processStreamLine(streamRun, pendingText);
+    if (pendingRow) {
+      rows.push(pendingRow);
+      streamRun.pendingText = '';
+      return rows;
+    }
+  }
+  streamRun.pendingText = pendingText;
   return rows;
 }
 
@@ -496,7 +526,7 @@ export function runPriceMatchPhase({
   runId,
   postMessage,
 }) {
-  if (result.type !== 'direct' && result.type !== 'single') {
+  if (result.type !== 'direct' && result.type !== 'single' && result.type !== 'combined') {
     postMessage({ type: 'price-match-done', runId });
     return;
   }
@@ -553,6 +583,38 @@ export function runPriceMatchPhase({
 
         if (groupState?.valueSource === 'totalPrice') continue;
 
+        let totalPrice = null;
+        if (count !== null) {
+          const tp = findTotalForAveragePrice(priceAverage, count);
+          if (tp !== null && hasMatchingAveragePriceCombination(items, { count, cells }, priceAverage)) {
+            totalPrice = tp;
+          }
+        } else {
+          const match = findFirstAveragePriceCellMatch(items, cells, priceAverage);
+          if (match) totalPrice = match.totalPrice;
+        }
+
+        if (totalPrice === null) continue;
+
+        const oldValue = Number.isFinite(groupState?.valueOverride)
+          ? groupState.valueOverride
+          : (count !== null && count > 0)
+            ? priceAverage * count
+            : cells * (profile?.perCellExpected?.[groupKey] ?? PER_CELL_EXPECTED[groupKey] ?? 0);
+        postMessage({ type: 'price-match-update', runId, groupKey, rowIndex: i, delta: totalPrice - oldValue });
+      }
+    }
+
+    if (result.type === 'combined') {
+      for (let i = 0; i < result.rows.length; i++) {
+        const rowItem = result.rows[i].item;
+        const candidate = rowItem.candidatesByGroup?.[groupKey];
+        if (!candidate) continue;
+
+        const groupState = rowItem.state.groups[groupKey];
+        if (groupState?.valueSource === 'totalPrice') continue;
+
+        const { count, cells } = candidate;
         let totalPrice = null;
         if (count !== null) {
           const tp = findTotalForAveragePrice(priceAverage, count);

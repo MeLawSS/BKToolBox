@@ -1715,6 +1715,19 @@ static bool TryReadVisiblePlayerName(Il2CppObject* battleTransform, int slot, st
     return ReadExactNodeText(battleTransform, path, out);
 }
 
+static int ReadVisibleNamedPlayerCount(
+    Il2CppObject* battleTransform,
+    std::string* outPlayerNames,
+    int slotCount
+) {
+    if (!outPlayerNames || slotCount <= 0) return 0;
+    for (int i = 0; i < slotCount; ++i) {
+        outPlayerNames[i].clear();
+        TryReadVisiblePlayerName(battleTransform, i + 1, &outPlayerNames[i]);
+    }
+    return CountVisibleNamedPlayers(outPlayerNames, slotCount);
+}
+
 static bool TryReadAutoAuctionEndedWinnerName(Il2CppObject* battleTransform, std::string* out) {
     return ReadExactNodeText(
         battleTransform,
@@ -1919,21 +1932,30 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
     const std::string& opponentNameForLog
 ) {
     static const int kPollMs = GetExpectedPriceConfirmGatePollIntervalMs();
-    static const int kBidSignalSlotCount = 2;
+    static const int kBidSignalSlotCount = 4;
     ConfirmGateWaitResult ret;
-    bool entryBidSignals[kBidSignalSlotCount] = { false, false };
+    bool entryBidSignals[kBidSignalSlotCount] = { false, false, false, false };
     int entryBidSignalCount = 0;
-    // The current 1v1 battle UI does not light the local player's own bided
-    // marker until the final confirm succeeds, so the pre-confirm gate can
-    // rely on aggregate signal count instead of a slot-specific read here.
+    int entryVisibleNamedPlayerCount = 0;
+    int trackedVisibleNamedPlayerCount = 0;
+    // The local player's own bided marker stays dark until the final confirm
+    // succeeds, so the pre-confirm gate can still rely on aggregate signal
+    // count instead of a slot-specific read here.
     (void)opponentSlot;
 
     // battleTransform is used ONLY for the entry-log snapshot;
     // the polling loop re-detects screen state on every iteration.
     {
         std::string roundText;
+        std::string playerNames[kBidSignalSlotCount];
         int secsAtEntry = 9999;
         ReadBidState(battleTransform, &roundText, &secsAtEntry);
+        entryVisibleNamedPlayerCount = ReadVisibleNamedPlayerCount(
+            battleTransform,
+            playerNames,
+            kBidSignalSlotCount
+        );
+        trackedVisibleNamedPlayerCount = entryVisibleNamedPlayerCount;
         ReadCurrentRoundBidSignals(
             battleTransform,
             entryBidSignals,
@@ -1944,21 +1966,25 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
             kBidSignalSlotCount
         );
         Logf(
-            "AutoAuction expected-price confirm gate: entering round=%d secs=%d amount=%d opponent=%s",
+            "AutoAuction expected-price confirm gate: entering round=%d secs=%d amount=%d opponent=%s visible_players=%d bid_signals=%d",
             gateEntryRoundNumber,
             secsAtEntry,
             amountForLog,
-            opponentNameForLog.empty() ? "(unresolved)" : opponentNameForLog.c_str()
+            opponentNameForLog.empty() ? "(unresolved)" : opponentNameForLog.c_str(),
+            entryVisibleNamedPlayerCount,
+            entryBidSignalCount
         );
     }
 
-    const bool shouldWaitForBidSignalTransition =
-        ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(entryBidSignalCount);
-    if (IsExpectedPriceConfirmGateOpponentBidSignalReady(entryBidSignalCount)) {
+    if (IsExpectedPriceConfirmGateOpponentBidSignalReady(
+        entryVisibleNamedPlayerCount,
+        entryBidSignalCount
+    )) {
         ret.result = CONFIRM_GATE_READY_OPPONENT_BID;
         Logf(
-            "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided entry_count=%d",
-            entryBidSignalCount
+            "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided entry_count=%d visible_players=%d",
+            entryBidSignalCount,
+            entryVisibleNamedPlayerCount
         );
         return ret;
     }
@@ -1993,7 +2019,16 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
         std::string currentRound;
         int currentSecs = 9999;
         ReadBidState(sc.battleMainTransform, &currentRound, &currentSecs);
-        bool currentBidSignals[kBidSignalSlotCount] = { false, false };
+        bool currentBidSignals[kBidSignalSlotCount] = { false, false, false, false };
+        std::string currentPlayerNames[kBidSignalSlotCount];
+        const int currentVisibleNamedPlayerCount = ReadVisibleNamedPlayerCount(
+            sc.battleMainTransform,
+            currentPlayerNames,
+            kBidSignalSlotCount
+        );
+        if (currentVisibleNamedPlayerCount > trackedVisibleNamedPlayerCount) {
+            trackedVisibleNamedPlayerCount = currentVisibleNamedPlayerCount;
+        }
         ReadCurrentRoundBidSignals(
             sc.battleMainTransform,
             currentBidSignals,
@@ -2003,9 +2038,23 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
             currentBidSignals,
             kBidSignalSlotCount
         );
+        const bool entryBidReadyByTrackedVisiblePlayers =
+            IsExpectedPriceConfirmGateOpponentBidSignalReady(
+                trackedVisibleNamedPlayerCount,
+                entryBidSignalCount
+            );
+        const bool shouldWaitForBidSignalTransition =
+            ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(
+                trackedVisibleNamedPlayerCount,
+                entryBidSignalCount
+            );
         const bool opponentBidReadyByCurrentSignalState =
-            shouldWaitForBidSignalTransition &&
-            IsExpectedPriceConfirmGateOpponentBidSignalReady(currentBidSignalCount);
+            shouldWaitForBidSignalTransition
+                ? IsExpectedPriceConfirmGateOpponentBidSignalReady(
+                    trackedVisibleNamedPlayerCount,
+                    currentBidSignalCount
+                )
+                : entryBidReadyByTrackedVisiblePlayers;
 
         if (!currentRound.empty() && currentRound != gateEntryRoundText) {
             ret.softExitReason = CONFIRM_GATE_SOFT_EXIT_ROUND_CHANGED;
@@ -2018,9 +2067,10 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
                 ret.result = CONFIRM_GATE_READY_OPPONENT_BID;
                 ret.readyWhileDialogLost = true;
                 Logf(
-                    "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided count=%d->%d dialog=lost",
+                    "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided count=%d->%d visible_players=%d dialog=lost",
                     entryBidSignalCount,
-                    currentBidSignalCount
+                    currentBidSignalCount,
+                    trackedVisibleNamedPlayerCount
                 );
                 return ret;
             }
@@ -2041,9 +2091,10 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
         if (opponentBidReadyByCurrentSignalState) {
             ret.result = CONFIRM_GATE_READY_OPPONENT_BID;
             Logf(
-                "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided count=%d->%d",
+                "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided count=%d->%d visible_players=%d",
                 entryBidSignalCount,
-                currentBidSignalCount
+                currentBidSignalCount,
+                trackedVisibleNamedPlayerCount
             );
             return ret;
         }

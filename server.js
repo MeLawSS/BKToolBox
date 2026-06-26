@@ -57,6 +57,16 @@ function readCollectibles(logger = logServerEvent) {
     return [];
 }
 
+function sendFirstExistingFile(res, candidates) {
+    const filePath = candidates.find((candidate) => fs.existsSync(candidate));
+    if (!filePath) {
+        res.status(404).end('Not Found');
+        return;
+    }
+
+    res.sendFile(filePath, { dotfiles: 'allow' });
+}
+
 function createApp(deps = {}) {
     const app = express();
     const spawnImpl = deps.spawn || spawn;
@@ -124,7 +134,10 @@ function createApp(deps = {}) {
     });
 
     app.get('/', (req, res) => {
-        res.sendFile(path.join(projectRoot, 'public', 'home', 'index.html'));
+        sendFirstExistingFile(res, [
+            path.join(projectRoot, 'public', 'home', 'index.html'),
+            path.join(projectRoot, 'src', 'home', 'index.html')
+        ]);
     });
 
     app.get(['/elsa', '/Elsa'], (req, res) => {
@@ -137,7 +150,10 @@ function createApp(deps = {}) {
             return;
         }
 
-        res.sendFile(path.join(projectRoot, 'public', 'index.html'));
+        sendFirstExistingFile(res, [
+            path.join(projectRoot, 'public', 'index.html'),
+            path.join(projectRoot, 'src', 'elsa', 'index.html')
+        ]);
     });
 
     app.get(['/ahmed', '/Ahmed'], (req, res) => {
@@ -154,7 +170,10 @@ function createApp(deps = {}) {
             return;
         }
 
-        res.sendFile(path.join(projectRoot, 'public', 'monitor', 'index.html'));
+        sendFirstExistingFile(res, [
+            path.join(projectRoot, 'public', 'monitor', 'index.html'),
+            path.join(projectRoot, 'src', 'monitor', 'index.html')
+        ]);
     });
 
     app.get(['/price', '/Price'], (req, res) => {
@@ -163,7 +182,10 @@ function createApp(deps = {}) {
             return;
         }
 
-        res.sendFile(path.join(projectRoot, 'public', 'price', 'index.html'));
+        sendFirstExistingFile(res, [
+            path.join(projectRoot, 'public', 'price', 'index.html'),
+            path.join(projectRoot, 'src', 'price', 'index.html')
+        ]);
     });
 
 
@@ -173,11 +195,14 @@ function createApp(deps = {}) {
             return;
         }
 
-        res.sendFile(path.join(projectRoot, 'public', 'inject', 'index.html'));
+        sendFirstExistingFile(res, [
+            path.join(projectRoot, 'public', 'inject', 'index.html'),
+            path.join(projectRoot, 'src', 'inject', 'index.html')
+        ]);
     });
 
     app.get('/data/collectibles.json', (req, res) => {
-        res.sendFile(getRuntimePath('collectibles.json'));
+        res.json(collectibles);
     });
 
     app.get('/api/bidking-monitor/status', (req, res) => {
@@ -316,7 +341,7 @@ function createApp(deps = {}) {
     });
 
     app.get('/api/bidking-monitor/schema', (_req, res) => {
-        res.sendFile(path.join(projectRoot, 'docs', 'bidking-realtime-protocol-schema.json'));
+        res.sendFile(path.join(projectRoot, 'docs', 'bidking-realtime-protocol-schema.json'), { dotfiles: 'allow' });
     });
 
     app.get('/api/bidking-monitor/events', (req, res) => {
@@ -348,7 +373,7 @@ function createApp(deps = {}) {
         });
     });
 
-    app.use(express.static(path.join(projectRoot, 'public')));
+    app.use(express.static(path.join(projectRoot, 'public'), { dotfiles: 'allow' }));
 
     app.get('/run', (req, res) => {
         const { script, args, limit } = req.query;

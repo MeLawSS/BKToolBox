@@ -700,19 +700,6 @@ export function cloneStateWithGroupCandidates(state, candidatesByGroup, groups =
 }
 
 export function getCombinedAverageOnlyPredictions(state, groupKeys, maxResults = 100, profile = ethanProfile) {
-  // When all groups lack total cell input (including monitor-derived cells),
-  // skip combined and let callers fall through to individual predictions.
-  // The length >= 2 check protects single-config profiles (Elsa).
-  if (
-    groupKeys.length >= 2
-    && groupKeys.every((key) => {
-      const g = state.groups[key];
-      return g?.cells === null && !(g?.monitorKnownCells > 0);
-    })
-  ) {
-    return [];
-  }
-
   const candidateLists = groupKeys
     .map((groupKey) => ({
       groupKey,

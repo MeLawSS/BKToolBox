@@ -16,6 +16,25 @@ const {
 } = require('./extract-bidking-collectibles.js');
 
 describe('extract-bidking-collectibles helpers', () => {
+    function createItemRow({
+        itemCid,
+        name,
+        typeId,
+        sizeCode,
+        qualityId,
+        price
+    }) {
+        const row = [];
+        row[0] = String(itemCid);
+        row[1] = name;
+        row[6] = `[${typeId}]`;
+        row[7] = sizeCode;
+        row[8] = String(qualityId);
+        row[9] = String(price);
+        row[24] = `icon_${itemCid}`;
+        return row.join('\t');
+    }
+
     it('parses base table rows and bracket id lists', () => {
         expect(parseTable('1\tItem\r\n2\tOther\n')).toEqual([
             ['1', 'Item'],
@@ -95,23 +114,34 @@ describe('extract-bidking-collectibles helpers', () => {
     });
 
     it('extracts the latest collectibles added by the current game tables', () => {
-        const candidateDirs = [
-            path.join(process.cwd(), 'Archive', 'BidKing', 'BidKing_Data', 'StreamingAssets', 'Tables'),
-            path.join(process.cwd(), 'tmp', 'collectibles-extract', 'tables')
-        ];
-        const tablesDir = candidateDirs.find((dir) => (
-            fs.existsSync(path.join(dir, 'Item.txt')) &&
-            fs.existsSync(path.join(dir, 'Item_Type.txt'))
-        ));
-        expect(tablesDir).toBeTruthy();
-        const collectibles = extractCollectibles(tablesDir);
-        const itemCids = new Set(collectibles.map((item) => Number(item.itemCid)));
+        const tablesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bk-collectibles-latest-'));
+        const typeRows = Array.from({ length: 10 }, (_, index) => {
+            const id = 101 + index;
+            return `${id}\tItem\tType ${id}`;
+        }).join('\n');
+        const itemRows = [
+            createItemRow({ itemCid: 1016007, name: '白藏品', typeId: 101, sizeCode: '11', qualityId: 1, price: 100 }),
+            createItemRow({ itemCid: 1036006, name: '蓝藏品 A', typeId: 103, sizeCode: '12', qualityId: 3, price: 200 }),
+            createItemRow({ itemCid: 1036007, name: '蓝藏品 B', typeId: 103, sizeCode: '21', qualityId: 3, price: 300 }),
+            createItemRow({ itemCid: 1036008, name: '蓝藏品 C', typeId: 103, sizeCode: '22', qualityId: 3, price: 400 }),
+            createItemRow({ itemCid: 1076007, name: '武器藏品', typeId: 107, sizeCode: '31', qualityId: 5, price: 500 })
+        ].join('\n');
 
-        expect(itemCids.has(1016007)).toBe(true);
-        expect(itemCids.has(1036006)).toBe(true);
-        expect(itemCids.has(1036007)).toBe(true);
-        expect(itemCids.has(1036008)).toBe(true);
-        expect(itemCids.has(1076007)).toBe(true);
+        try {
+            fs.writeFileSync(path.join(tablesDir, 'Item_Type.txt'), `${typeRows}\n`);
+            fs.writeFileSync(path.join(tablesDir, 'Item.txt'), `${itemRows}\n`);
+
+            const collectibles = extractCollectibles(tablesDir);
+            const itemCids = new Set(collectibles.map((item) => Number(item.itemCid)));
+
+            expect(itemCids.has(1016007)).toBe(true);
+            expect(itemCids.has(1036006)).toBe(true);
+            expect(itemCids.has(1036007)).toBe(true);
+            expect(itemCids.has(1036008)).toBe(true);
+            expect(itemCids.has(1076007)).toBe(true);
+        } finally {
+            fs.rmSync(tablesDir, { recursive: true, force: true });
+        }
     });
 
     it('extracts collectibles from raw TSV tables without base64 wrapping', () => {

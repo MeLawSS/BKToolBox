@@ -36,6 +36,7 @@
 - Ahmed 源码在 `src/ahmed/`，产物输出到 `public/ahmed/`，该入口是 shared `AhmedPanel` 的 standalone shell
 - Ethan 源码在 `src/ethan/`，产物输出到 `public/ethan/`，该入口是 shared hero-estimator 的 standalone shell
 - Monitor 源码在 `src/monitor/`，产物输出到 `public/monitor/`
+- Price 源码在 `src/price/`，产物输出到 `public/price/`
 - Inject 源码在 `src/inject/`，产物输出到 `public/inject/`
 - 全页面构建命令是 `npm run build:pages`
 

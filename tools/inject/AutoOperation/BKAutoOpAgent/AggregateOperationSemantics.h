@@ -402,6 +402,19 @@ inline bool DidCurrentRoundBidSignalCountIncrease(
         CountActiveCurrentRoundBidSignals(entrySignals, slotCount);
 }
 
+inline int CountVisibleNamedPlayers(const std::string* playerNames, int slotCount) {
+    if (!playerNames || slotCount <= 0) {
+        return 0;
+    }
+    int count = 0;
+    for (int i = 0; i < slotCount; ++i) {
+        if (!playerNames[i].empty()) {
+            count++;
+        }
+    }
+    return count;
+}
+
 inline int GetAutoAuctionExpectedPriceConfirmGateMaxPlayerSlots() { return 4; }
 
 inline int GetExpectedPriceConfirmGateRequiredOtherBidCount(int visibleNamedPlayerCount) {
@@ -422,6 +435,30 @@ inline bool IsExpectedPriceConfirmGateVisiblePlayersReady(
         return false;
     }
     return activeBidSignalCount >=
+        GetExpectedPriceConfirmGateRequiredOtherBidCount(visibleNamedPlayerCount);
+}
+
+inline bool IsExpectedPriceConfirmGateOpponentBidSignalReady(
+    int visibleNamedPlayerCount,
+    int activeBidSignalCount
+) {
+    return IsExpectedPriceConfirmGateVisiblePlayersReady(
+        visibleNamedPlayerCount,
+        activeBidSignalCount
+    );
+}
+
+inline bool ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(
+    int visibleNamedPlayerCount,
+    int entryBidSignalCount
+) {
+    if (entryBidSignalCount < 0) {
+        return false;
+    }
+    if (visibleNamedPlayerCount <= 1) {
+        return false;
+    }
+    return entryBidSignalCount <
         GetExpectedPriceConfirmGateRequiredOtherBidCount(visibleNamedPlayerCount);
 }
 

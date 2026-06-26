@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {
     buildGameTableMetadata,
@@ -66,6 +68,10 @@ function int64LE(value) {
     const buffer = Buffer.alloc(8);
     buffer.writeBigInt64LE(BigInt(value), 0);
     return buffer;
+}
+
+function encodeTable(rows) {
+    return `${Buffer.from(`${rows.join('\n')}\n`, 'utf8').toString('base64')}\n`;
 }
 
 describe('watch-bidking-game-log helpers', () => {
@@ -196,43 +202,72 @@ describe('watch-bidking-game-log helpers', () => {
             int32LE(0),
             int64LE(720386274725658)
         ]);
-        const metadata = buildGameTableMetadata(
-            path.join(process.cwd(), 'Archive', 'BidKing', 'BidKing_Data', 'StreamingAssets', 'Tables')
-        );
+        const tablesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bk-game-tables-'));
 
-        const summary = summarizePlayback(parsePlaybackBuffer(playback, '4403.playback'), { metadata });
-        const skill = summary.itemSkills[0];
+        try {
+            fs.writeFileSync(path.join(tablesDir, 'Item_Type.txt'), encodeTable([
+                '104\tItemType\t武器装备',
+                '108\tItemType\t交通工具'
+            ]));
 
-        expect(skill).toMatchObject({
-            skillCid: 603,
-            itemCid: 100130,
-            itemName: '随机抽检（4）',
-            castRound: 4,
-            hitItemIndex: 2,
-            hitItemTotalPrice: 16955,
-            uid: '720386274725658',
-            totalHitBoxIndex: 6,
-            hitItemTypeList: [104, 108],
-            hitItemTypeNames: ['武器装备', '交通工具'],
-            hitItemQuilityList: [3, 5],
-            hitItemQuilityNames: ['蓝', '金']
-        });
-        expect(skill.allHitItemAvgPrice).toBeCloseTo(4238.75);
-        expect(skill.allHitBoxAvgPrice).toBeCloseTo(2825.833251953125);
-        expect(skill.allHitItemAvgBoxIndex).toBeCloseTo(1.5);
-        expect(skill.hitBoxList[0]).toMatchObject({
-            boxId: 17,
-            itemUid: '901234567890123',
-            itemCid: 1043008,
-            itemName: 'C4吸塑炸药',
-            itemType: [104],
-            itemTypeNames: ['武器装备'],
-            itemQuility: 3,
-            itemQuilityName: '蓝',
-            itemPrice: 2363,
-            itemBoxIndex: 2,
-            size: { width: 2, height: 1, key: '2x1', cells: 2 }
-        });
+            const randomCheckRow = [];
+            randomCheckRow[0] = '100130';
+            randomCheckRow[1] = '随机抽检（4）';
+            randomCheckRow[6] = '[104,108]';
+            randomCheckRow[7] = '11';
+            randomCheckRow[8] = '5';
+            randomCheckRow[9] = '16955';
+
+            const c4Row = [];
+            c4Row[0] = '1043008';
+            c4Row[1] = 'C4吸塑炸药';
+            c4Row[6] = '[104]';
+            c4Row[7] = '21';
+            c4Row[8] = '3';
+            c4Row[9] = '2363';
+
+            fs.writeFileSync(path.join(tablesDir, 'Item.txt'), encodeTable([
+                randomCheckRow.join('\t'),
+                c4Row.join('\t')
+            ]));
+
+            const metadata = buildGameTableMetadata(tablesDir);
+            const summary = summarizePlayback(parsePlaybackBuffer(playback, '4403.playback'), { metadata });
+            const skill = summary.itemSkills[0];
+
+            expect(skill).toMatchObject({
+                skillCid: 603,
+                itemCid: 100130,
+                itemName: '随机抽检（4）',
+                castRound: 4,
+                hitItemIndex: 2,
+                hitItemTotalPrice: 16955,
+                uid: '720386274725658',
+                totalHitBoxIndex: 6,
+                hitItemTypeList: [104, 108],
+                hitItemTypeNames: ['武器装备', '交通工具'],
+                hitItemQuilityList: [3, 5],
+                hitItemQuilityNames: ['蓝', '金']
+            });
+            expect(skill.allHitItemAvgPrice).toBeCloseTo(4238.75);
+            expect(skill.allHitBoxAvgPrice).toBeCloseTo(2825.833251953125);
+            expect(skill.allHitItemAvgBoxIndex).toBeCloseTo(1.5);
+            expect(skill.hitBoxList[0]).toMatchObject({
+                boxId: 17,
+                itemUid: '901234567890123',
+                itemCid: 1043008,
+                itemName: 'C4吸塑炸药',
+                itemType: [104],
+                itemTypeNames: ['武器装备'],
+                itemQuility: 3,
+                itemQuilityName: '蓝',
+                itemPrice: 2363,
+                itemBoxIndex: 2,
+                size: { width: 2, height: 1, key: '2x1', cells: 2 }
+            });
+        } finally {
+            fs.rmSync(tablesDir, { recursive: true, force: true });
+        }
     });
 
     it('preserves protobuf default box id zero when the box id field is omitted', () => {

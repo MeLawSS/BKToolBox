@@ -22,6 +22,17 @@ let refreshPromise = null;
 let startPromise = null;
 let stopPromise = null;
 let startOptionsResolver = null;
+let streamConsumerCount = 0;
+
+function closeEventSource(source) {
+  if (!source || typeof source !== 'object') return;
+  source.__bidkingClosed = true;
+  source.close?.();
+}
+
+function isEventSourceUsable(source) {
+  return Boolean(source) && source.__bidkingClosed !== true;
+}
 
 function getMonitorSettingsStorage(storage = undefined) {
   if (storage) return storage;
@@ -173,7 +184,7 @@ function toggleMonitor() {
 }
 
 function ensureStreamConnected() {
-  if (eventSource || typeof EventSource !== 'function') return eventSource;
+  if (isEventSourceUsable(eventSource) || typeof EventSource !== 'function') return eventSource;
 
   eventSource = new EventSource('/api/bidking-monitor/events');
   eventSource.addEventListener('status', (message) => {
@@ -199,8 +210,15 @@ function ensureStreamConnected() {
 
 function subscribe(listener) {
   listeners.add(listener);
+  streamConsumerCount += 1;
+  ensureStreamConnected();
   return () => {
     listeners.delete(listener);
+    streamConsumerCount = Math.max(0, streamConsumerCount - 1);
+    if (streamConsumerCount === 0 && eventSource) {
+      closeEventSource(eventSource);
+      eventSource = null;
+    }
   };
 }
 
@@ -232,12 +250,15 @@ export function useMonitorSwitch() {
 }
 
 export function __resetMonitorSwitchRuntimeForTest() {
-  eventSource?.close?.();
-  eventSource = null;
+  if (eventSource) {
+    closeEventSource(eventSource);
+    eventSource = null;
+  }
   refreshPromise = null;
   startPromise = null;
   stopPromise = null;
   startOptionsResolver = null;
+  streamConsumerCount = 0;
   listeners.clear();
   status.value = createDefaultStatus();
   errorText.value = '';

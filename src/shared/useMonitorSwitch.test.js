@@ -187,6 +187,26 @@ describe('useMonitorSwitch', () => {
     });
   });
 
+  it('closes the shared event source after the last subscriber leaves and recreates it for new subscribers', () => {
+    const monitor = useMonitorSwitch();
+    const unsubscribeA = monitor.subscribe(() => {});
+    const unsubscribeB = monitor.subscribe(() => {});
+
+    expect(FakeEventSource.instances).toHaveLength(1);
+    const first = FakeEventSource.instances[0];
+
+    unsubscribeA();
+    expect(first.close).not.toHaveBeenCalled();
+
+    unsubscribeB();
+    expect(first.close).toHaveBeenCalledTimes(1);
+
+    const unsubscribeNext = monitor.subscribe(() => {});
+    expect(FakeEventSource.instances).toHaveLength(2);
+    expect(FakeEventSource.instances[1]).not.toBe(first);
+    unsubscribeNext();
+  });
+
   it('merges the persisted inference flag into monitor start payloads', async () => {
     window.localStorage.setItem('bidking-monitor-settings:v1', JSON.stringify({
       useInferenceV2: true,

@@ -10,14 +10,14 @@
 ## 当前状态
 
 - 项目是一个 `Electron + Express + Vue 3/Vite` 混合应用
-- 当前构建保留 6 个页面入口 bundle：`Home`、`Tools`、`Ahmed`、`Ethan`、`Monitor`、`Inject`
-- 当前用户可见的 canonical 工作面共有 4 个：`Home`、`Tools`、`Monitor`、`Inject`
+- 当前构建保留 7 个页面入口 bundle：`Home`、`Tools`、`Ahmed`、`Ethan`、`Monitor`、`Price`、`Inject`
+- 当前用户可见的 canonical 工作面共有 5 个：`Home`、`Tools`、`Monitor`、`Price`、`Inject`
 - `Tools` 是 `Elsa / Ethan / Ahmed` 的 canonical 入口
 - 兼容旧入口：
   - `/elsa`、`/Elsa` -> `/Tools`
   - `/ahmed`、`/Ahmed` -> `/Tools?tab=ahmed`
   - `/ethan`、`/Ethan` -> `/Tools?tab=ethan`
-  - `/tools`、`/monitor`、、`/inject` -> 对应的大写 canonical 路径
+  - `/tools`、`/monitor`、`/price`、`/inject` -> 对应的大写 canonical 路径
 - Electron 主进程入口是 `electron/main.js`
 - Express 入口是 `server.js`
 - 运行时路径 helper 是 `runtime-paths.js`
@@ -28,7 +28,7 @@
 
 - `Home`
   - 仅做导航工作台，不直接承载截图或求解逻辑
-  - 只暴露 `Tools`、`Monitor`、`Inject` 四个入口卡片
+  - 只暴露 `Tools`、`Monitor`、`Price`、`Inject` 四个入口卡片
 - `Tools`
   - 由 `3` 个 hero tabs 和 `9` 个 solver tabs 组成
   - hero tabs 顺序固定为 `Elsa · 期望价值`、`Ethan · 期望价值`、`Ahmed · 组合计算器`
@@ -44,8 +44,11 @@
   - 纯估算逻辑在 `src/ethan/estimator.js`
   - 输入、结果、monitor 适配和状态恢复由 `src/hero-estimator/` 共享层按 `ethanProfile` 驱动
 - `Monitor`
-  - 管理 live monitor、SSE 事件、capture driver 状态、recent market price
-  - 展示价格历史、Collections、仓库价格视图、仓库占用格数/数量/价格排序和单 item 刷新
+  - 管理 live monitor、SSE 事件和 capture driver 状态
+  - 展示 raw-compatible 事件、`facts` 和 canonical `state`
+- `Price`
+  - 展示长期最低价历史、`>= 2x` opportunities、Collections 藏品价格历史和仓库价格视图
+  - 在桌面模式下支持刷新单个藏品交易所价格、读取主仓持有快照，并通过 `useWarehouseAutoSeller` 按序自动批量上架仓库藏品
 - `Inject`
   - 已改为 workspace shell：左侧按 `基础 / 交易` 分组切换 panel，右侧只显示一个激活 panel
   - 基础 panel 为 `展示柜收益 / Agent 状态 / 控制器 / 元操作`，交易 panel 为 `仓库统计 / 批量移仓 / 延迟价格查询 / 收藏价格采集`
@@ -61,7 +64,7 @@
 - `GET /`
 - `GET /Tools`
 - `GET /Monitor`
-
+- `GET /Price`
 - `GET /Inject`
 
 ### 兼容路由
@@ -74,7 +77,7 @@
 - `GET /Ethan`
 - `GET /tools`
 - `GET /monitor`
-
+- `GET /price`
 - `GET /inject`
 
 ### 数据和业务 API
@@ -187,7 +190,7 @@
 
 - `src/shared/useMonitorSwitch.js` 现在是 renderer 侧唯一的 monitor runtime owner：集中负责 `/api/bidking-monitor/status`、`start/stop` 和唯一一条 `/api/bidking-monitor/events` SSE 连接。
 - `src/shared/useAutoOperationAgentSwitch.js` 现在是 renderer 侧唯一的 AutoOperation Agent runtime owner：集中负责桌面能力探测、`Ping` 探活以及 `load/unload BKAutoOpAgent.dll` 的并发保护。
-- `src/shared/TopBar.vue` 只保留 `Home`、`Tools`、`Monitor`、`Inject` 五个导航项，并常驻渲染 `Monitor switch`；`Agent switch` 仅在桌面桥同时提供 `startAutoOperationAgent()` 与 `runAutoOperationCommand()` 时显示。
+- `src/shared/TopBar.vue` 只保留 `Home`、`Tools`、`Monitor`、`Price`、`Inject` 五个导航项，并常驻渲染 `Monitor switch`；`Agent switch` 仅在桌面桥同时提供 `startAutoOperationAgent()` 与 `runAutoOperationCommand()` 时显示。
 - `Ethan` / `Elsa` 共用的 `src/hero-estimator/useHeroEstimatorPanel.js` 不再自己管理 monitor 开关或 SSE，只订阅共享 runtime 并保留英雄专属事件解释逻辑。
 - `/Monitor` 页面现在与 TopBar 共用同一份 monitor status / SSE；当页面已打开时，点击顶栏 Monitor switch 会沿用当前表单里的 `remoteAddress / port / batchSeconds / gameRoot / outputDir` 配置，并同步更新页面状态和事件列表。
 - `/Inject` 页面现在与 TopBar 共用同一份 agent status；无论点击页内按钮还是顶栏 Agent switch，`AutoOperation Agent` 状态文案都会同步。
@@ -228,7 +231,7 @@
 - `npm run verify`
 - `npm run desktop`
 - `npm run pack`
-- `npm run pack -- --app-dir-name "$(date +"%Y%m%d%H%M%S")"`
+- `npm run pack -- --app-dir-name $(Get-Date -Format 'yyyyMMddHHmmss')`
 - `npm run pack -- --app-dir-name BKToolBox-dev`
 - `npm run dist:win`
 
@@ -245,6 +248,9 @@
 
 ## 本轮文档刷新覆盖的 current-state 变化
 
+- current-state 文档现在统一把 `Price` 记录为第 5 个 canonical 工作面，并把 `src/price/ -> public/price/` 记为第 7 个页面入口 bundle
+- `Monitor` 与 `Price` 的页面职责已重新拆分：实时抓包 / driver 状态保留在 `Monitor`，价格历史 / Collections / 仓库价格视图保留在 `Price`
+- M1 / M2 文档校验命令与常用 `pack` 时间戳示例已改成当前 PowerShell 环境可直接执行的写法
 - `Tools` 现在是 `3` 个 hero tabs 加 `9` 个 solver tabs，而不是纯 solver 页面
 - `src/hero-estimator/` 现在是 standalone `Ethan` shell 与 `Tools` 内 `Elsa / Ethan` hero tabs 共用的 profile 驱动估算层
 - `Ahmed` 现在通过 `src/ahmed/AhmedPanel.vue` + `public/ahmed/ahmed.js` mountable controller 同时服务 standalone shell 与 `Tools` 内 hero tab
@@ -253,6 +259,8 @@
 
 ## 最新验证
 
+- 2026-06-26：`rg -n 'build:price|/Price|active-page="price"|href="/Price"' package.json server.js src/shared/TopBar.vue src/home/App.vue src/price/App.vue` 返回命中 `build:price`、`app.get(['/price', '/Price'])`、TopBar `'/Price'` 导航项、Home `/Price` 入口卡片，以及 `src/price/App.vue` 的 `TopBar active-page="price"`；说明 `Price` 仍是独立的一等构建入口、服务端路由和页面壳层。
+- 2026-06-26：`$docs = 'docs/Prompt.md','docs/Plan.md','docs/Implement.md','docs/Documentation.md','docs/ARCHITECTURE.md'; foreach ($doc in $docs) { Write-Output ('### ' + $doc); Get-Content $doc -TotalCount 40 | Out-Null }`、`rg -n 'Invoke-WebRequest|Get-Date -Format ''yyyyMMddHHmmss''|Price|/Price' docs/Plan.md docs/Implement.md docs/Documentation.md docs/ARCHITECTURE.md` 与 `git diff --check` 均通过；说明这轮 current-state 文档修正后的 `Price` 事实、PowerShell 校验命令和 `pack` 时间戳命令没有留下格式或 shell 兼容性问题。
 - 2026-06-24：`node tools/bkcli/bkcli.js get-current-screen` 返回 `authcode`，`node tools/bkcli/bkcli.js get-visible-panels` 返回 `UIMain`、`BattlePrevPanel_Main`、`AuthCode_Main`、`ItemDetail_Main`、`InvitePanel`，`node tools/bkcli/bkcli.js dump AuthCode_Main --all --depth 8 --limit 800` 确认滑动验证界面的关闭按钮路径是 `Main/m_BtnClose`、滑块路径是 `Main/Move`。
 - 2026-06-24：`node tools/bkcli/bkcli.js click AuthCode_Main Main/m_BtnClose` 成功关闭验证界面；随后 `node tools/bkcli/bkcli.js get-current-screen` 返回 `auction_lobby_room`，`AuthCode_Main` 不再可见。
 - 2026-06-24：`wsl bash -lc "cd /mnt/a/BidKing/.worktrees/feat-auto-auction-dismiss-authcode && g++ -std=c++11 tools/inject/AutoOperation/BKAutoOpAgent/AggregateOperationSemantics.test.cpp -o /tmp/aggregate-operation-semantics-test && /tmp/aggregate-operation-semantics-test"`、`wsl bash -lc "cd /mnt/a/BidKing/.worktrees/feat-auto-auction-dismiss-authcode && g++ -std=c++11 tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.test.cpp -o /tmp/meta-operations-test && /tmp/meta-operations-test"`、`wsl bash -lc "cd /mnt/a/BidKing/.worktrees/feat-auto-auction-dismiss-authcode/tools/inject/AutoOperation/BKAutoOpAgent && ./build.sh"` 均通过；说明新增的 authcode 关闭目标语义、既有 AutoAuction JSON 契约，以及 `BKAutoOpAgent.dll` 原生构建链路都保持正常。

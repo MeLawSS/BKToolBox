@@ -3,6 +3,6 @@ import controllerUiNodeLabels from '../../public/data/controller-ui-node-labels.
 
 describe('controller UI node labels', () => {
   it('contains the configured label for the main trade button', () => {
-    expect(controllerUiNodeLabels['MainPanel/mask/Button']).toBe('主界面.竞拍');
+    expect(controllerUiNodeLabels['MainPanel/mask/Button']).toBe('竞拍');
   });
 });

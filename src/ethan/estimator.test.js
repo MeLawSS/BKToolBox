@@ -416,7 +416,7 @@ describe('getCombinedAverageOnlyPredictions overflow relaxation', () => {
     )).toBe(true);
   });
 
-  it('skips combined predictions when all prediction groups lack cells even with overflow trigger met', () => {
+  it('produces combined predictions when all prediction groups lack cells even with overflow trigger met', () => {
     const state = collect(
       { totalCells: '20', totalAverage: '' },
       {
@@ -427,11 +427,16 @@ describe('getCombinedAverageOnlyPredictions overflow relaxation', () => {
       }
     );
     const combos = getCombinedAverageOnlyPredictions(state, ['purple', 'orange']);
-    // Both purple and orange lack cells → guard suppresses combined.
-    expect(combos).toEqual([]);
+    expect(combos.length).toBeGreaterThan(0);
+    expect(combos[0]).toMatchObject({
+      candidatesByGroup: {
+        purple: { count: 1, cells: 3 },
+        orange: { count: 1, cells: 5 },
+      },
+    });
   });
 
-  it('skips combined predictions when all prediction groups lack cells regardless of total cell accuracy', () => {
+  it('prioritizes exact-total combined predictions when all prediction groups lack cells', () => {
     const state = collect(
       { totalCells: '93', totalAverage: '3.3214' },
       {
@@ -443,8 +448,13 @@ describe('getCombinedAverageOnlyPredictions overflow relaxation', () => {
     );
 
     const combos = getCombinedAverageOnlyPredictions(state, ['purple', 'orange'], 15);
-    // Both purple and orange lack cells → guard suppresses combined.
-    expect(combos).toEqual([]);
+    expect(combos.length).toBeGreaterThan(0);
+    expect(combos[0]).toMatchObject({
+      candidatesByGroup: {
+        purple: { count: 2, cells: 8 },
+        orange: { count: 6, cells: 36 },
+      },
+    });
   });
 
   it('still produces combined predictions when one of the groups has explicit cells', () => {
@@ -684,7 +694,7 @@ describe('Ethan worker estimation core', () => {
     expect(result.rows.at(-1).item.state.groups.purple.cells).toBe(30);
   });
 
-  it('returns single (not combined) when all prediction groups lack cells', () => {
+  it('returns combined when multiple prediction groups can be enumerated together', () => {
     const state = collect(
       { totalCells: '120', totalAverage: '' },
       { purple: { avg: '3' }, orange: { avg: '2.5' } }
@@ -696,8 +706,8 @@ describe('Ethan worker estimation core', () => {
       limit: DEFAULT_ESTIMATION_OUTPUT_LIMIT,
     });
 
-    expect(result.type).toBe('single');
-    expect(result.groupKey).toBe('purple');
+    expect(result.type).toBe('combined');
+    expect(result.groupKeys).toEqual(['purple', 'orange']);
   });
 
   it('resolves exact average-price cell matches off the main app path', () => {
@@ -724,8 +734,7 @@ describe('Ethan worker estimation core', () => {
     expect(result.prediction.total).toBe(8974);
   });
 
-  it('skips prediction groups from sync cell match so they produce direct result instead of priceCellsNoMatch', () => {
-    // priceAverage=1 never matches any real purple item; previously caused type:'empty'
+  it('returns priceCellsNoMatch when a prediction group has explicit cells but no exact average-price combo', () => {
     const state = collect({ totalCells: '4', totalAverage: '' }, { purple: { cells: '4', priceAverage: '1' } });
 
     const result = calculateEstimationResult({
@@ -734,7 +743,14 @@ describe('Ethan worker estimation core', () => {
       collectibleItemsByGroup: { purple: realPurpleItems },
     });
 
-    expect(result.type).toBe('direct');
+    expect(result).toMatchObject({
+      type: 'empty',
+      reason: 'priceCellsNoMatch',
+      missing: {
+        labelKey: 'ethan.groups.purple',
+        cells: 4,
+      },
+    });
   });
 
   it('keeps Elsa worker calculations profile-aware for direct estimates', () => {
@@ -946,7 +962,7 @@ describe('Ethan estimator purple predictions and rows', () => {
     expect(result.total).toBe(14794);
   });
 
-  it('skips combined predictions when all prediction groups lack cells and falls through to individual path', () => {
+  it('keeps combined predictions available when all prediction groups lack cells', () => {
     const state = collect(
       { totalCells: '20', totalAverage: '' },
       {
@@ -955,14 +971,27 @@ describe('Ethan estimator purple predictions and rows', () => {
       }
     );
 
-    // Both purple and orange lack cells → guard suppresses combined.
     const combined = getCombinedAverageOnlyPredictions(state, ['purple', 'orange']);
-    expect(combined).toEqual([]);
-
-    // Individual purple predictions are still available.
-    const purplePredictions = getAverageOnlyPredictions(state, 'purple');
-    expect(purplePredictions.length).toBeGreaterThan(0);
-    expect(purplePredictions[0]).toMatchObject({ cells: 7, count: 3 });
+    expect(combined).toEqual([
+      {
+        candidatesByGroup: {
+          purple: { count: 3, cells: 7 },
+          orange: { count: 2, cells: 5 },
+        },
+      },
+      {
+        candidatesByGroup: {
+          purple: { count: 3, cells: 7 },
+          orange: { count: 4, cells: 10 },
+        },
+      },
+      {
+        candidatesByGroup: {
+          purple: { count: 6, cells: 14 },
+          orange: { count: 2, cells: 5 },
+        },
+      },
+    ]);
   });
 
   it('builds group result rows with price status', () => {

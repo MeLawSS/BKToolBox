@@ -2,7 +2,7 @@
 
 ## 当前阶段
 
-阶段 2：BKToolBox 已从早期的组合计算页扩展为一个包含 7 个前端入口 bundle、Express API、Electron 桌面层、实时抓包监控、价格历史分析和注入式自动化的混合应用。当前重点不是继续堆页面数量，而是保持 `Home / Tools / Monitor / Inject` 五个 canonical 工作面稳定，并让 `Elsa / Ethan / Ahmed` 统一从 `Tools` 进入：
+阶段 2：BKToolBox 已从早期的组合计算页扩展为一个包含 7 个前端入口 bundle、Express API、Electron 桌面层、实时抓包监控、价格历史分析和注入式自动化的混合应用。当前重点不是继续堆页面数量，而是保持 `Home / Tools / Monitor / Price / Inject` 五个 canonical 工作面稳定，并让 `Elsa / Ethan / Ahmed` 统一从 `Tools` 进入：
 
 - 保持 current-state 文档与真实代码同步
 - 稳定多页面构建链路和服务端路由
@@ -26,8 +26,8 @@
 
 验证命令：
 
-- `sed -n '1,260p' docs/Prompt.md docs/Plan.md docs/Implement.md docs/Documentation.md docs/ARCHITECTURE.md`
-- `rg -n "Monitor|Price|Inject|/api/|dumpcap|pktmon|/run" docs/*.md`
+- `$docs = 'docs/Prompt.md','docs/Plan.md','docs/Implement.md','docs/Documentation.md','docs/ARCHITECTURE.md'; foreach ($doc in $docs) { "### $doc"; Get-Content $doc -TotalCount 260 }`
+- `rg -n "Monitor|Price|Inject|/api/|dumpcap|pktmon|/run" docs`
 
 停止并修复：
 
@@ -43,20 +43,20 @@
 
 验收：
 
-- `server.js` 提供 canonical 页面路由 `/`、`/Tools`、`/Monitor`、`/Inject`
+- `server.js` 提供 canonical 页面路由 `/`、`/Tools`、`/Monitor`、`/Price`、`/Inject`
 - `server.js` 兼容 `/Elsa -> /Tools`、`/Ahmed -> /Tools?tab=ahmed`、`/Ethan -> /Tools?tab=ethan`，以及其余 lowercase 到 canonical 的重定向
-- Vite 构建入口覆盖 `src/home`、`src/elsa`、`src/ahmed`、`src/ethan`、`src/monitor`、`src/inject`
+- Vite 构建入口覆盖 `src/home`、`src/elsa`、`src/ahmed`、`src/ethan`、`src/monitor`、`src/price`、`src/inject`
 - 页面变更后，`npm run build:pages` 可在安全条件下通过
 
 验证命令：
 
 - `npm run build:pages`
-- `curl -I http://127.0.0.1:3000/Tools`
-- `curl -I http://127.0.0.1:3000/Ahmed`
-- `curl -I http://127.0.0.1:3000/Ethan`
-- `curl -I http://127.0.0.1:3000/Monitor`
-- 
-- `curl -I http://127.0.0.1:3000/Inject`
+- `Invoke-WebRequest -Method Head -Uri http://127.0.0.1:3000/Tools`
+- `Invoke-WebRequest -Method Head -Uri http://127.0.0.1:3000/Ahmed`
+- `Invoke-WebRequest -Method Head -Uri http://127.0.0.1:3000/Ethan`
+- `Invoke-WebRequest -Method Head -Uri http://127.0.0.1:3000/Monitor`
+- `Invoke-WebRequest -Method Head -Uri http://127.0.0.1:3000/Price`
+- `Invoke-WebRequest -Method Head -Uri http://127.0.0.1:3000/Inject`
 
 停止并修复：
 
@@ -79,7 +79,7 @@
 验证命令：
 
 - `npm test`
-- 需要时使用 `LIMIT=... node solve-*.js ...` 做 targeted smoke
+- 需要时通过 PowerShell 先设置环境变量，再做 targeted smoke，例如：`$env:LIMIT='200'; node .\solve-gold-combo.js ...; Remove-Item Env:LIMIT`
 
 停止并修复：
 

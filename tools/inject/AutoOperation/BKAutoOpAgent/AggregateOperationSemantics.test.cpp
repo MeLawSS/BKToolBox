@@ -348,6 +348,32 @@ int main() {
     assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(3) == 2);
     assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(4) == 3);
 
+    {
+        std::string playerNames[4] = { "melo", "对手A", "", "" };
+        assert(CountVisibleNamedPlayers(playerNames, 4) == 2);
+        assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(2, 0));
+        assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(2, 1));
+        assert(!IsExpectedPriceConfirmGateOpponentBidSignalReady(2, 0));
+        assert(IsExpectedPriceConfirmGateOpponentBidSignalReady(2, 1));
+    }
+    {
+        std::string playerNames[4] = { "melo", "对手A", "对手B", "" };
+        assert(CountVisibleNamedPlayers(playerNames, 4) == 3);
+        assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(3, 0));
+        assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(3, 1));
+        assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(3, 2));
+        assert(!IsExpectedPriceConfirmGateOpponentBidSignalReady(3, 1));
+        assert(IsExpectedPriceConfirmGateOpponentBidSignalReady(3, 2));
+    }
+    {
+        std::string playerNames[4] = { "melo", "对手A", "对手B", "对手C" };
+        assert(CountVisibleNamedPlayers(playerNames, 4) == 4);
+        assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(4, 2));
+        assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(4, 3));
+        assert(!IsExpectedPriceConfirmGateOpponentBidSignalReady(4, 2));
+        assert(IsExpectedPriceConfirmGateOpponentBidSignalReady(4, 3));
+    }
+
     assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(0, 0));
     assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(1, 1));
 
