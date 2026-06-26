@@ -66,28 +66,58 @@ This structure mirrors `useElsaAutoOperation.js`'s `showDesktopNotification`, wi
 
 ### Notification call sites
 
-In the `start()` function:
+Three terminal paths in `start()` receive notification calls:
 
-**Completion** — insert before `phase.value = 'completed'`:
+Notification title follows the Elsa convention: fixed app name `BKToolBox`, with the event description in the body.
+
+**1. Completion** — all candidates processed, insert before `phase.value = 'completed'`:
 
 ```javascript
 if (!candidate) {
   await _notifyCompletion(
-    '自动售卖完成',
-    `成功上架 ${successCount.value} 件，跳过 ${skippedCount.value} 件`
+    'BKToolBox',
+    `自动售卖完成，成功上架 ${successCount.value} 件，跳过 ${skippedCount.value} 件`
   );
   phase.value = 'completed';
   return;
 }
 ```
 
-**Failure** — insert before `phase.value = 'failed'`:
+**2. Item-processing failure** — `_processItem` returned `'failed'`, insert before `phase.value = 'failed'`:
 
 ```javascript
 if (outcome === 'failed') {
   await _notifyCompletion(
-    '自动售卖失败',
-    lastError.value || '未知错误'
+    'BKToolBox',
+    `自动售卖失败：${lastError.value || '未知错误'}`
+  );
+  phase.value = 'failed';
+  return;
+}
+```
+
+**3. Initial snapshot failure** — warehouse refresh failed before any items processed:
+
+```javascript
+if (!snap.ok) {
+  lastError.value = snap.error ?? errors.loadWarehouseFailed;
+  await _notifyCompletion(
+    'BKToolBox',
+    `自动售卖失败：${lastError.value}`
+  );
+  phase.value = 'failed';
+  return;
+}
+```
+
+**4. Snapshot-after-success failure** — selling was in progress but a subsequent warehouse refresh failed:
+
+```javascript
+if (!snapAfter.ok) {
+  lastError.value = snapAfter.error ?? errors.warehouseRefreshAfterSuccessFailed;
+  await _notifyCompletion(
+    'BKToolBox',
+    `自动售卖失败：${lastError.value}`
   );
   phase.value = 'failed';
   return;
@@ -119,15 +149,25 @@ Update `src/price/App.test.js` (which already exercises the auto-seller lifecycl
 
 Mock `window.bidkingDesktop.showNotification` as a `vi.fn().mockResolvedValue({ ok: true, shown: true })`. Run the auto-seller through to completion with multiple items. Assert:
 - `showNotification` was called exactly once
-- First argument is `'自动售卖完成'`
-- Second argument contains the success count and skipped count
+- First argument is `'BKToolBox'`
+- Second argument contains `'自动售卖完成'` and the success count and skipped count
 
-### 2. Failure notification
+### 2. Failure notification — item processing error
 
 Cause a failure (e.g., mock `GetItemTradeInfo` to return `{ ok: false }`). Assert:
-- `showNotification` was called with `'自动售卖失败'` and the error message
+- `showNotification` was called with `'BKToolBox'` and a body containing `'自动售卖失败'` and the error message
 
-### 3. Non-desktop environment
+### 3. Failure notification — initial snapshot failure
+
+Mock `refreshWarehouseSnapshot` to return `{ ok: false, error: 'Warehouse refresh failed' }`. Assert:
+- `showNotification` was called with `'BKToolBox'` and a body containing `'自动售卖失败'` and `'Warehouse refresh failed'`
+
+### 4. Failure notification — snapshot-after-success failure
+
+Mock `refreshWarehouseSnapshot` to succeed on the first call (allowing at least one item to sell) then fail on a subsequent call. Assert:
+- `showNotification` was called with `'BKToolBox'` and a body containing `'自动售卖失败'` and the snapshot error
+
+### 5. Non-desktop environment
 
 Set `window.bidkingDesktop = undefined`. Run auto-seller to completion. Assert:
 - No exception thrown
@@ -136,7 +176,7 @@ Set `window.bidkingDesktop = undefined`. Run auto-seller to completion. Assert:
 ## Documentation Update
 
 Update `docs/Documentation.md` under the auto-seller section to note:
-- When auto-sell completes or fails, a Windows desktop notification is shown (in desktop environment)
+- When auto-sell completes or fails in a desktop environment, a Windows desktop notification is shown (requires `bidkingDesktop` bridge)
 
 ## Acceptance Criteria
 
