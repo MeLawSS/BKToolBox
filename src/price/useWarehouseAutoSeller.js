@@ -82,6 +82,19 @@ export function useWarehouseAutoSeller({
     return !stopRequested.value;
   }
 
+  async function _notifyCompletion(title, body) {
+    const notify = window.bidkingDesktop?.showNotification;
+    if (typeof notify !== 'function') return;
+    try {
+      const result = await notify(title, body);
+      if (!result?.ok) {
+        console.warn(`Desktop notification failed: ${result?.error || 'unknown error'}`);
+      }
+    } catch (e) {
+      console.warn(`Desktop notification failed: ${e?.message || e}`);
+    }
+  }
+
   function _getNextCandidate() {
     return warehouseItems.value.find((item) => !_terminalSkipCids.has(item.itemCid)) ?? null;
   }
@@ -191,6 +204,10 @@ export function useWarehouseAutoSeller({
     if (_checkStop()) return;
     if (!snap.ok) {
       lastError.value = snap.error ?? errors.loadWarehouseFailed;
+      await _notifyCompletion(
+        'BKToolBox',
+        `自动售卖失败：${lastError.value}`
+      );
       phase.value = 'failed';
       return;
     }
@@ -200,6 +217,10 @@ export function useWarehouseAutoSeller({
 
       const candidate = _getNextCandidate();
       if (!candidate) {
+        await _notifyCompletion(
+          'BKToolBox',
+          `自动售卖完成，成功上架 ${successCount.value} 件，跳过 ${skippedCount.value} 件`
+        );
         phase.value = 'completed';
         return;
       }
@@ -207,7 +228,14 @@ export function useWarehouseAutoSeller({
       const outcome = await _processItem(candidate);
 
       if (outcome === 'stop') return;
-      if (outcome === 'failed') { phase.value = 'failed'; return; }
+      if (outcome === 'failed') {
+        await _notifyCompletion(
+          'BKToolBox',
+          `自动售卖失败：${lastError.value || '未知错误'}`
+        );
+        phase.value = 'failed';
+        return;
+      }
 
       if (outcome === 'success') {
         successCount.value++;
@@ -215,6 +243,10 @@ export function useWarehouseAutoSeller({
         if (_checkStop()) return;
         if (!snapAfter.ok) {
           lastError.value = snapAfter.error ?? errors.warehouseRefreshAfterSuccessFailed;
+          await _notifyCompletion(
+            'BKToolBox',
+            `自动售卖失败：${lastError.value}`
+          );
           phase.value = 'failed';
           return;
         }
