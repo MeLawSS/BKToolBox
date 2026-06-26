@@ -15,7 +15,10 @@ import {
 import {
   createMonitorCells,
   parseSlotType,
+  setInferenceAlgorithmV2,
 } from '../ethan/monitor-grid.js';
+
+setInferenceAlgorithmV2(true);
 import { useI18n } from '../shared/i18n.js';
 import { LEAVE_TOOLS_EVENT } from '../shared/tools-page-lifecycle.js';
 import { createMonitorProfileAdapter } from './monitor-profile-adapter.js';

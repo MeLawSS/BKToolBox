@@ -402,15 +402,27 @@ inline bool DidCurrentRoundBidSignalCountIncrease(
         CountActiveCurrentRoundBidSignals(entrySignals, slotCount);
 }
 
-// Current 1v1 runtime invariant: the local player's own bided marker does not
-// light before the final confirm succeeds. In this pre-confirm window, exactly
-// one active marker therefore means the opponent has already bid.
-inline bool IsExpectedPriceConfirmGateOpponentBidSignalReady(int activeBidSignalCount) {
-    return activeBidSignalCount == 1;
+inline int GetAutoAuctionExpectedPriceConfirmGateMaxPlayerSlots() { return 4; }
+
+inline int GetExpectedPriceConfirmGateRequiredOtherBidCount(int visibleNamedPlayerCount) {
+    if (visibleNamedPlayerCount <= 1) {
+        return 0;
+    }
+    return visibleNamedPlayerCount - 1;
 }
 
-inline bool ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(int entryBidSignalCount) {
-    return entryBidSignalCount == 0;
+inline bool IsExpectedPriceConfirmGateVisiblePlayersReady(
+    int visibleNamedPlayerCount,
+    int activeBidSignalCount
+) {
+    if (activeBidSignalCount < 0) {
+        return false;
+    }
+    if (visibleNamedPlayerCount <= 1) {
+        return false;
+    }
+    return activeBidSignalCount >=
+        GetExpectedPriceConfirmGateRequiredOtherBidCount(visibleNamedPlayerCount);
 }
 
 inline int GetExpectedPriceConfirmGateOpponentBidConfirmDelayMs() { return 1000; }

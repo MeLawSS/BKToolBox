@@ -340,15 +340,26 @@ int main() {
         currentSignals[0] = true;
         assert(DidCurrentRoundBidSignalCountIncrease(entrySignals, currentSignals, 2));
     }
-    // Current 1v1 runtime invariant: self bided stays off before final confirm,
-    // so exactly one active marker in the pre-confirm window means the opponent
-    // has already bid.
-    assert(!IsExpectedPriceConfirmGateOpponentBidSignalReady(0));
-    assert(IsExpectedPriceConfirmGateOpponentBidSignalReady(1));
-    assert(!IsExpectedPriceConfirmGateOpponentBidSignalReady(2));
-    assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(0));
-    assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(1));
-    assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(2));
+    assert(GetAutoAuctionExpectedPriceConfirmGateMaxPlayerSlots() == 4);
+
+    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(0) == 0);
+    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(1) == 0);
+    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(2) == 1);
+    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(3) == 2);
+    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(4) == 3);
+
+    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(0, 0));
+    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(1, 1));
+
+    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(2, 0));
+    assert(IsExpectedPriceConfirmGateVisiblePlayersReady(2, 1));
+
+    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(3, 1));
+    assert(IsExpectedPriceConfirmGateVisiblePlayersReady(3, 2));
+
+    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(4, 2));
+    assert(IsExpectedPriceConfirmGateVisiblePlayersReady(4, 3));
+    assert(IsExpectedPriceConfirmGateVisiblePlayersReady(4, 4));
 
     // Three-state result: all distinct
     assert(CONFIRM_GATE_READY_OPPONENT_BID  != CONFIRM_GATE_READY_TIME_FALLBACK);

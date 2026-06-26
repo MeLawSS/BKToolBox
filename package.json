@@ -33,11 +33,9 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@colbymchenry/codegraph": "^1.0.1",
     "express": "^5.2.1"
   },
   "optionalDependencies": {
-    "@rolldown/binding-linux-x64-gnu": "1.0.1",
     "@rolldown/binding-win32-x64-msvc": "1.0.1"
   },
   "devDependencies": {
