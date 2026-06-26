@@ -17,6 +17,7 @@
     "desktop": "npm run build:pages && electron .",
     "setup:tools": "node scripts/setup-tools.mjs",
     "prepare:dumpcap": "node scripts/prepare-dumpcap-runtime.mjs",
+    "build:agent-dll": "wsl bash tools/inject/AutoOperation/BKAutoOpAgent/build.sh",
     "pack": "node scripts/pack-win-dir.mjs",
     "dist:win": "npm run build:pages && npm run prepare:dumpcap && node -e \"process.env.ELECTRON_MIRROR='https://npmmirror.com/mirrors/electron/';var cp=require('child_process');var s=cp.spawnSync('electron-builder --win portable',{stdio:'inherit',shell:true});process.exit(s.status!=null?s.status:1)\" && node scripts/patch-win-icons.js dist",
     "extract:collectibles": "node scripts/extract-bidking-collectibles.js",

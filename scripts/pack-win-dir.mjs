@@ -264,6 +264,11 @@ export async function runPrepareDumpcapStage(context, deps = {}) {
   await runNative('npm', ['run', 'prepare:dumpcap'], context.projectRoot, deps);
 }
 
+export async function runBuildAgentDllStage(context, deps = {}) {
+  const runNative = deps.runNativeCommand ?? runNativeCommand;
+  await runNative('npm', ['run', 'build:agent-dll'], context.projectRoot, deps);
+}
+
 export async function runElectronBuilderStage(context, deps = {}) {
   const runNative = deps.runNativeCommand ?? runNativeCommand;
   await runNative('electron-builder', getElectronBuilderArgs(context.paths), context.projectRoot, deps);
@@ -296,6 +301,7 @@ export async function runPack(options, deps = {}) {
   const context = { projectRoot: rootDir, paths, env, execPath, profile };
 
   logPackContext(context, deps);
+  await runBuildAgentDllStage(context, deps);
   await runBuildPagesStage(context, deps);
   await runPrepareDumpcapStage(context, deps);
   await runElectronBuilderStage(context, deps);
