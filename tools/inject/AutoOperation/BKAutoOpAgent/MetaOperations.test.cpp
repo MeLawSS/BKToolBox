@@ -16,9 +16,15 @@ int main() {
     assert(TryParsePriceText("17,986", &value) && value == 17986);
     assert(TryParsePriceText("17，986", &value) && value == 17986);
     assert(TryParsePriceText("17986", &value) && value == 17986);
+    assert(TryParsePriceText("110.22K", &value) && value == 110220);
+    assert(TryParsePriceText("120.00K", &value) && value == 120000);
+    assert(TryParsePriceText("100.01K", &value) && value == 100010);
+    assert(TryParsePriceText("1K", &value) && value == 1000);
+    assert(TryParsePriceText("1.5K", &value) && value == 1500);
     assert(!TryParsePriceText("", &value));
     assert(!TryParsePriceText("0", &value));
     assert(!TryParsePriceText("12a34", &value));
+    assert(!TryParsePriceText("1.5", &value));   // decimal without K
 
     double multiplier = 0.0;
     assert(TryGetOpponentCapMultiplier(2, &multiplier) && multiplier == 1.65);

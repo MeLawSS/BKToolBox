@@ -26,37 +26,81 @@ inline bool TryParseHistoryRoundNumber(const std::string& text, int* out) {
     return true;
 }
 
+// Parses price display text into an integer.
+// Handles plain integers ("58,999"), full-width commas, and K-suffix
+// decimals ("110.22K" → 110220, "120.00K" → 120000).
 inline bool TryParsePriceText(const std::string& text, int* out) {
     if (!out) return false;
     *out = 0;
 
-    std::string digits;
-    for (size_t i = 0; i < text.size(); ) {
+    // Strip leading/trailing whitespace and collect the meaningful portion.
+    size_t start = 0;
+    while (start < text.size() && (text[start] == ' ' || text[start] == '\t' ||
+           text[start] == '\r' || text[start] == '\n')) {
+        ++start;
+    }
+    size_t end = text.size();
+    while (end > start && (text[end-1] == ' ' || text[end-1] == '\t' ||
+           text[end-1] == '\r' || text[end-1] == '\n')) {
+        --end;
+    }
+
+    // Check for K suffix (case-insensitive).
+    bool hasKSuffix = false;
+    if (end > start && (text[end-1] == 'K' || text[end-1] == 'k')) {
+        hasKSuffix = true;
+        --end;
+    }
+
+    // Collect digit characters and an optional decimal point.
+    std::string intPart;
+    std::string fracPart;
+    bool sawDot = false;
+    for (size_t i = start; i < end; ) {
         const unsigned char ch = static_cast<unsigned char>(text[i]);
         if (ch >= '0' && ch <= '9') {
-            digits.push_back(static_cast<char>(ch));
-            i++;
+            if (sawDot) fracPart.push_back(static_cast<char>(ch));
+            else        intPart.push_back(static_cast<char>(ch));
+            ++i;
             continue;
         }
-        if (ch == ',' || ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
-            i++;
+        if (ch == '.') {
+            if (sawDot) return false; // two dots
+            sawDot = true;
+            ++i;
             continue;
         }
-        if (i + 2 < text.size() &&
-            static_cast<unsigned char>(text[i]) == 0xEF &&
-            static_cast<unsigned char>(text[i + 1]) == 0xBC &&
-            static_cast<unsigned char>(text[i + 2]) == 0x8C) {
+        // Separators: ASCII comma/space or full-width comma (EF BC 8C).
+        if (ch == ',' || ch == ' ') { ++i; continue; }
+        if (ch == 0xEF && i + 2 < end &&
+            static_cast<unsigned char>(text[i+1]) == 0xBC &&
+            static_cast<unsigned char>(text[i+2]) == 0x8C) {
             i += 3;
             continue;
         }
-        return false;
+        return false; // unexpected character
     }
 
-    if (digits.empty()) return false;
+    if (!hasKSuffix && sawDot) return false; // decimal without K is invalid
+
+    if (intPart.empty()) return false;
+
     int value = 0;
-    for (size_t i = 0; i < digits.size(); ++i) {
-        value = value * 10 + (digits[i] - '0');
+    for (size_t i = 0; i < intPart.size(); ++i) {
+        value = value * 10 + (intPart[i] - '0');
     }
+
+    if (hasKSuffix) {
+        // Pad fracPart to exactly 3 digits (K = ×1000).
+        while (fracPart.size() < 3) fracPart.push_back('0');
+        // More than 3 fractional digits means sub-1 precision; truncate.
+        int frac = 0;
+        for (size_t i = 0; i < 3; ++i) {
+            frac = frac * 10 + (fracPart[i] - '0');
+        }
+        value = value * 1000 + frac;
+    }
+
     if (value <= 0) return false;
     *out = value;
     return true;
