@@ -2653,6 +2653,7 @@ async function mountAutoSellerTab(options = {}) {
   const stockItems = options.stockItems ?? [];
   const commands = options.commands ?? {};
   const calls = [];
+  const showNotification = options.showNotification;
 
   const runAutoOperationCommand = vi.fn(async (command, args) => {
     calls.push({ command, args });
@@ -2675,6 +2676,7 @@ async function mountAutoSellerTab(options = {}) {
   });
 
   window.bidkingDesktop = { isDesktop: true, runAutoOperationCommand };
+  if (showNotification) window.bidkingDesktop.showNotification = showNotification;
   const wrapper = mount(App);
   await flushPromises();
   await nextTick();
@@ -3358,5 +3360,159 @@ describe('auto-seller', () => {
       const result = await start();
       expect(result).toBeUndefined();
     });
+  });
+
+  it('notifies on completion with success and skipped counts', async () => {
+    const showNotification = vi.fn().mockResolvedValue({ ok: true, shown: true });
+    const { wrapper } = await mountAutoSellerTab({ stockItems: [], showNotification });
+
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(showNotification).toHaveBeenCalledOnce();
+    expect(showNotification).toHaveBeenCalledWith(
+      'BKToolBox',
+      expect.stringContaining('自动售卖完成')
+    );
+    expect(showNotification.mock.calls[0][1]).toMatch(/成功上架\s+0\s+件，跳过\s+0\s+件/);
+  });
+
+  it('notifies on initial snapshot failure', async () => {
+    const showNotification = vi.fn().mockResolvedValue({ ok: true, shown: true });
+    const { wrapper } = await mountAutoSellerTab({
+      commands: {
+        GetStockContainers: async () => ({ ok: false, error: 'bridge error' }),
+      },
+      showNotification,
+    });
+
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(showNotification).toHaveBeenCalledOnce();
+    expect(showNotification).toHaveBeenCalledWith(
+      'BKToolBox',
+      expect.stringContaining('自动售卖失败')
+    );
+    expect(showNotification.mock.calls[0][1]).toContain('bridge error');
+  });
+
+  it('notifies on item-processing failure', async () => {
+    let snapCalls = 0;
+    const showNotification = vi.fn().mockResolvedValue({ ok: true, shown: true });
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+      ],
+      commands: {
+        GetItemTradeInfo: async () => ({ ok: false, error: 'trade info unavailable' }),
+        GetStockContainers: async () => {
+          snapCalls++;
+          // First call (initial snapshot) succeeds; second call (inside _handleNonRecoverableSkip) fails
+          if (snapCalls === 1) {
+            return {
+              ok: true,
+              value: createWarehouseSnapshot([
+                createWarehouseContainer({ stockId: 0, items: [
+                  createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+                ]}),
+              ]),
+            };
+          }
+          return { ok: false, error: 'snapshot after skip failed' };
+        },
+      },
+      showNotification,
+    });
+
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(showNotification).toHaveBeenCalledOnce();
+    expect(showNotification).toHaveBeenCalledWith(
+      'BKToolBox',
+      expect.stringContaining('自动售卖失败')
+    );
+    expect(showNotification.mock.calls[0][1]).toContain('snapshot after skip failed');
+  });
+
+  it('notifies on snapshot-after-success failure', async () => {
+    vi.useFakeTimers();
+    let snapCalls = 0;
+    const showNotification = vi.fn().mockResolvedValue({ ok: true, shown: true });
+    const { wrapper } = await mountAutoSellerTab({
+      stockItems: [
+        createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+      ],
+      commands: {
+        GetItemTradeInfo: async () => ({ ok: true, value: { minPrice: 5000 } }),
+        ExchangeItem: async () => ({ ok: true }),
+        GetStockContainers: async () => {
+          snapCalls++;
+          if (snapCalls <= 2) {
+            return {
+              ok: true,
+              value: createWarehouseSnapshot([
+                createWarehouseContainer({ stockId: 0, items: [
+                  createWarehouseStockItem({ itemUid: 'u1', itemCid: 1022002, stockId: 0, pos: 0, count: 1 }),
+                ]}),
+              ]),
+            };
+          }
+          return { ok: false, error: 'post-sale snapshot failed' };
+        },
+      },
+      showNotification,
+    });
+
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await vi.advanceTimersByTimeAsync(0); // initial snapshot + GetItemTradeInfo + ExchangeItem
+    await vi.advanceTimersByTimeAsync(2000); // _cancelableSleep(1500)
+    await vi.advanceTimersByTimeAsync(0); // finalize
+
+    expect(showNotification).toHaveBeenCalledOnce();
+    expect(showNotification).toHaveBeenCalledWith(
+      'BKToolBox',
+      expect.stringContaining('自动售卖失败')
+    );
+    expect(showNotification.mock.calls[0][1]).toContain('post-sale snapshot failed');
+
+    vi.useRealTimers();
+  });
+
+  it('completes normally when showNotification returns { ok: false }', async () => {
+    const showNotification = vi.fn().mockResolvedValue({ ok: false, shown: false });
+    const { wrapper } = await mountAutoSellerTab({ stockItems: [], showNotification });
+
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toContain('已完成');
+  });
+
+  it('completes normally when showNotification throws', async () => {
+    const showNotification = vi.fn().mockRejectedValue(new Error('notification crashed'));
+    const { wrapper } = await mountAutoSellerTab({ stockItems: [], showNotification });
+
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toContain('已完成');
+  });
+
+  it('completes normally when showNotification is absent (non-desktop)', async () => {
+    // mountAutoSellerTab installs isDesktop + runAutoOperationCommand but no showNotification
+    const { wrapper } = await mountAutoSellerTab({ stockItems: [] });
+
+    await wrapper.find('[data-testid="price-auto-seller-start"]').trigger('click');
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="auto-seller-phase"]').text()).toContain('已完成');
   });
 });
