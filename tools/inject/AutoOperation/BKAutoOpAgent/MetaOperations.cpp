@@ -2747,7 +2747,7 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     if (!canContinueBidDialog) {
                         continue;
                     }
-                    const int finalAmount = ClampAutoAuctionBidAmount(amount, 150000);
+                    const int finalAmount = ClampAutoAuctionBidAmount(amount, roomId == 102 ? 350000 : 150000);
                     if (finalAmount != amount) {
                         Logf("AutoAuction amount capped: %d -> %d", amount, finalAmount);
                     }
