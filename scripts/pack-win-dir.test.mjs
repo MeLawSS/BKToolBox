@@ -217,7 +217,7 @@ describe('runPack', () => {
       ['pack host: WSL'],
       ['pack profile: linux-native'],
     ]);
-    expect(runNativeCommand).toHaveBeenCalledTimes(3);
+    expect(runNativeCommand).toHaveBeenCalledTimes(4);
   });
 
   it('logs the native Windows profile and still patches icons', async () => {
@@ -237,14 +237,15 @@ describe('runPack', () => {
     expect(logInfo.mock.calls).toEqual([
       ['pack profile: windows-native'],
     ]);
-    expect(runNativeCommand).toHaveBeenNthCalledWith(1, 'npm', ['run', 'build:pages'], '/repo', expect.any(Object));
-    expect(runNativeCommand).toHaveBeenNthCalledWith(2, 'npm', ['run', 'prepare:dumpcap'], '/repo', expect.any(Object));
-    expect(runNativeCommand).toHaveBeenNthCalledWith(3, 'electron-builder', [
+    expect(runNativeCommand).toHaveBeenNthCalledWith(1, 'npm', ['run', 'build:agent-dll'], '/repo', expect.any(Object));
+    expect(runNativeCommand).toHaveBeenNthCalledWith(2, 'npm', ['run', 'build:pages'], '/repo', expect.any(Object));
+    expect(runNativeCommand).toHaveBeenNthCalledWith(3, 'npm', ['run', 'prepare:dumpcap'], '/repo', expect.any(Object));
+    expect(runNativeCommand).toHaveBeenNthCalledWith(4, 'electron-builder', [
       '--win',
       '--dir',
       '--config.directories.output=/repo/dist/.pack-output-BKToolBox-dev',
     ], '/repo', expect.any(Object));
-    expect(runNativeCommand).toHaveBeenNthCalledWith(4, '/custom-node', [
+    expect(runNativeCommand).toHaveBeenNthCalledWith(5, '/custom-node', [
       path.join('/repo', 'scripts', 'patch-win-icons.js'),
       path.join('/repo', 'dist', 'BKToolBox-dev'),
     ], '/repo', expect.any(Object));
@@ -340,9 +341,10 @@ describe('pack stage dispatch', () => {
       renameDefaultAppDir,
     });
 
-    expect(runNativeCommand).toHaveBeenNthCalledWith(1, 'npm', ['run', 'build:pages'], projectRoot, expect.any(Object));
-    expect(runNativeCommand).toHaveBeenNthCalledWith(2, 'npm', ['run', 'prepare:dumpcap'], projectRoot, expect.any(Object));
-    expect(runNativeCommand).toHaveBeenNthCalledWith(3, 'electron-builder', [
+    expect(runNativeCommand).toHaveBeenNthCalledWith(1, 'npm', ['run', 'build:agent-dll'], projectRoot, expect.any(Object));
+    expect(runNativeCommand).toHaveBeenNthCalledWith(2, 'npm', ['run', 'build:pages'], projectRoot, expect.any(Object));
+    expect(runNativeCommand).toHaveBeenNthCalledWith(3, 'npm', ['run', 'prepare:dumpcap'], projectRoot, expect.any(Object));
+    expect(runNativeCommand).toHaveBeenNthCalledWith(4, 'electron-builder', [
       '--win',
       '--dir',
       '--config.directories.output=/mnt/c/tools/bidking/dist/.pack-output-BKToolBox-dev',

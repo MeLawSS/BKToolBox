@@ -800,50 +800,6 @@ describe('HeroEstimatorPanel', () => {
     expect(wrapper.find('#elsa-cells-orange').attributes('placeholder')).toBe('6');
   });
 
-  it('shows gold zero placeholders when Elsa receives an orange zero-average aggregate event', async () => {
-    const wrapper = mount(HeroEstimatorPanel, {
-      props: { profile: elsaProfile, embedded: true },
-      attachTo: document.body,
-    });
-    mountedWrappers.push(wrapper);
-    await flushPromises();
-    await nextTick();
-
-    const monitorSource = FakeEventSource.instances.find((source) => source.url === '/api/bidking-monitor/events');
-
-    monitorSource.emitEvent('event', {
-      key: 'elsa-orange-zero-average',
-      gameUid: 'game-1',
-      group: 'hero',
-      skill: {
-        uid: 'elsa-orange-zero-average-hero',
-        heroCid: 103,
-        skillCid: 1001034,
-        hitBoxList: [
-          { boxId: 0, itemSlotType: 11, itemQuility: 1, itemQuilityName: '白' },
-        ],
-      },
-    });
-    await nextTick();
-
-    monitorSource.emitEvent('event', {
-      key: 'elsa-orange-zero-average-map',
-      gameUid: 'game-1',
-      group: 'map',
-      skill: {
-        uid: 'elsa-orange-zero-average-map-skill',
-        skillCid: 200015,
-        allHitItemAvgBoxIndex: 0,
-      },
-    });
-    await nextTick();
-
-    expect(wrapper.find('#elsa-avg-orange').attributes('placeholder')).toBe('0');
-    expect(wrapper.find('#elsa-cells-orange').attributes('placeholder')).toBe('0');
-    expect(wrapper.find('#elsa-avg-orange').element.value).toBe('');
-    expect(wrapper.find('#elsa-cells-orange').element.value).toBe('');
-  });
-
   it('shows a zero white placeholder when Elsa white complete reveal hits an empty result set', async () => {
     const wrapper = mount(HeroEstimatorPanel, {
       props: { profile: elsaProfile, embedded: true },
@@ -2079,5 +2035,95 @@ describe('HeroEstimatorPanel', () => {
     await nextTick();
 
     expect(wrapper.find('#total-estimate').text()).toBe(totalAfterSecond);
+  });
+
+  it('shows gold zero placeholders when Elsa receives an orange zero-average aggregate event', async () => {
+    const wrapper = mount(HeroEstimatorPanel, {
+      props: { profile: elsaProfile, embedded: true },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    const monitorSource = FakeEventSource.instances.find((source) => source.url === '/api/bidking-monitor/events');
+
+    monitorSource.emitEvent('event', {
+      key: 'elsa-orange-zero-average',
+      gameUid: 'game-1',
+      group: 'hero',
+      skill: {
+        uid: 'elsa-orange-zero-average-hero',
+        heroCid: 103,
+        skillCid: 1001034,
+        hitBoxList: [
+          { boxId: 0, itemSlotType: 11, itemQuility: 1, itemQuilityName: '白' },
+        ],
+      },
+    });
+    await nextTick();
+
+    monitorSource.emitEvent('event', {
+      key: 'elsa-orange-zero-average-map',
+      gameUid: 'game-1',
+      group: 'map',
+      skill: {
+        uid: 'elsa-orange-zero-average-map-skill',
+        skillCid: 200015,
+        allHitItemAvgBoxIndex: 0,
+      },
+    });
+    await nextTick();
+
+    expect(wrapper.find('#elsa-avg-orange').attributes('placeholder')).toBe('0');
+    expect(wrapper.find('#elsa-cells-orange').attributes('placeholder')).toBe('0');
+    expect(wrapper.find('#elsa-avg-orange').element.value).toBe('');
+    expect(wrapper.find('#elsa-cells-orange').element.value).toBe('');
+  });
+
+  it('does not overwrite existing user input when orange zero-average monitor event arrives', async () => {
+    const wrapper = mount(HeroEstimatorPanel, {
+      props: { profile: elsaProfile, embedded: true },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    await wrapper.find('#elsa-avg-orange').setValue('5');
+    await wrapper.find('#elsa-cells-orange').setValue('10');
+    await nextTick();
+
+    const monitorSource = FakeEventSource.instances.find((source) => source.url === '/api/bidking-monitor/events');
+
+    monitorSource.emitEvent('event', {
+      key: 'elsa-orange-zero-average-prefilled',
+      gameUid: 'game-1',
+      group: 'hero',
+      skill: {
+        uid: 'elsa-orange-zero-average-prefilled-hero',
+        heroCid: 103,
+        skillCid: 1001034,
+        hitBoxList: [
+          { boxId: 0, itemSlotType: 11, itemQuility: 1, itemQuilityName: '白' },
+        ],
+      },
+    });
+    await nextTick();
+
+    monitorSource.emitEvent('event', {
+      key: 'elsa-orange-zero-average-prefilled-map',
+      gameUid: 'game-1',
+      group: 'map',
+      skill: {
+        uid: 'elsa-orange-zero-average-prefilled-map-skill',
+        skillCid: 200015,
+        allHitItemAvgBoxIndex: 0,
+      },
+    });
+    await nextTick();
+
+    expect(wrapper.find('#elsa-avg-orange').element.value).toBe('5');
+    expect(wrapper.find('#elsa-cells-orange').element.value).toBe('10');
   });
 });
