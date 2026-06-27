@@ -800,6 +800,43 @@ describe('HeroEstimatorPanel', () => {
     expect(wrapper.find('#elsa-cells-orange').attributes('placeholder')).toBe('6');
   });
 
+  it('fills totalCells input when skill 200009 map event arrives', async () => {
+    const wrapper = mount(HeroEstimatorPanel, {
+      props: { profile: elsaProfile, embedded: true },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    const monitorSource = FakeEventSource.instances.find((source) => source.url === '/api/bidking-monitor/events');
+
+    monitorSource.emitEvent('event', {
+      key: 'skill-200009-latch',
+      gameUid: 'game-1',
+      group: 'hero',
+      skill: {
+        uid: 'skill-200009-latch-skill',
+        heroCid: 103,
+        skillCid: 1001034,
+        hitBoxList: [],
+      },
+    });
+    monitorSource.emitEvent('event', {
+      key: 'skill-200009-total-cells',
+      gameUid: 'game-1',
+      group: 'map',
+      skill: {
+        uid: 'skill-200009-total-cells-skill',
+        skillCid: 200009,
+        totalHitBoxIndex: 42,
+      },
+    });
+    await nextTick();
+
+    expect(wrapper.find('#elsa-total-cells-all').element.value).toBe('42');
+  });
+
   it('shows a zero white placeholder when Elsa white complete reveal hits an empty result set', async () => {
     const wrapper = mount(HeroEstimatorPanel, {
       props: { profile: elsaProfile, embedded: true },

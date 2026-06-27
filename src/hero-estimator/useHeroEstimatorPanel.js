@@ -672,6 +672,13 @@ export function useHeroEstimatorPanel(profile) {
     return value ? { fieldKey: 'totalAverage', value } : null;
   }
 
+  function getMonitorTotalCellsFill(skill, event = null) {
+    if (event?.group !== 'map') return null;
+    if (Number(skill?.skillCid) !== 200009) return null;
+    const value = formatMonitorInputNumber(skill?.totalHitBoxIndex);
+    return value ? { value } : null;
+  }
+
   function applyAutoGlobalInput(fill) {
     if (!fill) return false;
     if (globalPlaceholders[fill.fieldKey] === undefined) return false;
@@ -1781,6 +1788,11 @@ export function useHeroEstimatorPanel(profile) {
     }
     shouldRefreshEstimate = applyAutoGlobalInput(getMonitorGlobalAverageFill(rawPayload.skill, rawPayload)) || shouldRefreshEstimate;
     shouldRefreshEstimate = applyAutoGroupInput(getMonitorOutlineAggregateFill(rawPayload.skill, rawPayload)) || shouldRefreshEstimate;
+    const totalCellsFill = getMonitorTotalCellsFill(rawPayload.skill, rawPayload);
+    if (totalCellsFill) {
+      globalInputs.totalCells = totalCellsFill.value;
+      shouldRefreshEstimate = true;
+    }
     for (const fill of monitorAdapter.getAutoFills(nextMonitorState)) {
       shouldRefreshEstimate = applyAutoGroupInput(fill) || shouldRefreshEstimate;
     }
