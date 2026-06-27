@@ -17,10 +17,18 @@ function makeTempRoot() {
   return root;
 }
 
+async function advanceUnloadWaitTimers(ms) {
+  for (let index = 0; index < 4; index += 1) {
+    await Promise.resolve();
+  }
+  await vi.advanceTimersByTimeAsync(ms);
+}
+
 afterEach(() => {
   for (const root of tempRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true });
   }
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -275,6 +283,7 @@ describe('inject-service AutoOperation Agent', () => {
   });
 
   it('waits for the AutoOperation Agent to disappear when running UnloadAgent through the generic command path', async () => {
+    vi.useFakeTimers();
     const sendAutoOperationCommand = vi.fn()
       .mockResolvedValueOnce({
         id: '7',
@@ -288,12 +297,14 @@ describe('inject-service AutoOperation Agent', () => {
       })
       .mockRejectedValueOnce(new Error('connect ENOENT \\\\.\\pipe\\BKAutoOp'));
 
-    const result = await service.runAutoOperationCommand('UnloadAgent', { delayMs: 200 }, {
+    const resultPromise = service.runAutoOperationCommand('UnloadAgent', { delayMs: 200 }, {
       sendAutoOperationCommand,
       unloadPollIntervalMs: 1,
       unloadTimeoutMs: 50,
       unloadGraceMs: 0,
     });
+    await advanceUnloadWaitTimers(5);
+    const result = await resultPromise;
 
     expect(sendAutoOperationCommand).toHaveBeenNthCalledWith(
       1,
@@ -320,6 +331,7 @@ describe('inject-service AutoOperation Agent', () => {
   });
 
   it('does not treat ping timeout as proof that UnloadAgent finished', async () => {
+    vi.useFakeTimers();
     const sendAutoOperationCommand = vi.fn()
       .mockResolvedValueOnce({
         id: '7',
@@ -328,12 +340,15 @@ describe('inject-service AutoOperation Agent', () => {
       })
       .mockRejectedValue(new Error('ping timed out'));
 
-    await expect(service.runAutoOperationCommand('UnloadAgent', { delayMs: 200 }, {
+    const resultPromise = service.runAutoOperationCommand('UnloadAgent', { delayMs: 200 }, {
       sendAutoOperationCommand,
       unloadPollIntervalMs: 1,
       unloadTimeoutMs: 10,
       unloadGraceMs: 0,
-    })).rejects.toThrow('AutoOperation Agent did not unload before timeout');
+    });
+    const expectation = expect(resultPromise).rejects.toThrow('AutoOperation Agent did not unload before timeout');
+    await advanceUnloadWaitTimers(20);
+    await expectation;
   });
 
   it('uses longer pipe timeouts for long-running AutoOperation commands', async () => {
@@ -523,6 +538,7 @@ describe('inject-service AutoOperation Agent', () => {
   });
 
   it('unloads the AutoOperation Agent with a short timeout', async () => {
+    vi.useFakeTimers();
     const sendAutoOperationCommand = vi.fn()
       .mockResolvedValueOnce({
         id: '9',
@@ -536,12 +552,14 @@ describe('inject-service AutoOperation Agent', () => {
       })
       .mockRejectedValueOnce(new Error('connect ENOENT \\\\.\\pipe\\BKAutoOp'));
 
-    const result = await service.unloadAutoOperationAgent({
+    const resultPromise = service.unloadAutoOperationAgent({
       sendAutoOperationCommand,
       unloadPollIntervalMs: 1,
       unloadTimeoutMs: 50,
       unloadGraceMs: 0,
     });
+    await advanceUnloadWaitTimers(5);
+    const result = await resultPromise;
 
     expect(sendAutoOperationCommand).toHaveBeenCalledWith(
       'UnloadAgent',
@@ -578,6 +596,7 @@ describe('inject-service AutoOperation Agent', () => {
   });
 
   it('reports failure when the AutoOperation Agent still responds after the unload timeout', async () => {
+    vi.useFakeTimers();
     const sendAutoOperationCommand = vi.fn()
       .mockResolvedValueOnce({
         id: '9',
@@ -590,12 +609,14 @@ describe('inject-service AutoOperation Agent', () => {
         result: { pong: true },
       });
 
-    const result = await service.unloadAutoOperationAgent({
+    const resultPromise = service.unloadAutoOperationAgent({
       sendAutoOperationCommand,
       unloadPollIntervalMs: 1,
       unloadTimeoutMs: 5,
       unloadGraceMs: 0,
     });
+    await advanceUnloadWaitTimers(20);
+    const result = await resultPromise;
 
     expect(result).toEqual({
       ok: false,
