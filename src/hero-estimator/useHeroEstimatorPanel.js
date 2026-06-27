@@ -91,6 +91,7 @@ export function useHeroEstimatorPanel(profile) {
     { avg: '', cells: '', priceAverage: '', totalPrice: '' },
   ])));
   const globalPlaceholders = reactive({
+    totalCells: '',
     totalAverage: '',
   });
 
@@ -164,7 +165,15 @@ export function useHeroEstimatorPanel(profile) {
   });
   const selectedTotalCellsValue = computed({
     get() {
-      return String(globalInputs.totalCells).trim() || normalizedAutoTotalCells.value;
+      return String(globalInputs.totalCells).trim() || globalPlaceholders.totalCells || normalizedAutoTotalCells.value;
+    },
+    set(value) {
+      globalInputs.totalCells = value;
+    },
+  });
+  const totalCellsInputValue = computed({
+    get() {
+      return String(globalInputs.totalCells).trim() || globalPlaceholders.totalCells;
     },
     set(value) {
       globalInputs.totalCells = value;
@@ -676,7 +685,7 @@ export function useHeroEstimatorPanel(profile) {
     if (event?.group !== 'map') return null;
     if (Number(skill?.skillCid) !== 200009) return null;
     const value = formatMonitorInputNumber(skill?.totalHitBoxIndex);
-    return value ? { value } : null;
+    return value ? { fieldKey: 'totalCells', value } : null;
   }
 
   function applyAutoGlobalInput(fill) {
@@ -719,6 +728,7 @@ export function useHeroEstimatorPanel(profile) {
     cancelActiveCalculations();
     globalInputs.totalCells = '';
     globalInputs.totalAverage = '';
+    globalPlaceholders.totalCells = '';
     globalPlaceholders.totalAverage = '';
     totalCellOptions.value = [];
     totalAverageOptionSource.value = '';
@@ -759,7 +769,7 @@ export function useHeroEstimatorPanel(profile) {
   }
 
   function hasMonitorPlaceholderInputs() {
-    const usesMonitorTotalCells = !String(globalInputs.totalCells).trim() && monitorEstimatedTotalCells.value;
+    const usesMonitorTotalCells = !String(globalInputs.totalCells).trim() && (monitorEstimatedTotalCells.value || globalPlaceholders.totalCells);
     const usesMonitorTotalAverage = !String(globalInputs.totalAverage).trim() && globalPlaceholders.totalAverage;
     return Boolean(usesMonitorTotalCells || usesMonitorTotalAverage || groups.some((group) =>
       ['avg', 'cells', 'priceAverage'].some(
@@ -772,6 +782,7 @@ export function useHeroEstimatorPanel(profile) {
     return {
       ...globalInputs,
       totalCells: String(globalInputs.totalCells).trim()
+        || globalPlaceholders.totalCells
         || normalizedAutoTotalCells.value
         || monitorEstimatedTotalCells.value,
       totalAverage: String(globalInputs.totalAverage).trim() || globalPlaceholders.totalAverage,
@@ -1788,11 +1799,9 @@ export function useHeroEstimatorPanel(profile) {
     }
     shouldRefreshEstimate = applyAutoGlobalInput(getMonitorGlobalAverageFill(rawPayload.skill, rawPayload)) || shouldRefreshEstimate;
     shouldRefreshEstimate = applyAutoGroupInput(getMonitorOutlineAggregateFill(rawPayload.skill, rawPayload)) || shouldRefreshEstimate;
-    const totalCellsFill = getMonitorTotalCellsFill(rawPayload.skill, rawPayload);
-    if (totalCellsFill) {
-      globalInputs.totalCells = totalCellsFill.value;
-      shouldRefreshEstimate = true;
-    }
+    const hadTotalCellsFill = applyAutoGlobalInput(getMonitorTotalCellsFill(rawPayload.skill, rawPayload));
+    if (hadTotalCellsFill) globalInputs.totalCells = '';
+    shouldRefreshEstimate = hadTotalCellsFill || shouldRefreshEstimate;
     for (const fill of monitorAdapter.getAutoFills(nextMonitorState)) {
       shouldRefreshEstimate = applyAutoGroupInput(fill) || shouldRefreshEstimate;
     }
@@ -1883,6 +1892,7 @@ export function useHeroEstimatorPanel(profile) {
     groupPlaceholders,
     usesTotalCellSelect,
     selectedTotalCellsValue,
+    totalCellsInputValue,
     totalCellOptions,
     totalCellsPlaceholder,
     totalAveragePlaceholder,

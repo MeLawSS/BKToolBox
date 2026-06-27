@@ -837,6 +837,109 @@ describe('HeroEstimatorPanel', () => {
     expect(wrapper.find('#elsa-total-cells-all').element.value).toBe('42');
   });
 
+  it('does not restore 200009-filled totalCells value after remount without fresh monitor context', async () => {
+    const wrapper = mount(HeroEstimatorPanel, {
+      props: { profile: elsaProfile, embedded: true },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    const monitorSource = FakeEventSource.instances.find((source) => source.url === '/api/bidking-monitor/events');
+
+    monitorSource.emitEvent('event', {
+      key: 'skill-200009-remount-latch',
+      gameUid: 'game-remount',
+      group: 'hero',
+      skill: {
+        uid: 'skill-200009-remount-latch-skill',
+        heroCid: 103,
+        skillCid: 1001034,
+        hitBoxList: [],
+      },
+    });
+    monitorSource.emitEvent('event', {
+      key: 'skill-200009-remount-fill',
+      gameUid: 'game-remount',
+      group: 'map',
+      skill: {
+        uid: 'skill-200009-remount-fill-skill',
+        skillCid: 200009,
+        totalHitBoxIndex: 55,
+      },
+    });
+    await nextTick();
+
+    expect(wrapper.find('#elsa-total-cells-all').element.value).toBe('55');
+
+    wrapper.unmount();
+    mountedWrappers = mountedWrappers.filter((item) => item !== wrapper);
+
+    const remountedWrapper = mount(HeroEstimatorPanel, {
+      props: { profile: elsaProfile, embedded: true },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(remountedWrapper);
+    await flushPromises();
+    await nextTick();
+
+    expect(remountedWrapper.find('#elsa-total-cells-all').element.value).toBe('');
+  });
+
+  it('preserves user-retyped totalCells when same 200009 value re-arrives (dedup)', async () => {
+    const wrapper = mount(HeroEstimatorPanel, {
+      props: { profile: elsaProfile, embedded: true },
+      attachTo: document.body,
+    });
+    mountedWrappers.push(wrapper);
+    await flushPromises();
+    await nextTick();
+
+    const monitorSource = FakeEventSource.instances.find((source) => source.url === '/api/bidking-monitor/events');
+
+    monitorSource.emitEvent('event', {
+      key: 'skill-200009-dedup-latch',
+      gameUid: 'game-dedup',
+      group: 'hero',
+      skill: {
+        uid: 'skill-200009-dedup-latch-skill',
+        heroCid: 103,
+        skillCid: 1001034,
+        hitBoxList: [],
+      },
+    });
+    monitorSource.emitEvent('event', {
+      key: 'skill-200009-dedup-fill-1',
+      gameUid: 'game-dedup',
+      group: 'map',
+      skill: {
+        uid: 'skill-200009-dedup-fill-1-skill',
+        skillCid: 200009,
+        totalHitBoxIndex: 42,
+      },
+    });
+    await nextTick();
+    expect(wrapper.find('#elsa-total-cells-all').element.value).toBe('42');
+
+    await wrapper.find('#elsa-total-cells-all').setValue('50');
+    expect(wrapper.find('#elsa-total-cells-all').element.value).toBe('50');
+
+    monitorSource.emitEvent('event', {
+      key: 'skill-200009-dedup-fill-2',
+      gameUid: 'game-dedup',
+      group: 'map',
+      skill: {
+        uid: 'skill-200009-dedup-fill-2-skill',
+        skillCid: 200009,
+        totalHitBoxIndex: 42,
+      },
+    });
+    await nextTick();
+
+    expect(wrapper.find('#elsa-total-cells-all').element.value).toBe('50');
+  });
+
   it('shows a zero white placeholder when Elsa white complete reveal hits an empty result set', async () => {
     const wrapper = mount(HeroEstimatorPanel, {
       props: { profile: elsaProfile, embedded: true },

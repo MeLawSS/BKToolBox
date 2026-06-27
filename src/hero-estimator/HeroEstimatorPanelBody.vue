@@ -72,7 +72,7 @@ function showsGroupTotalPriceField(groupKey) {
               <input
                 v-else
                 :id="domId(panel.globalFields[0].id)"
-                v-model="panel.globalInputs.totalCells"
+                v-model="panel.totalCellsInputValue"
                 type="text"
                 :inputmode="panel.globalFields[0].mode"
                 :placeholder="panel.totalCellsPlaceholder"
