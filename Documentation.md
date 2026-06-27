@@ -56,3 +56,39 @@
   - `tools/inject/AutoOperation/BKAutoOpAgent/AggregateOperationSemantics.test.cpp`
   - `tools/inject/AutoOperation/BKAutoOpAgent/BKAutoOpAgent.dll`
   - `tools/inject/AutoOperation/BKAutoOpAgent/MetaOperations.cpp`
+
+## 2026-06-28 AutoAuction confirm gate
+
+- New task in worktree `feat/autoauction-end-skip`: reduce expected-price confirm wait after player dropouts.
+- Confirmed rule with user: from round 2 onward, wait for `上一回合出价且出价 > 0 的玩家数量 - 1`.
+- First round must remain unchanged.
+- Implementation approach: keep the gate threshold rule in `AggregateOperationSemantics.h`, feed it with a previous-round positive-bidder count gathered from history rows in `MetaOperations.cpp`, and fall back to the visible-player rule when history is unavailable.
+- Implemented: expected-price confirm gate now derives required opponent `bided` count from prior-round positive bidders when `gateEntryRoundNumber > 1`; otherwise it keeps the old visible-player rule.
+- Guardrails kept:
+  - first round unchanged
+  - if any visible player's prior-round history row cannot be read, the gate falls back to the visible-player rule
+  - a prior-round positive bidder count of `1` releases immediately with required other bids = `0`
+
+### Verification
+
+- Red step:
+  - `wsl bash -lc "cd /mnt/a/BidKing/.worktrees/autoauction-end-skip && g++ -std=c++11 tools/inject/AutoOperation/BKAutoOpAgent/AggregateOperationSemantics.test.cpp -o /tmp/bk_autoauction_confirm_gate_agg_test"`
+  - failed as expected with helper arity errors before implementation
+- Green step:
+  - `wsl bash -lc "cd /mnt/a/BidKing/.worktrees/autoauction-end-skip && g++ -std=c++11 tools/inject/AutoOperation/BKAutoOpAgent/AggregateOperationSemantics.test.cpp -o /tmp/bk_autoauction_confirm_gate_agg_test && /tmp/bk_autoauction_confirm_gate_agg_test"`
+  - `wsl bash -lc "cd /mnt/a/BidKing/.worktrees/autoauction-end-skip/tools/inject/AutoOperation/BKAutoOpAgent && g++ -std=c++11 MetaOperations.test.cpp -o /tmp/bk_autoauction_confirm_gate_meta_test && /tmp/bk_autoauction_confirm_gate_meta_test"`
+
+## 2026-06-28 AutoAuction ended-screen skip
+
+- Ended-screen reveal skipping now runs across the full ended-screen tail, not only the primary-action cleanup branch.
+- Step 7 winner / quick-recycle waiting now uses a 30s wall-clock deadline via `GetAutoAuctionEndedWinnerRevealSkipBudgetMs()`.
+- Step 8 primary-action waiting now uses a 40s wall-clock deadline via `GetAutoAuctionEndedCleanupRevealSkipBudgetMs()`.
+- Background skip attempts click `EndPanel/bg`, then observe a sliced 300ms settle window through `RunAutoAuctionEndedRevealSkipSettleWindow(...)` instead of blind-sleeping.
+- The 300ms settle window is capped by remaining stage budget through `ClampAutoAuctionEndedRevealSkipWindowMs(...)`, so the old Step 7 / Step 8 wall-clock budgets are not implicitly stretched.
+
+### Verification
+
+- `wsl bash -lc "cd /mnt/a/BidKing/.worktrees/autoauction-end-skip/tools/inject/AutoOperation/BKAutoOpAgent && g++ -std=c++11 AggregateOperationSemantics.test.cpp -o /tmp/bk_autoauction_end_skip_agg_test && /tmp/bk_autoauction_end_skip_agg_test"`
+- `wsl bash -lc "cd /mnt/a/BidKing/.worktrees/autoauction-end-skip/tools/inject/AutoOperation/BKAutoOpAgent && g++ -std=c++11 MetaOperations.test.cpp -o /tmp/bk_autoauction_end_skip_meta_test && /tmp/bk_autoauction_end_skip_meta_test"`
+- `wsl bash -lc "cd /mnt/a/BidKing/.worktrees/autoauction-end-skip && bash tools/inject/AutoOperation/BKAutoOpAgent/build.sh"`
+- `npm test`

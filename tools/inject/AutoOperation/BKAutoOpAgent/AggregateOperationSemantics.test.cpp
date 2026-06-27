@@ -75,6 +75,23 @@ int main() {
     assert(strcmp(PickAutoAuctionEndedPrimaryActionPath(false, true), "EndPanel/tuichu/continueBtn") == 0);
     assert(strcmp(PickAutoAuctionEndedPrimaryActionPath(true, true), "EndPanel/tuichu/receiveBtn") == 0);
     assert(PickAutoAuctionEndedPrimaryActionPath(false, false) == nullptr);
+    assert(GetAutoAuctionEndedWinnerRevealSkipBudgetMs() == 30000);
+    assert(GetAutoAuctionEndedCleanupRevealSkipBudgetMs() == 40000);
+    assert(GetAutoAuctionEndedRevealSkipSettleWindowMs() == 300);
+    assert(GetAutoAuctionEndedRevealSkipPollSliceMs() == 50);
+    assert(ClampAutoAuctionEndedRevealSkipWindowMs(1000) == 300);
+    assert(ClampAutoAuctionEndedRevealSkipWindowMs(300) == 300);
+    assert(ClampAutoAuctionEndedRevealSkipWindowMs(250) == 250);
+    assert(ClampAutoAuctionEndedRevealSkipWindowMs(1) == 1);
+    assert(ClampAutoAuctionEndedRevealSkipWindowMs(0) == 0);
+    assert(ClampAutoAuctionEndedRevealSkipWindowMs(-10) == 0);
+    assert(ShouldAttemptAutoAuctionEndedRevealSkipInWinnerStage(false, false, false));
+    assert(!ShouldAttemptAutoAuctionEndedRevealSkipInWinnerStage(true, false, false));
+    assert(ShouldAttemptAutoAuctionEndedRevealSkipInWinnerStage(true, true, false));
+    assert(!ShouldAttemptAutoAuctionEndedRevealSkipInWinnerStage(true, true, true));
+    assert(ShouldAttemptAutoAuctionEndedRevealSkipInCleanupStage(nullptr));
+    assert(!ShouldAttemptAutoAuctionEndedRevealSkipInCleanupStage("EndPanel/tuichu/receiveBtn"));
+    assert(!ShouldAttemptAutoAuctionEndedRevealSkipInCleanupStage("EndPanel/tuichu/continueBtn"));
 
     assert(ShouldAbortAutoAuction(true, false));
     assert(ShouldAbortAutoAuction(false, true));
@@ -342,50 +359,70 @@ int main() {
     }
     assert(GetAutoAuctionExpectedPriceConfirmGateMaxPlayerSlots() == 4);
 
-    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(0) == 0);
-    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(1) == 0);
-    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(2) == 1);
-    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(3) == 2);
-    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(4) == 3);
+    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(0, 1, 0) == 0);
+    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(1, 1, 0) == 0);
+    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(2, 1, 0) == 1);
+    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(3, 1, 0) == 2);
+    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(4, 1, 0) == 3);
+    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(4, 2, 3) == 2);
+    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(4, 3, 2) == 1);
+    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(4, 2, 1) == 0);
+    assert(GetExpectedPriceConfirmGateRequiredOtherBidCount(4, 2, 0) == 3);
 
     {
         std::string playerNames[4] = { "melo", "对手A", "", "" };
         assert(CountVisibleNamedPlayers(playerNames, 4) == 2);
-        assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(2, 0));
-        assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(2, 1));
-        assert(!IsExpectedPriceConfirmGateOpponentBidSignalReady(2, 0));
-        assert(IsExpectedPriceConfirmGateOpponentBidSignalReady(2, 1));
+        assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(2, 1, 0, 0));
+        assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(2, 1, 0, 1));
+        assert(!IsExpectedPriceConfirmGateOpponentBidSignalReady(2, 1, 0, 0));
+        assert(IsExpectedPriceConfirmGateOpponentBidSignalReady(2, 1, 0, 1));
     }
     {
         std::string playerNames[4] = { "melo", "对手A", "对手B", "" };
         assert(CountVisibleNamedPlayers(playerNames, 4) == 3);
-        assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(3, 0));
-        assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(3, 1));
-        assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(3, 2));
-        assert(!IsExpectedPriceConfirmGateOpponentBidSignalReady(3, 1));
-        assert(IsExpectedPriceConfirmGateOpponentBidSignalReady(3, 2));
+        assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(3, 1, 0, 0));
+        assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(3, 1, 0, 1));
+        assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(3, 1, 0, 2));
+        assert(!IsExpectedPriceConfirmGateOpponentBidSignalReady(3, 1, 0, 1));
+        assert(IsExpectedPriceConfirmGateOpponentBidSignalReady(3, 1, 0, 2));
     }
     {
         std::string playerNames[4] = { "melo", "对手A", "对手B", "对手C" };
         assert(CountVisibleNamedPlayers(playerNames, 4) == 4);
-        assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(4, 2));
-        assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(4, 3));
-        assert(!IsExpectedPriceConfirmGateOpponentBidSignalReady(4, 2));
-        assert(IsExpectedPriceConfirmGateOpponentBidSignalReady(4, 3));
+        assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(4, 1, 0, 2));
+        assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(4, 1, 0, 3));
+        assert(!IsExpectedPriceConfirmGateOpponentBidSignalReady(4, 1, 0, 2));
+        assert(IsExpectedPriceConfirmGateOpponentBidSignalReady(4, 1, 0, 3));
+    }
+    {
+        std::string playerNames[4] = { "melo", "对手A", "对手B", "对手C" };
+        assert(CountVisibleNamedPlayers(playerNames, 4) == 4);
+        assert(ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(4, 2, 3, 1));
+        assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(4, 2, 3, 2));
+        assert(!IsExpectedPriceConfirmGateOpponentBidSignalReady(4, 2, 3, 1));
+        assert(IsExpectedPriceConfirmGateOpponentBidSignalReady(4, 2, 3, 2));
+    }
+    {
+        std::string playerNames[4] = { "melo", "对手A", "对手B", "对手C" };
+        assert(CountVisibleNamedPlayers(playerNames, 4) == 4);
+        assert(!ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(4, 2, 1, 0));
+        assert(IsExpectedPriceConfirmGateOpponentBidSignalReady(4, 2, 1, 0));
     }
 
-    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(0, 0));
-    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(1, 1));
+    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(0, 1, 0, 0));
+    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(1, 1, 0, 1));
 
-    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(2, 0));
-    assert(IsExpectedPriceConfirmGateVisiblePlayersReady(2, 1));
+    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(2, 1, 0, 0));
+    assert(IsExpectedPriceConfirmGateVisiblePlayersReady(2, 1, 0, 1));
 
-    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(3, 1));
-    assert(IsExpectedPriceConfirmGateVisiblePlayersReady(3, 2));
+    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(3, 1, 0, 1));
+    assert(IsExpectedPriceConfirmGateVisiblePlayersReady(3, 1, 0, 2));
 
-    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(4, 2));
-    assert(IsExpectedPriceConfirmGateVisiblePlayersReady(4, 3));
-    assert(IsExpectedPriceConfirmGateVisiblePlayersReady(4, 4));
+    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(4, 1, 0, 2));
+    assert(IsExpectedPriceConfirmGateVisiblePlayersReady(4, 1, 0, 3));
+    assert(IsExpectedPriceConfirmGateVisiblePlayersReady(4, 1, 0, 4));
+    assert(!IsExpectedPriceConfirmGateVisiblePlayersReady(4, 2, 3, 1));
+    assert(IsExpectedPriceConfirmGateVisiblePlayersReady(4, 2, 3, 2));
 
     // Three-state result: all distinct
     assert(CONFIRM_GATE_READY_OPPONENT_BID  != CONFIRM_GATE_READY_TIME_FALLBACK);

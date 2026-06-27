@@ -97,6 +97,42 @@ inline int GetAutoAuctionCleanupMaxAttempts() {
     return 200;  // ~40s budget at 200ms poll (was 40 × 1000ms)
 }
 
+inline int GetAutoAuctionEndedWinnerRevealSkipBudgetMs() {
+    return 30000;
+}
+
+inline int GetAutoAuctionEndedCleanupRevealSkipBudgetMs() {
+    return GetAutoAuctionCleanupMaxAttempts() * 200;
+}
+
+inline int GetAutoAuctionEndedRevealSkipSettleWindowMs() {
+    return 300;
+}
+
+inline int GetAutoAuctionEndedRevealSkipPollSliceMs() {
+    return 50;
+}
+
+inline int ClampAutoAuctionEndedRevealSkipWindowMs(int remainingBudgetMs) {
+    if (remainingBudgetMs <= 0) return 0;
+    const int settleWindowMs = GetAutoAuctionEndedRevealSkipSettleWindowMs();
+    return remainingBudgetMs < settleWindowMs ? remainingBudgetMs : settleWindowMs;
+}
+
+inline bool ShouldAttemptAutoAuctionEndedRevealSkipInWinnerStage(
+    bool winnerResolved,
+    bool shouldWaitForQuickRecycle,
+    bool quickRecycleReady
+) {
+    if (!winnerResolved) return true;
+    if (!shouldWaitForQuickRecycle) return false;
+    return !quickRecycleReady;
+}
+
+inline bool ShouldAttemptAutoAuctionEndedRevealSkipInCleanupStage(const char* endedActionPath) {
+    return endedActionPath == nullptr;
+}
+
 inline const char* PickAutoAuctionEndedPrimaryActionPath(
     bool hasReceiveButton,
     bool hasContinueButton
@@ -450,49 +486,80 @@ inline int CountVisibleNamedPlayers(const std::string* playerNames, int slotCoun
 
 inline int GetAutoAuctionExpectedPriceConfirmGateMaxPlayerSlots() { return 4; }
 
-inline int GetExpectedPriceConfirmGateRequiredOtherBidCount(int visibleNamedPlayerCount) {
-    if (visibleNamedPlayerCount <= 1) {
-        return 0;
+inline int GetExpectedPriceConfirmGateRequiredOtherBidCount(
+    int visibleNamedPlayerCount,
+    int currentRoundNumber,
+    int previousRoundPositiveBidderCount
+) {
+    const int visibleRule = visibleNamedPlayerCount <= 1
+        ? 0
+        : visibleNamedPlayerCount - 1;
+    if (currentRoundNumber <= 1) {
+        return visibleRule;
     }
-    return visibleNamedPlayerCount - 1;
+    if (previousRoundPositiveBidderCount > 0) {
+        const int historicalRule = previousRoundPositiveBidderCount - 1;
+        return historicalRule > 0 ? historicalRule : 0;
+    }
+    return visibleRule;
 }
 
 inline bool IsExpectedPriceConfirmGateVisiblePlayersReady(
     int visibleNamedPlayerCount,
+    int currentRoundNumber,
+    int previousRoundPositiveBidderCount,
     int activeBidSignalCount
 ) {
     if (activeBidSignalCount < 0) {
         return false;
     }
-    if (visibleNamedPlayerCount <= 1) {
+    const bool useHistoricalBidderCount =
+        currentRoundNumber > 1 && previousRoundPositiveBidderCount > 0;
+    if (!useHistoricalBidderCount && visibleNamedPlayerCount <= 1) {
         return false;
     }
     return activeBidSignalCount >=
-        GetExpectedPriceConfirmGateRequiredOtherBidCount(visibleNamedPlayerCount);
+        GetExpectedPriceConfirmGateRequiredOtherBidCount(
+            visibleNamedPlayerCount,
+            currentRoundNumber,
+            previousRoundPositiveBidderCount
+        );
 }
 
 inline bool IsExpectedPriceConfirmGateOpponentBidSignalReady(
     int visibleNamedPlayerCount,
+    int currentRoundNumber,
+    int previousRoundPositiveBidderCount,
     int activeBidSignalCount
 ) {
     return IsExpectedPriceConfirmGateVisiblePlayersReady(
         visibleNamedPlayerCount,
+        currentRoundNumber,
+        previousRoundPositiveBidderCount,
         activeBidSignalCount
     );
 }
 
 inline bool ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(
     int visibleNamedPlayerCount,
+    int currentRoundNumber,
+    int previousRoundPositiveBidderCount,
     int entryBidSignalCount
 ) {
     if (entryBidSignalCount < 0) {
         return false;
     }
-    if (visibleNamedPlayerCount <= 1) {
+    const bool useHistoricalBidderCount =
+        currentRoundNumber > 1 && previousRoundPositiveBidderCount > 0;
+    if (!useHistoricalBidderCount && visibleNamedPlayerCount <= 1) {
         return false;
     }
     return entryBidSignalCount <
-        GetExpectedPriceConfirmGateRequiredOtherBidCount(visibleNamedPlayerCount);
+        GetExpectedPriceConfirmGateRequiredOtherBidCount(
+            visibleNamedPlayerCount,
+            currentRoundNumber,
+            previousRoundPositiveBidderCount
+        );
 }
 
 inline int GetExpectedPriceConfirmGateOpponentBidConfirmDelayMs() { return 1000; }

@@ -859,6 +859,127 @@ static PollWaitResult WaitForToggleState(
     }
 }
 
+enum EndedRevealSkipStatus {
+    ENDED_REVEAL_SKIP_RECHECK = 0,
+    ENDED_REVEAL_SKIP_READY = 1,
+    ENDED_REVEAL_SKIP_SCREEN_CHANGED = 2,
+    ENDED_REVEAL_SKIP_AUTHCODE = 3,
+    ENDED_REVEAL_SKIP_INTERRUPTED = 4,
+    ENDED_REVEAL_SKIP_TIMEOUT = 5
+};
+
+struct EndedRevealSkipResult {
+    EndedRevealSkipStatus status = ENDED_REVEAL_SKIP_RECHECK;
+    int waitedMs = 0;
+};
+
+static const char* ResolveAutoAuctionEndedPrimaryActionPathIfReady(Il2CppObject* battleMainTransform) {
+    if (!battleMainTransform) return nullptr;
+    return PickAutoAuctionEndedPrimaryActionPath(
+        IsButtonNodeReady(battleMainTransform, "EndPanel/tuichu/receiveBtn"),
+        IsButtonNodeReady(battleMainTransform, "EndPanel/tuichu/continueBtn")
+    );
+}
+
+static bool TryResolveQuickRecycleReadyNode(
+    Il2CppObject* battleMainTransform,
+    UiNodeSnapshot* outNode,
+    bool* outActiveWithoutButton
+) {
+    if (outNode) *outNode = UiNodeSnapshot();
+    if (outActiveWithoutButton) *outActiveWithoutButton = false;
+    if (!battleMainTransform) return false;
+
+    std::vector<UiNodeSnapshot> huishouMatches;
+    ResolveUiNodeMatches(
+        battleMainTransform,
+        "PanelBattleHuiShouTran/huishou",
+        UI_PATH_EXACT,
+        1,
+        &huishouMatches
+    );
+    if (huishouMatches.empty() || !huishouMatches[0].active) {
+        return false;
+    }
+    if (!huishouMatches[0].components.button) {
+        if (outActiveWithoutButton) *outActiveWithoutButton = true;
+        return false;
+    }
+    if (outNode) *outNode = huishouMatches[0];
+    return true;
+}
+
+template <typename ReadyFn>
+static EndedRevealSkipResult RunAutoAuctionEndedRevealSkipSettleWindow(
+    const char* stageLabel,
+    ScreenState* state,
+    unsigned long long deadlineTick,
+    ReadyFn readyFn
+) {
+    EndedRevealSkipResult result;
+    if (!state) return result;
+
+    if (GetTickCount64() >= deadlineTick) {
+        result.status = ENDED_REVEAL_SKIP_TIMEOUT;
+        return result;
+    }
+
+    if (readyFn(*state)) {
+        result.status = ENDED_REVEAL_SKIP_READY;
+        return result;
+    }
+
+    std::string clickError;
+    if (!state->battleMainTransform ||
+        !ClickNode(state->battleMainTransform, "EndPanel/bg", 0, &clickError)) {
+        Logf(
+            "AutoAuction ended reveal skip stage=%s bg click failed: %s",
+            stageLabel,
+            clickError.empty() ? "battleMainTransform missing" : clickError.c_str()
+        );
+    } else {
+        Logf("AutoAuction ended reveal skip stage=%s bg click triggered", stageLabel);
+    }
+
+    const unsigned long long startedAt = GetTickCount64();
+    const int settleBudgetMs = ClampAutoAuctionEndedRevealSkipWindowMs(
+        (int)(deadlineTick > startedAt ? deadlineTick - startedAt : 0ULL)
+    );
+    const int pollSliceMs = GetAutoAuctionEndedRevealSkipPollSliceMs();
+
+    while (result.waitedMs < settleBudgetMs) {
+        const int remainingWindowMs = settleBudgetMs - result.waitedMs;
+        const int sleepMs = remainingWindowMs < pollSliceMs ? remainingWindowMs : pollSliceMs;
+        if (!SleepInterruptibly(sleepMs)) {
+            result.status = ENDED_REVEAL_SKIP_INTERRUPTED;
+            return result;
+        }
+
+        *state = DetectScreenState();
+        result.waitedMs = (int)(GetTickCount64() - startedAt);
+
+        if (IsAutoAuctionVerificationScreen(state->screen)) {
+            result.status = ENDED_REVEAL_SKIP_AUTHCODE;
+            return result;
+        }
+        if (!IsAutoAuctionCleanupEndedScreen(state->screen) || !state->battleMainTransform) {
+            result.status = ENDED_REVEAL_SKIP_SCREEN_CHANGED;
+            return result;
+        }
+        if (readyFn(*state)) {
+            result.status = ENDED_REVEAL_SKIP_READY;
+            return result;
+        }
+    }
+
+    Logf(
+        "AutoAuction ended reveal skip stage=%s settle complete waitedMs=%d",
+        stageLabel,
+        result.waitedMs
+    );
+    return result;
+}
+
 struct BidConfirmFlowResult {
     bool completed = false;
     bool hardError = false;
@@ -1955,10 +2076,49 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
     int entryBidSignalCount = 0;
     int entryVisibleNamedPlayerCount = 0;
     int trackedVisibleNamedPlayerCount = 0;
+    int trackedPreviousRoundPositiveBidderCount = 0;
     // The local player's own bided marker stays dark until the final confirm
     // succeeds, so the pre-confirm gate can still rely on aggregate signal
     // count instead of a slot-specific read here.
     (void)opponentSlot;
+    auto tryCountPreviousRoundPositiveBidders =
+        [&](Il2CppObject* currentBattleTransform,
+            const std::string* currentPlayerNames,
+            int currentVisibleNamedPlayerCount,
+            int* outCount) -> bool
+    {
+        if (!currentBattleTransform || !currentPlayerNames || !outCount || gateEntryRoundNumber <= 1) {
+            return false;
+        }
+        if (currentVisibleNamedPlayerCount <= 0) {
+            return false;
+        }
+        int positiveBidderCount = 0;
+        int resolvedHistoryRows = 0;
+        for (int i = 0; i < kBidSignalSlotCount; ++i) {
+            if (currentPlayerNames[i].empty()) continue;
+            int previousBid = 0;
+            std::string reason;
+            if (!TryReadOpponentPreviousRoundBid(
+                currentBattleTransform,
+                i + 1,
+                gateEntryRoundNumber,
+                &previousBid,
+                &reason
+            )) {
+                return false;
+            }
+            resolvedHistoryRows++;
+            if (previousBid > 0) {
+                positiveBidderCount++;
+            }
+        }
+        if (resolvedHistoryRows != currentVisibleNamedPlayerCount || positiveBidderCount <= 0) {
+            return false;
+        }
+        *outCount = positiveBidderCount;
+        return true;
+    };
 
     // battleTransform is used ONLY for the entry-log snapshot;
     // the polling loop re-detects screen state on every iteration.
@@ -1982,26 +2142,38 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
             entryBidSignals,
             kBidSignalSlotCount
         );
+        const bool hasEntryPreviousRoundPositiveBidderCount =
+            tryCountPreviousRoundPositiveBidders(
+                battleTransform,
+                playerNames,
+                entryVisibleNamedPlayerCount,
+                &trackedPreviousRoundPositiveBidderCount
+            );
         Logf(
-            "AutoAuction expected-price confirm gate: entering round=%d secs=%d amount=%d opponent=%s visible_players=%d bid_signals=%d",
+            "AutoAuction expected-price confirm gate: entering round=%d secs=%d amount=%d opponent=%s visible_players=%d bid_signals=%d prev_positive_bidders=%d prev_positive_available=%d",
             gateEntryRoundNumber,
             secsAtEntry,
             amountForLog,
             opponentNameForLog.empty() ? "(unresolved)" : opponentNameForLog.c_str(),
             entryVisibleNamedPlayerCount,
-            entryBidSignalCount
+            entryBidSignalCount,
+            trackedPreviousRoundPositiveBidderCount,
+            hasEntryPreviousRoundPositiveBidderCount ? 1 : 0
         );
     }
 
     if (IsExpectedPriceConfirmGateOpponentBidSignalReady(
         entryVisibleNamedPlayerCount,
+        gateEntryRoundNumber,
+        trackedPreviousRoundPositiveBidderCount,
         entryBidSignalCount
     )) {
         ret.result = CONFIRM_GATE_READY_OPPONENT_BID;
         Logf(
-            "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided entry_count=%d visible_players=%d",
+            "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided entry_count=%d visible_players=%d prev_positive_bidders=%d",
             entryBidSignalCount,
-            entryVisibleNamedPlayerCount
+            entryVisibleNamedPlayerCount,
+            trackedPreviousRoundPositiveBidderCount
         );
         return ret;
     }
@@ -2055,20 +2227,35 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
             currentBidSignals,
             kBidSignalSlotCount
         );
+        int currentPreviousRoundPositiveBidderCount = 0;
+        if (tryCountPreviousRoundPositiveBidders(
+            sc.battleMainTransform,
+            currentPlayerNames,
+            currentVisibleNamedPlayerCount,
+            &currentPreviousRoundPositiveBidderCount
+        ) && currentPreviousRoundPositiveBidderCount > trackedPreviousRoundPositiveBidderCount) {
+            trackedPreviousRoundPositiveBidderCount = currentPreviousRoundPositiveBidderCount;
+        }
         const bool entryBidReadyByTrackedVisiblePlayers =
             IsExpectedPriceConfirmGateOpponentBidSignalReady(
                 trackedVisibleNamedPlayerCount,
+                gateEntryRoundNumber,
+                trackedPreviousRoundPositiveBidderCount,
                 entryBidSignalCount
             );
         const bool shouldWaitForBidSignalTransition =
             ShouldWaitForExpectedPriceConfirmGateBidSignalTransition(
                 trackedVisibleNamedPlayerCount,
+                gateEntryRoundNumber,
+                trackedPreviousRoundPositiveBidderCount,
                 entryBidSignalCount
             );
         const bool opponentBidReadyByCurrentSignalState =
             shouldWaitForBidSignalTransition
                 ? IsExpectedPriceConfirmGateOpponentBidSignalReady(
                     trackedVisibleNamedPlayerCount,
+                    gateEntryRoundNumber,
+                    trackedPreviousRoundPositiveBidderCount,
                     currentBidSignalCount
                 )
                 : entryBidReadyByTrackedVisiblePlayers;
@@ -2084,10 +2271,11 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
                 ret.result = CONFIRM_GATE_READY_OPPONENT_BID;
                 ret.readyWhileDialogLost = true;
                 Logf(
-                    "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided count=%d->%d visible_players=%d dialog=lost",
+                    "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided count=%d->%d visible_players=%d prev_positive_bidders=%d dialog=lost",
                     entryBidSignalCount,
                     currentBidSignalCount,
-                    trackedVisibleNamedPlayerCount
+                    trackedVisibleNamedPlayerCount,
+                    trackedPreviousRoundPositiveBidderCount
                 );
                 return ret;
             }
@@ -2108,10 +2296,11 @@ static ConfirmGateWaitResult WaitForExpectedPriceConfirmGate(
         if (opponentBidReadyByCurrentSignalState) {
             ret.result = CONFIRM_GATE_READY_OPPONENT_BID;
             Logf(
-                "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided count=%d->%d visible_players=%d",
+                "AutoAuction expected-price confirm gate: ready reason=opponent_bid signal=bided count=%d->%d visible_players=%d prev_positive_bidders=%d",
                 entryBidSignalCount,
                 currentBidSignalCount,
-                trackedVisibleNamedPlayerCount
+                trackedVisibleNamedPlayerCount,
+                trackedPreviousRoundPositiveBidderCount
             );
             return ret;
         }
@@ -2961,7 +3150,9 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
         bool shouldWaitForQuickRecycle = false;
         bool winnerResolved = false;
         std::string resolvedWinnerName;
-        for (int attempt = 0; attempt < 150; ++attempt) {  // ~30s budget at 200ms poll
+        const unsigned long long winnerStageDeadline =
+            GetTickCount64() + (unsigned long long)GetAutoAuctionEndedWinnerRevealSkipBudgetMs();
+        for (int attempt = 0; GetTickCount64() < winnerStageDeadline; ++attempt) {
             if (stopIfRequested()) return;
             ScreenState se = DetectScreenState();
             if (IsAutoAuctionVerificationScreen(se.screen)) {
@@ -2988,23 +3179,59 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                 if (!shouldWaitForQuickRecycle) break;
             }
 
-            if (!winnerResolved) {
-                if (!SleepInterruptibly(200)) { stopIfRequested(); return; }  // was 1000ms
-                continue;
-            }
-
-            std::vector<UiNodeSnapshot> huishouM;
-            ResolveUiNodeMatches(se.battleMainTransform,
-                "PanelBattleHuiShouTran/huishou", UI_PATH_EXACT, 1, &huishouM);
-            if (huishouM.empty() || !huishouM[0].active) {
-                if (!SleepInterruptibly(200)) { stopIfRequested(); return; }  // was 1000ms
-                continue;
-            }
-            if (!huishouM[0].components.button) {
+            UiNodeSnapshot quickRecycleNode = {};
+            bool quickRecycleActiveWithoutButton = false;
+            const bool quickRecycleReady = TryResolveQuickRecycleReadyNode(
+                se.battleMainTransform,
+                &quickRecycleNode,
+                &quickRecycleActiveWithoutButton
+            );
+            if (quickRecycleActiveWithoutButton) {
                 SendResponse(c, id, false, "auto_auction_ui_error:winner_recycle");
                 return;
             }
-            if (PerformButtonClick(huishouM[0].components.button)) {
+
+            if (ShouldAttemptAutoAuctionEndedRevealSkipInWinnerStage(
+                    winnerResolved,
+                    shouldWaitForQuickRecycle,
+                    quickRecycleReady
+                )) {
+                EndedRevealSkipResult skipResult = RunAutoAuctionEndedRevealSkipSettleWindow(
+                    "winner",
+                    &se,
+                    winnerStageDeadline,
+                    [&](const ScreenState& current) -> bool {
+                        if (!current.battleMainTransform) return false;
+                        if (!winnerResolved) {
+                            std::string winnerProbe;
+                            return TryReadAutoAuctionEndedWinnerName(current.battleMainTransform, &winnerProbe) &&
+                                !winnerProbe.empty();
+                        }
+                        if (!shouldWaitForQuickRecycle) return true;
+                        return TryResolveQuickRecycleReadyNode(
+                            current.battleMainTransform,
+                            nullptr,
+                            nullptr
+                        );
+                    }
+                );
+                if (skipResult.status == ENDED_REVEAL_SKIP_AUTHCODE) {
+                    Logf("AutoAuction interrupted: AuthCode_Main detected during winner-stage reveal skip");
+                    sendAuthCodeRequired();
+                    return;
+                }
+                if (skipResult.status == ENDED_REVEAL_SKIP_INTERRUPTED) {
+                    stopIfRequested();
+                    return;
+                }
+                if (skipResult.status == ENDED_REVEAL_SKIP_TIMEOUT &&
+                    GetTickCount64() >= winnerStageDeadline) {
+                    break;
+                }
+                continue;
+            }
+
+            if (quickRecycleReady && PerformButtonClick(quickRecycleNode.components.button)) {
                 Logf("AutoAuction cleanup clicked quick recycle");
                 // Poll for the huishou button to disappear (replaces SleepInterruptibly(1500))
                 for (int settleAttempt = 0; settleAttempt < 15; settleAttempt++) {
@@ -3016,24 +3243,25 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                         return;
                     }
                     if (!IsAutoAuctionCleanupEndedScreen(recycleSc.screen)) break;
-                    std::vector<UiNodeSnapshot> huishouRecheck;
-                    ResolveUiNodeMatches(se.battleMainTransform,
-                        "PanelBattleHuiShouTran/huishou", UI_PATH_EXACT, 1, &huishouRecheck);
-                    if (huishouRecheck.empty() || !huishouRecheck[0].active) break;
+                    if (!TryResolveQuickRecycleReadyNode(recycleSc.battleMainTransform, nullptr, nullptr)) break;
                 }
                 break;
             }
-            if (!SleepInterruptibly(200)) { stopIfRequested(); return; }  // was 1000ms
         }
     }
 
     // Step 8: exit to main_lobby (polling-based).
     {
         bool cleanupComplete = false;
-        const int cleanupMaxAttempts = GetAutoAuctionCleanupMaxAttempts();
-        for (int attempt = 0; attempt < cleanupMaxAttempts; ++attempt) {
+        const unsigned long long cleanupDeadline =
+            GetTickCount64() + (unsigned long long)GetAutoAuctionEndedCleanupRevealSkipBudgetMs();
+        for (int attempt = 0; ; ++attempt) {
             const int attemptNumber = attempt + 1;
             if (stopIfRequested()) return;
+            if (GetTickCount64() >= cleanupDeadline) {
+                SendResponse(c, id, false, "auto_auction_timeout:wait_cleanup_transition");
+                return;
+            }
             ScreenState se = DetectScreenState();
             if (IsAutoAuctionVerificationScreen(se.screen)) {
                 Logf("AutoAuction interrupted: AuthCode_Main detected during cleanup exit flow");
@@ -3051,21 +3279,33 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                     continue;
                 }
                 std::string e;
-                const char* endedActionPath = PickAutoAuctionEndedPrimaryActionPath(
-                    IsButtonNodeReady(se.battleMainTransform, "EndPanel/tuichu/receiveBtn"),
-                    IsButtonNodeReady(se.battleMainTransform, "EndPanel/tuichu/continueBtn")
-                );
-                if (!endedActionPath) {
-                    Logf(
-                        "AutoAuction cleanup continue attempt=%d no ended-screen action button ready",
-                        attemptNumber
+                const char* endedActionPath =
+                    ResolveAutoAuctionEndedPrimaryActionPathIfReady(se.battleMainTransform);
+                if (ShouldAttemptAutoAuctionEndedRevealSkipInCleanupStage(endedActionPath)) {
+                    EndedRevealSkipResult skipResult = RunAutoAuctionEndedRevealSkipSettleWindow(
+                        "cleanup",
+                        &se,
+                        cleanupDeadline,
+                        [&](const ScreenState& current) -> bool {
+                            return ResolveAutoAuctionEndedPrimaryActionPathIfReady(
+                                current.battleMainTransform
+                            ) != nullptr;
+                        }
                     );
-                    if (attempt == cleanupMaxAttempts - 1) {
-                        if (stopIfRequested()) return;
+                    if (skipResult.status == ENDED_REVEAL_SKIP_AUTHCODE) {
+                        Logf("AutoAuction interrupted: AuthCode_Main detected during cleanup reveal skip");
+                        sendAuthCodeRequired();
+                        return;
+                    }
+                    if (skipResult.status == ENDED_REVEAL_SKIP_INTERRUPTED) {
+                        stopIfRequested();
+                        return;
+                    }
+                    if (skipResult.status == ENDED_REVEAL_SKIP_TIMEOUT &&
+                        GetTickCount64() >= cleanupDeadline) {
                         SendResponse(c, id, false, "auto_auction_timeout:wait_cleanup_transition");
                         return;
                     }
-                    if (!SleepInterruptibly(200)) { stopIfRequested(); return; }  // was 1000ms
                     continue;
                 }
                 if (!ClickNode(se.battleMainTransform, endedActionPath, 0, &e)) {
@@ -3075,13 +3315,8 @@ void CmdAutoAuction(AgentConn* c, const char* id, const char* json) {
                         endedActionPath,
                         e.c_str()
                     );
-                    if (attempt == cleanupMaxAttempts - 1) {
-                        if (stopIfRequested()) return;
-                        SendResponse(c, id, false, "auto_auction_ui_error:wait_cleanup_transition");
-                        return;
-                    }
-                    if (!SleepInterruptibly(200)) { stopIfRequested(); return; }  // was 1000ms
-                    continue;
+                    SendResponse(c, id, false, "auto_auction_ui_error:wait_cleanup_transition");
+                    return;
                 }
                 Logf(
                     "AutoAuction cleanup continue attempt=%d clicked path=%s",
